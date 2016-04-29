@@ -4,6 +4,20 @@ var express = require('express'),
 	common = require('dermail-common'),
 	Promise = require('bluebird');
 
+router.post('/get-s3', function(req, res, next) {
+	res.setHeader('Content-Type', 'application/json');
+
+	var config = req.config;
+
+	var remoteSecret = req.body.remoteSecret || null;
+
+	if (remoteSecret !== config.remoteSecret) {
+		return res.status(200).send({ok: false});
+	}
+
+	return res.status(200).send({ok: true, data: config.s3});
+})
+
 router.post('/check-recipient', function(req, res, next) {
 	res.setHeader('Content-Type', 'application/json');
 
@@ -12,14 +26,14 @@ router.post('/check-recipient', function(req, res, next) {
 	var remoteSecret = req.body.remoteSecret || null;
 
 	if (remoteSecret !== config.remoteSecret) {
-		return res.status(200).send({error: true});
+		return res.status(200).send({ok: false});
 	}
 
 	var r = req.r;
 
 	var email = req.body.to || null;
 	if (email === null) {
-		return res.status(200).send({error: true});
+		return res.status(200).send({ok: false});
 	}
 	var account = email.substring(0, email.lastIndexOf("@")).toLowerCase();
 	var domain = email.substring(email.lastIndexOf("@") +1).toLowerCase();
@@ -30,7 +44,7 @@ router.post('/check-recipient', function(req, res, next) {
 		})
 	})
 	.catch(function(e) {
-		return res.status(200).send({error: true});
+		return res.status(200).send({ok: false});
 	})
 });
 

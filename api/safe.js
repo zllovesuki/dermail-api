@@ -8,7 +8,9 @@ var express = require('express'),
 router.get('/inline/*', function(req, res, next) {
 
 	var r = req.r;
-	
+
+	var config = req.config;
+
 	var base64 = req.query.s || '';
 	var cid = new Buffer(base64, 'base64').toString();
 
@@ -30,7 +32,7 @@ router.get('/inline/*', function(req, res, next) {
 		}else{
 			var attachment = results[0];
 			// TODO: Don't hard code this
-			var url = 'https://dermail-attachments.s3.fmt01.sdapi.net/' + attachment.checksum + '/' + attachment.generatedFileName;
+			var url = 'https://' + config.s3.bucket + '.' + config.s3.endpoint + '/' + attachment.checksum + '/' + attachment.generatedFileName;
 			res.redirect(url);
 		}
 	})

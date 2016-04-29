@@ -12,6 +12,16 @@ router.get('/ping', auth, function(req, res, next) {
 	return res.status(200).send('pong');
 });
 
+router.get('/s3', auth, function(req, res, next) {
+
+	var config = req.config;
+
+	return res.status(200).send({
+		endpoint: config.s3.endpoint,
+		bucket: config.s3.bucket
+	});
+});
+
 router.get('/getAccounts', auth, function(req, res, next) {
 
 	var r = req.r;

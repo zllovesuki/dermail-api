@@ -12,6 +12,7 @@ module.exports = {
 			delay: 2000
 		}
 	},
+	s3: require('./config.json').s3,
 	remoteSecret: require('./config.json').remoteSecret,
 	jwt: {
 		secret: require('./config.json').jwt,
