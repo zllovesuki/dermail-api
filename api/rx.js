@@ -45,6 +45,8 @@ router.post('/store', function(req, res, next) {
 		return res.status(200).send({ok: false, error: 'Invalid remoteSecret.'});
 	}
 
+	delete req.body.remoteSecret;
+
 	var r = req.r;
 
 	var message = req.body;
