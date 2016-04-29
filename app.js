@@ -25,7 +25,9 @@ module.exports = function(r) {
 
 	app.use(express.static(path.join(__dirname, 'public')));
 
-	app.use(cors());
+	app.use(cors({
+		maxAge: 86400
+	}));
 
 	app.use(function(req, res, next){
 		req.r = r;
