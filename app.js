@@ -17,8 +17,8 @@ module.exports = function(r) {
 		safe = require('./api/safe');
 
 	if (process.env.RDB_HOST) app.use(logger('dev'));
-	app.use(bodyParser.json());
-	app.use(bodyParser.urlencoded({ extended: false }));
+	app.use(bodyParser.json({limit: '100mb'}));
+	app.use(bodyParser.urlencoded({ extended: true, limit: '100mb' }));
 	app.use(passport.initialize());
 
 	require('./lib/auth')(config, passport, r);
