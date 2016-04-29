@@ -1,5 +1,6 @@
 var express = require('express'),
 	router = express.Router(),
+	_ = require('lodash'),
 	common = require('dermail-common'),
 	Promise = require('bluebird');
 
@@ -336,6 +337,13 @@ var saveHeaders = function(r, headers) {
 			return reject(throwError('save headers', e));
 		})
 	})
+}
+
+function throwError(where, err) {
+	var error = {};
+	error.where = where;
+	error.error = err;
+	return error;
 }
 
 module.exports = router;
