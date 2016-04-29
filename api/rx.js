@@ -42,7 +42,7 @@ router.post('/store', function(req, res, next) {
 	var remoteSecret = req.body.remoteSecret || null;
 
 	if (remoteSecret !== config.remoteSecret) {
-		return res.status(200).send({error: true});
+		return res.status(200).send({ok: false, error: 'Invalid remoteSecret.'});
 	}
 
 	var r = req.r;
