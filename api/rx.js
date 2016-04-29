@@ -7,6 +7,14 @@ var express = require('express'),
 router.post('/check-recipient', function(req, res, next) {
 	res.setHeader('Content-Type', 'application/json');
 
+	var config = req.config;
+
+	var remoteSecret = req.body.remoteSecret || null;
+
+	if (remoteSecret !== config.remoteSecret) {
+		return res.status(200).send({error: true});
+	}
+
 	var r = req.r;
 
 	var email = req.body.to || null;
@@ -28,6 +36,14 @@ router.post('/check-recipient', function(req, res, next) {
 
 router.post('/store', function(req, res, next) {
 	res.setHeader('Content-Type', 'application/json');
+
+	var config = req.config;
+
+	var remoteSecret = req.body.remoteSecret || null;
+
+	if (remoteSecret !== config.remoteSecret) {
+		return res.status(200).send({error: true});
+	}
 
 	var r = req.r;
 
