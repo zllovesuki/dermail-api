@@ -20,7 +20,7 @@ var express = require('express'),
 
 var auth = passport.authenticate('jwt', { session: false });
 
-router.post('/api/sendMail', auth, function(req, res, next) {
+router.post('/sendMail', auth, function(req, res, next) {
 
 	var r = req.r;
 	var config = req.config;
