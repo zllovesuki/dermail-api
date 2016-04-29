@@ -267,9 +267,6 @@ var saveMessage = function (r, accountId, arrayOfToAddress, arrayOfFromAddress, 
 			var attachments = _.cloneDeep(message.attachments);
 			delete message.attachments;
 
-			message._date = _.clone(message.date);
-			message.date = new Date().toISOString(); // Server time as received time
-
 			message.from = arrayOfFromAddress;
 			message.to = arrayOfToAddress;
 
