@@ -3,12 +3,14 @@
 		{
 			"name": "API",
 			"script": "API.js",
-			"watch": true
+			"watch": true,
+			"restart_delay": 5000
 		},
 		{
 			"name": "Worker",
 			"script": "Worker.js",
-			"watch": true
+			"watch": true,
+			"restart_delay": 5000
 		}
 	]
 }
