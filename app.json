@@ -1,0 +1,14 @@
+{
+	"apps": [
+		{
+			"name": "API",
+			"script": "API.js",
+			"watch": true
+		},
+		{
+			"name": "Worker",
+			"script": "Worker.js",
+			"watch": true
+		}
+	]
+}
