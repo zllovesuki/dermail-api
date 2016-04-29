@@ -13,7 +13,8 @@ module.exports = function(r) {
 		authentication = require('./api/authentication'),
 		read = require('./api/read'),
 		write = require('./api/write'),
-		relay = require('./api/relay');
+		relay = require('./api/relay'),
+		safe = require('./api/safe');
 
 	if (process.env.RDB_HOST) app.use(logger('dev'));
 	app.use(bodyParser.json());
@@ -48,6 +49,7 @@ module.exports = function(r) {
 	});
 
 	app.use(version + '/relay', relay);
+	app.use(version + '/safe', safe);
 
 	// catch 404 and forward to error handler
 	app.use(function(req, res, next) {
