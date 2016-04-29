@@ -8,8 +8,7 @@ if (cluster.isMaster) {
 
 	var spawn = function(i) {
 		workers[i] = cluster.fork({
-			WORKER_PORT: config.cluster.basePort + i,
-			CURRENT_INSTANCE: i
+			WORKER_PORT: config.cluster.basePort + i
 		});
 	};
 
@@ -32,9 +31,6 @@ if (cluster.isMaster) {
 		var server = app.listen(process.env.WORKER_PORT);
 		io = require('socket.io')(server);
 		require('./lib/socket')(io, r, config);
-		if (process.env.CURRENT_INSTANCE == 1) {
-			require('./lib/gcm')(r, config); // Only one instance to do notification
-		}
 
 		console.log('Process ' + process.pid + ' is listening on port ' + process.env.WORKER_PORT + ' to all incoming requests.')
 	});

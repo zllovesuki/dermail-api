@@ -11,6 +11,12 @@
 			"script": "Worker.js",
 			"watch": true,
 			"restart_delay": 5000
+		},
+		{
+			"name": "API-GCM",
+			"script": "GCM.js",
+			"watch": true,
+			"restart_delay": 5000
 		}
 	]
 }
