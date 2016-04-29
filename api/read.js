@@ -305,7 +305,7 @@ router.post('/getAddress', auth, function(req, res, next) {
 	})
 });
 
-router.post('/api/getFilters', auth, function(req, res, next) {
+router.post('/getFilters', auth, function(req, res, next) {
 
 	var r = req.r;
 
