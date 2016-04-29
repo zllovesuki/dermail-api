@@ -3,75 +3,52 @@ var Queue = require('bull'),
 	request = require('superagent'),
 	r = require('rethinkdb'),
 	config = require('./config'),
-	async = require('async'),
-	_ = require('lodash'),
-	cluster = require('cluster'),
-	numCPUs = require('os').cpus().length;
+	_ = require('lodash');
 
-if (cluster.isMaster) {
-	var workers = [];
+var messageQ = new Queue('dermail-send', config.redisQ.port, config.redisQ.host);
 
-	var spawn = function(i) {
-    	workers[i] = cluster.fork();
-	};
+r.connect(config.rethinkdb).then(function(conn) {
+	r.conn = conn;
+	console.log('Process ' + process.pid + ' is running as an API-Worker.')
+	messageQ.process(function(job, done) {
+		var data = job.data;
+		sendNotification(r, data.userId, 'log', 'Queued for delivery.', function(err, queueId) {
+			if (err) return done(err);
 
-	for (var i = 0; i < numCPUs; i++) {
-		spawn(i);
-	}
-	cluster.on('online', function(worker) {
-		console.log('Worker ' + worker.process.pid + ' is online.');
-    });
-	cluster.on('exit', function(worker, code, signal) {
-		console.log('Worker ' + worker.process.pid + ' died with code: ' + code + ', and signal: ' + signal);
-		console.log('Starting a new worker...');
-		spawn(i);
-	});
-}else{
-	var messageQ = new Queue('dermail-send', config.redisQ.port, config.redisQ.host);
+			var servers = _.cloneDeep(config.tx);
 
-	r.connect(config.rethinkdb).then(function(conn) {
-		r.conn = conn;
-		console.log('Process ' + process.pid + ' is listening to all incoming requests.')
-		messageQ.process(function(job, done) {
-			var data = job.data;
-			sendNotification(r, data.userId, 'log', 'Queued for delivery.', function(err, queueId) {
-				if (err) return done(err);
+			servers.sort(function(a,b) {return (a.priority > b.priority) ? 1 : ((b.priority > a.priority) ? -1 : 0);} );
 
-				var servers = _.cloneDeep(config.tx);
-
-				servers.sort(function(a,b) {return (a.priority > b.priority) ? 1 : ((b.priority > a.priority) ? -1 : 0);} );
-
-				var send = function(servers, data) {
-					if (servers.length === 0) {
-						var errorMsg = 'No more outbound servers available.'
-						return sendNotification(r, data.userId, 'error', errorMsg, function(err, queueId) {
-							return done(errorMsg);
-						});
-					}
-					var server = servers.shift();
-					var hook = server.hook;
-					return request
-					.post(hook)
-					.timeout(10000)
-					.send(data)
-					.set('Accept', 'application/json')
-					.end(function(err, res){
-						if (err !== null || res.body.error !== null) {
-							return sendNotification(r, data.userId, 'error', 'Trying another outbound server.', function(err, queueId) {
-								return send(servers, data);
-							})
-						}
-						return sendNotification(r, data.userId, 'success', 'Message sent.', function(err, queueId) {
-							return done();
-						})
+			var send = function(servers, data) {
+				if (servers.length === 0) {
+					var errorMsg = 'No more outbound servers available.'
+					return sendNotification(r, data.userId, 'error', errorMsg, function(err, queueId) {
+						return done(errorMsg);
 					});
 				}
+				var server = servers.shift();
+				var hook = server.hook;
+				return request
+				.post(hook)
+				.timeout(10000)
+				.send(data)
+				.set('Accept', 'application/json')
+				.end(function(err, res){
+					if (err !== null || res.body.error !== null) {
+						return sendNotification(r, data.userId, 'error', 'Trying another outbound server.', function(err, queueId) {
+							return send(servers, data);
+						})
+					}
+					return sendNotification(r, data.userId, 'success', 'Message sent.', function(err, queueId) {
+						return done();
+					})
+				});
+			}
 
-				send(servers, data);
-			});
+			send(servers, data);
 		});
 	});
-}
+});
 
 function sendNotification(r, userId, level, msg, cb) {
 	var insert = {};
