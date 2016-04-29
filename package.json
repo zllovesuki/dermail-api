@@ -1,0 +1,41 @@
+{
+  "name": "dermail-api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@git.fm:zllovesuki/dermail-api.git"
+  },
+  "author": "Rachel Chen <me@rachelchen.me>",
+  "license": "GPL-3.0",
+  "dependencies": {
+    "async": "^2.0.0-rc.3",
+    "bcrypt": "^0.8.6",
+    "bluebird": "^3.3.5",
+    "body-parser": "^1.15.0",
+    "bull": "^1.0.0-rc1",
+    "cors": "^2.7.1",
+    "dermail-common": "git+https://github.com/zllovesuki/dermail-common.git",
+    "express": "^4.13.4",
+    "html-to-text": "^2.1.0",
+    "jsonwebtoken": "^6.1.1",
+    "jwt-simple": "^0.5.0",
+    "lodash": "^4.11.1",
+    "mailcomposer": "^3.7.0",
+    "mailparser": "^0.5.3",
+    "morgan": "^1.7.0",
+    "passport": "^0.3.2",
+    "passport-jwt": "^2.0.0",
+    "rethinkdb": "^2.3.1",
+    "socket.io": "^1.4.5",
+    "socketio-jwt": "^4.3.4",
+    "superagent": "^1.8.3",
+    "unicode-substring": "^0.1.0",
+    "validator": "^5.2.0",
+    "web-push": "^2.1.1"
+  }
+}
