@@ -32,11 +32,13 @@ module.exports = function(r) {
 		next();
 	});
 
-	app.use('/login', authentication);
-	app.use('/rx', rx);
+	var version = '/v' + config.apiVersion;
 
-	app.use('/read', read);
-	app.use('/write', write);
+	app.use(version + '/login', authentication);
+	app.use(version + '/rx', rx);
+
+	app.use(version + '/read', read);
+	app.use(version + '/write', write);
 
 	var messageQ = new Queue('dermail-send', config.redisQ.port, config.redisQ.host);
 
@@ -45,7 +47,7 @@ module.exports = function(r) {
 		next();
 	});
 
-	app.use('/relay', relay);
+	app.use(version + '/relay', relay);
 
 	// catch 404 and forward to error handler
 	app.use(function(req, res, next) {

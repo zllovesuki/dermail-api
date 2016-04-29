@@ -1,4 +1,5 @@
 module.exports = {
+	apiVersion: 2,
 	cluster: {
 		basePort: 2000
 	},
