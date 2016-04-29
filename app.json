@@ -7,7 +7,7 @@
 			"restart_delay": 5000
 		},
 		{
-			"name": "Worker",
+			"name": "API-Worker",
 			"script": "Worker.js",
 			"watch": true,
 			"restart_delay": 5000
