@@ -6,6 +6,9 @@ var express = require('express'),
 	emptyGif = new Buffer('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 
 router.get('/inline/*', function(req, res, next) {
+
+	var r = req.r;
+	
 	var base64 = req.query.s || '';
 	var cid = new Buffer(base64, 'base64').toString();
 
