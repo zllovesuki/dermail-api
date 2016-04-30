@@ -349,10 +349,14 @@ router.post('/searchWithFilter', auth, function(req, res, next) {
 	var userId = req.user.userId;
 	var accountId = req.body.accountId;
 
-	var criteria = req.body.criteria;
+	var criteria = req.body.criteria || null;
+
+	if (criteria === null) {
+		return res.status(400).send({message: "No criteria was defined."})
+	}
 
 	if (req.user.accounts.indexOf(accountId) === -1) {
-		return res.status(200).send(empty); // Early surrender: account does not belong to user
+		return res.status(200).send([]); // Early surrender: account does not belong to user
 	}
 
 	return r
