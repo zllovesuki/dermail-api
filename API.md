@@ -69,7 +69,7 @@ Sometimes "Complete Account" and "Account" are *synonymous*.
 `GET /__VERSION__/read/ping`
 - pre: none
 - post: "pong" is returned in the body
-
+---
 
 `GET /__VERSION__/read/s3`
 - pre: none
@@ -81,3 +81,38 @@ Sometimes "Complete Account" and "Account" are *synonymous*.
   "bucket": "BUCKET"
 }
 ```
+---
+
+`GET /__VERSION__/read/getAccounts`
+- pre: none
+- post: A list of accounts is return
+
+```JSON
+[{
+	"account": "user",
+	"accountId": "UNIQUE_ID",
+	"alias": [],
+	"domain": "domain.com"
+}]
+```
+---
+
+`POST /__VERSION__/read/getAccount`
+- pre:
+
+```JSON
+{
+    "accountId": "UNIQUE_ID"
+}
+```
+
+- post: The detail of an Account is returned
+
+```JSON
+{
+  "account": "user",
+  "accountId": "UNIQUE_ID",
+  "domain": "domain.com"
+}
+```
+---
