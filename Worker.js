@@ -73,7 +73,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 			case 'checkUnique':
 			deleteIfUnique(r, data)
 			.then(function(attachment) {
-				if (!attachment.hasOwnProperty('doNotDelete')) {
+				if (!attachment.hasOwnProperty('doNotDeleteS3')) {
 					return messageQ.add({
 						type: 'deleteAttachment',
 						payload: {
@@ -85,6 +85,9 @@ r.connect(config.rethinkdb).then(function(conn) {
 				}
 			})
 			.then(function() {
+				return deleteAttachmentFromDatabase(r, data.attachmentId);
+			})
+			.then(function() {
 				return done();
 			})
 			.catch(function(e) {
@@ -93,9 +96,6 @@ r.connect(config.rethinkdb).then(function(conn) {
 			break;
 			case 'deleteAttachment':
 			deleteAttachmentOnS3(data.checksum, data.generatedFileName, s3)
-			.then(function() {
-				return deleteAttachmentFromDatabase(r, data.attachmentId)
-			})
 			.then(function() {
 				return done();
 			})
@@ -109,8 +109,8 @@ r.connect(config.rethinkdb).then(function(conn) {
 
 var deleteIfUnique = function(r, attachmentId) {
 	return new Promise(function(resolve, reject) {
-		var doNotDelete = {
-			doNotDelete: true
+		var doNotDeleteS3 = {
+			doNotDeleteS3: true
 		};
 		r
 		.table('attachments')
@@ -118,7 +118,7 @@ var deleteIfUnique = function(r, attachmentId) {
 		.run(r.conn)
 		.then(function(attachment) {
 			if (attachment === null) { // ok... that's weird...
-				return resolve(doNotDelete);
+				return resolve(doNotDeleteS3);
 			}
 			return r
 			.table('attachments')
@@ -129,7 +129,7 @@ var deleteIfUnique = function(r, attachmentId) {
 				if (count === 1) { // Last copy, go for it
 					return resolve(attachment);
 				}else{ // Other attachments have the same checksum, don't delete
-					return resolve(doNotDelete);
+					return resolve(doNotDeleteS3);
 				}
 			})
 		})
