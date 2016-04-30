@@ -281,7 +281,7 @@ function buildTree(list) {
 	"html": "HTML",
 	"isRead": true,
 	"isStar": false,
-	"messageId": "659512cd-f780-4215-a361-2df18aea16d1",
+	"messageId": "UNIQUE_ID",
 	"subject": "What's new in April  at OVH...",
 	"to": [{
 		"account": "user",
@@ -290,4 +290,126 @@ function buildTree(list) {
 	}]
 }
 ```
+---
+
+`POST /__VERSION__/read/getAddress`
+- pre:
+
+```JSON
+{
+    "accountId": "UNIQUE_ID",
+	"email": "JohnDoe@domain.com"
+}
+```
+
+- post: The friendlyName associated with the email to this Account
+
+```JSON
+{
+  "friendlyName": "John Doe"
+}
+```
+---
+
+`POST /__VERSION__/read/getFilters`
+- pre:
+
+```JSON
+{
+    "accountId": "UNIQUE_ID"
+}
+```
+
+- post: The list of Filters associated with the Account is returned
+
+```JSON
+[{
+	"accountId": "UNIQUE_ID",
+	"filterId": "UNIQUE_ID",
+	"post": {
+		"doNotNotify": true,
+		"folder": "Spam",
+		"markRead": true
+	},
+	"pre": {
+		"contain": ["me", "you", "photos", "english"],
+		"exclude": null,
+		"from": null,
+		"subject": null,
+		"to": null
+	}
+}]
+```
+
+- "pre" is the criteria
+- "post" is the action
+	- "doNotNotify" denotes disable notification for emails that meet the criteria
+	- "folder" denotes the destination Folder
+	- "markRead" denotes if it should be marked read
+
+---
+
+`POST /__VERSION__/read/searchWithFilter`
+- pre:
+
+```JSON
+{
+    "accountId": "UNIQUE_ID",
+	"criteria": {
+		"contain": ["me", "you", "photos", "english"],
+		"exclude": null,
+		"from": null,
+		"subject": null,
+		"to": null
+	}
+}
+```
+
+- post: The list of Messages that match the criteria associated with the Account
+
+```JSON
+[{
+	"folder": {
+		"accountId": "UNIQUE_ID",
+		"description": "Main Inbox",
+		"displayName": "Inbox",
+		"folderId": "UNIQUE_ID",
+		"mutable": false,
+		"parent": null
+	},
+	"messageId": "UNIQUE_ID",
+	"subject": "SUBJECT"
+}]
+```
+---
+
+`POST /__VERSION__/read/searchMailsInAccount`
+- pre:
+
+```JSON
+{
+    "accountId": "UNIQUE_ID",
+	"searchString": "me"
+}
+```
+
+- post: The list of Messages that match the criteria associated with the Account
+
+```JSON
+[{
+	"folderId": "UNIQUE_ID",
+	"messageId": "UNIQUE_ID",
+	"subject": "SUBJECT"
+}]
+```
+---
+
+`POST /__VERSION__/write/modifyFilter`
+- pre:
+
+**TODO**
+
+- post: The list of Messages that match the criteria associated with the Account
+
+**TODO**
 ---
