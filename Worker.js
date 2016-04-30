@@ -20,9 +20,8 @@ r.connect(config.rethinkdb).then(function(conn) {
 
 		switch (type) {
 			case 'sendMail':
-			sendNotification(r, data.userId, 'log', 'Queued for delivery.', function(err, queueId) {
-				if (err) return done(err);
-
+			sendNotification(r, data.userId, 'log', 'Queued for delivery.')
+			.then(function(queueId) {
 				var servers = _.cloneDeep(config.tx);
 
 				servers.sort(function(a,b) {return (a.priority > b.priority) ? 1 : ((b.priority > a.priority) ? -1 : 0);} );
@@ -30,8 +29,12 @@ r.connect(config.rethinkdb).then(function(conn) {
 				var send = function(servers, data) {
 					if (servers.length === 0) {
 						var errorMsg = 'No more outbound servers available.'
-						return sendNotification(r, data.userId, 'error', errorMsg, function(err, queueId) {
+						return sendNotification(r, data.userId, 'error', errorMsg)
+						.then(function(queueId) {
 							return done(errorMsg);
+						})
+						.catch(function(e) {
+							return done(e);
 						});
 					}
 					var server = servers.shift();
@@ -43,17 +46,28 @@ r.connect(config.rethinkdb).then(function(conn) {
 					.set('Accept', 'application/json')
 					.end(function(err, res){
 						if (err !== null || res.body.error !== null) {
-							return sendNotification(r, data.userId, 'error', 'Trying another outbound server.', function(err, queueId) {
+							return sendNotification(r, data.userId, 'error', 'Trying another outbound server.')
+							.then(function(queueId) {
 								return send(servers, data);
 							})
+							.catch(function(e) {
+								return done(e);
+							});
 						}
-						return sendNotification(r, data.userId, 'success', 'Message sent.', function(err, queueId) {
+						return sendNotification(r, data.userId, 'success', 'Message sent.')
+						.then(function(queueId) {
 							return done();
 						})
+						.catch(function(e) {
+							return done(e);
+						});
 					});
 				}
 
-				send(servers, data);
+				return send(servers, data);
+			})
+			.catch(function(e) {
+				return done(e);
 			});
 			break;
 			case 'deleteAttachment':
@@ -99,24 +113,26 @@ var deleteAttachmentFromDatabase = function(r, attachmentId) {
 	.run(r.conn)
 }
 
-var sendNotification = function (r, userId, level, msg, cb) {
-	var insert = {};
-	insert.userId = userId;
-	insert.type = 'notification';
-	insert.level = level;
-	insert.message = msg;
-	return r
-	.table('queue')
-	.insert(insert)
-	.getField('generated_keys')
-	.do(function (keys) {
-		return keys(0);
-	})
-	.run(r.conn)
-	.then(function(queueId) {
-		cb(null, queueId);
-	})
-	.error(function(e) {
-		cb(e);
+var sendNotification = function (r, userId, level, msg) {
+	return new Promise(function(resolve, reject) {
+		var insert = {};
+		insert.userId = userId;
+		insert.type = 'notification';
+		insert.level = level;
+		insert.message = msg;
+		return r
+		.table('queue')
+		.insert(insert)
+		.getField('generated_keys')
+		.do(function (keys) {
+			return keys(0);
+		})
+		.run(r.conn)
+		.then(function(queueId) {
+			return resolve(queueId);
+		})
+		.error(function(e) {
+			return reject(e);
+		})
 	})
 }
