@@ -118,9 +118,10 @@ var deleteIfUnique = function(r, attachmentId) {
 		.run(r.conn)
 		.then(function(attachment) {
 			if (attachment === null) { // ok... that's weird...
+				console.log('null result, assuming not safe');
 				return resolve(doNotDeleteS3);
 			}
-			return r
+			r
 			.table('attachments')
 			.getAll(attachment.checksum, {index: 'checksum'})
 			.count()
@@ -129,8 +130,12 @@ var deleteIfUnique = function(r, attachmentId) {
 				if (count === 1) { // Last copy, go for it
 					return resolve(attachment);
 				}else{ // Other attachments have the same checksum, don't delete
+					console.log('not unique, not safe');
 					return resolve(doNotDeleteS3);
 				}
+			})
+			.error(function(e) {
+				return reject(e);
 			})
 		})
 		.error(function(e) {
