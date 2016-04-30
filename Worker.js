@@ -73,7 +73,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 			case 'checkUnique':
 			deleteIfUnique(r, data)
 			.then(function(attachment) {
-				if (!attachment.hasOwnProperty('error')) {
+				if (!attachment.hasOwnProperty('doNotDelete')) {
 					return messageQ.add({
 						type: 'deleteAttachment',
 						payload: {
@@ -109,15 +109,16 @@ r.connect(config.rethinkdb).then(function(conn) {
 
 var deleteIfUnique = function(r, attachmentId) {
 	return new Promise(function(resolve, reject) {
+		var doNotDelete = {
+			doNotDelete: true
+		};
 		r
 		.table('attachments')
 		.get(attachmentId)
 		.run(r.conn)
 		.then(function(attachment) {
 			if (attachment === null) { // ok... that's weird...
-				return resolve({
-					error: true
-				});
+				return resolve(doNotDelete);
 			}
 			return r
 			.table('attachments')
@@ -125,10 +126,10 @@ var deleteIfUnique = function(r, attachmentId) {
 			.count()
 			.run(r.conn)
 			.then(function(count) {
-				if (count > 1) { // More than one copy, commencing assult
+				if (count === 1) { // Last copy, go for it
 					return resolve(attachment);
-				}else{ // don't delete the last copy.
-					return reject();
+				}else{ // Other attachments have the same checksum, don't delete
+					return resolve(doNotDelete);
 				}
 			})
 		})
