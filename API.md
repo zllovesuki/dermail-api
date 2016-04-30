@@ -128,6 +128,7 @@ Sometimes "Complete Account" and "Account" are *synonymous*.
 
 - post: The list of Folders in the Account is returned
 	- "parent" field is the folderID of the parent folder; null means it is at the root
+	- "count" is the number of unread messages in the Folder
 
 ```JSON
 [{
@@ -139,5 +140,154 @@ Sometimes "Complete Account" and "Account" are *synonymous*.
 	"mutable": false,
 	"parent": null
 }]
+```
+---
+
+**Pro tips: use this function to build the tree:**
+
+```javascript
+function buildTree(list) {
+	var idAttr = 'folderId';
+	var parentAttr = 'parent';
+	var childrenAttr = 'child';
+	var root = [];
+	var lookup = {};
+	list.forEach(function(obj) {
+		lookup[obj[idAttr]] = obj;
+		obj[childrenAttr] = [];
+	});
+	list.forEach(function(obj) {
+		if (obj[parentAttr] != null) {
+			lookup[obj[parentAttr]][childrenAttr].push(obj);
+		} else {
+			root.push(obj);
+		}
+	});
+	return root;
+}
+```
+---
+
+`POST /__VERSION__/read/getFolder`
+- pre:
+
+```JSON
+{
+    "accountId": "UNIQUE_ID",
+	"folderId": "UNIQUE_ID"
+}
+```
+
+- post: The detail of a Folder is returned
+
+```JSON
+[{
+	"accountId": "UNIQUE_ID",
+	"count": 0,
+	"description": "Main Inbox",
+	"displayName": "Inbox",
+	"folderId": "UNIQUE_ID",
+	"mutable": false,
+	"parent": null
+}]
+```
+---
+
+`POST /__VERSION__/read/getMailsInFolder`
+- pre:
+
+```JSON
+{
+    "accountId": "UNIQUE_ID",
+	"folderId": "UNIQUE_ID"
+}
+```
+
+- Optional "slice" object will return messages *after* "slice.date":
+
+```JSON
+{
+	"accountId": "UNIQUE_ID",
+	"folderId": "UNIQUE_ID",
+	"slice": {
+		"date": "2016-04-28T19:14:24.322Z",
+		"perPage": 10
+	}
+}
+```
+
+- post: The Messages in the Folder are returned
+
+```JSON
+[{
+	"accountId": "UNIQUE_ID",
+	"attachments": [],
+	"date": "2016-04-28T19:14:24.322Z",
+	"folderId": "UNIQUE_ID",
+	"from": [{
+		"account": "JohnDoe",
+		"domain": "domain.com",
+		"friendlyName": "John Doe"
+	}],
+	"isRead": true,
+	"isStar": false,
+	"messageId": "UNIQUE_ID",
+	"subject": "SUBJECT",
+	"text": "TEXT",
+	"to": [{
+		"account": "user",
+		"domain": "domain.com",
+		"friendlyName": "Jenny Jackson"
+	}]
+}]
+```
+---
+
+`POST /__VERSION__/read/getMail`
+- pre:
+
+```JSON
+{
+    "accountId": "UNIQUE_ID",
+	"messageId": "UNIQUE_ID"
+}
+```
+
+- post: The Message is returned
+
+```JSON
+{
+	"accountId": "UNIQUE_ID",
+	"attachments": [],
+	"date": "2016-04-28T19:14:24.322Z",
+	"folderId": "UNIQUE_ID",
+	"from": [{
+		"account": "JohnDoe",
+		"domain": "domain.com",
+		"friendlyName": "John Doe"
+	}],
+	"headers": {
+		"content-type": "multipart/alternative; boundary=\"=-9C2Rh/ZCbrAuupgeVDu8\"",
+		"date": "Thu, 28 Apr 2016 19:13:10 +0000",
+		"dkim-signature": "",
+		"domainkey-signature": "",
+		"from": "John Doe <JohnDoe@domain.com>",
+		"headerId": "e4bff45b-2d51-4934-ac83-cb0e74de3447",
+		"message-id": "",
+		"mime-version": "1.0",
+		"subject": "SUBJECT",
+		"to": "user@domain.com"
+	},
+	"html": "HTML",
+	"isRead": true,
+	"isStar": false,
+	"messageId": "659512cd-f780-4215-a361-2df18aea16d1",
+	"subject": "What's new in April  at OVH...",
+	"to": [{
+		"account": "user",
+		"domain": "domain.com",
+		"friendlyName": "Jenny Jackson"
+	}]
+}
 ```
 ---
