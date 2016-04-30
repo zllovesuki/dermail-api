@@ -70,9 +70,11 @@ Sometimes "Complete Account" and "Account" are *synonymous*.
 - pre: none
 - post: "pong" is returned in the body
 
+
 `GET /__VERSION__/read/s3`
 - pre: none
 - post:
+
 ```JSON
 {
   "endpoint": "ENDPOINT",
