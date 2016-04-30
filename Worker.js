@@ -8,7 +8,7 @@ var Queue = require('bull'),
 	_ = require('lodash'),
 	s3 = knox.createClient(config.s3);
 
-var messageQ = new Queue('dermail-send', config.redisQ.port, config.redisQ.host);
+var messageQ = new Queue('dermail-api-worker', config.redisQ.port, config.redisQ.host);
 
 r.connect(config.rethinkdb).then(function(conn) {
 	r.conn = conn;

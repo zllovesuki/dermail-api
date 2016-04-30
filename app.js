@@ -29,7 +29,7 @@ module.exports = function(r) {
 		maxAge: 86400
 	}));
 
-	var messageQ = new Queue('dermail-send', config.redisQ.port, config.redisQ.host);
+	var messageQ = new Queue('dermail-api-worker', config.redisQ.port, config.redisQ.host);
 
 	app.use(function(req, res, next){
 		req.r = r;
