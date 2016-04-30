@@ -203,7 +203,10 @@ var doSendMail = Promise.method(function(r, config, sender, accountId, userId, c
 	_.merge(compose, recipients);
 	return keepACopyInSentFolder(r, accountId, compose, sentFolder)
 	.then(function() {
-		messageQ.add(compose, config.Qconfig);
+		messageQ.add({
+			type: 'sendMail',
+			payload: compose
+		}, config.Qconfig);
 		return true;
 	})
 })

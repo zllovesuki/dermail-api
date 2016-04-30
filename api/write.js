@@ -128,6 +128,8 @@ router.post('/updateMail', auth, function(req, res, next) {
 router.post('/updateFolder', auth, function(req, res, next) {
 
 	var r = req.r;
+	var messageQ = req.Q;
+	var config = req.config;
 
 	var userId = req.user.userId;
 	var accountId = req.body.accountId;
@@ -160,15 +162,13 @@ router.post('/updateFolder', auth, function(req, res, next) {
 				return r
 				.table('messages')
 				.between([folderId, r.minval], [folderId, r.maxval], {index: 'folderDate'})
-				.pluck('messageId', 'headers', 'attachmentId')
+				.pluck('messageId', 'headers', 'attachments')
 				.run(r.conn)
 				.then(function(cursor) {
 					return cursor.toArray();
 				})
 				.then(function(messages) {
 					return Promise.map(messages, function(message) {
-						if (message.attachmentId)
-							console.log('Manual attention require: attachment ' + message.attachmentId);
 
 						var deleteMessage = function() {
 							return r
@@ -186,9 +186,19 @@ router.post('/updateFolder', auth, function(req, res, next) {
 							.run(r.conn);
 						};
 
+						var queueDeleteAttachment = function() {
+							return Promise.map(message.attachments, function(attachmentId) {
+								return messageQ.add({
+									type: 'checkUnique',
+									payload: attachmentId
+								}, config.Qconfig);
+							});
+						}
+
 						return Promise.join(
 							deleteMessage(),
 							deleteHeader(),
+							queueDeleteAttachment(),
 							function(m, h) {
 								return;
 							}
