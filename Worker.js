@@ -31,15 +31,15 @@ r.connect(config.rethinkdb).then(function(conn) {
 						var errorMsg = 'No more outbound servers available.'
 						return sendNotification(r, data.userId, 'error', errorMsg)
 						.then(function(queueId) {
-							return done(errorMsg);
+							done(errorMsg);
 						})
 						.catch(function(e) {
-							return done(e);
+							done(e);
 						});
 					}
 					var server = servers.shift();
 					var hook = server.hook;
-					return request
+					request
 					.post(hook)
 					.timeout(10000)
 					.send(data)
@@ -48,23 +48,23 @@ r.connect(config.rethinkdb).then(function(conn) {
 						if (err !== null || res.body.error !== null) {
 							return sendNotification(r, data.userId, 'error', 'Trying another outbound server.')
 							.then(function(queueId) {
-								return send(servers, data);
+								send(servers, data);
 							})
 							.catch(function(e) {
-								return done(e);
+								done(e);
 							});
 						}
 						return sendNotification(r, data.userId, 'success', 'Message sent.')
 						.then(function(queueId) {
-							return done();
+							done();
 						})
 						.catch(function(e) {
-							return done(e);
+							done(e);
 						});
 					});
 				}
 
-				return send(servers, data);
+				send(servers, data);
 			})
 			.catch(function(e) {
 				return done(e);
@@ -102,6 +102,9 @@ var deleteAttachmentOnS3 = function(r, attachmentId, s3) {
 				}
 			});
 		})
+		.error(function(e) {
+			return reject(e);
+		})
 	});
 }
 
@@ -120,7 +123,7 @@ var sendNotification = function (r, userId, level, msg) {
 		insert.type = 'notification';
 		insert.level = level;
 		insert.message = msg;
-		return r
+		r
 		.table('queue')
 		.insert(insert)
 		.getField('generated_keys')
