@@ -187,13 +187,12 @@ router.post('/updateFolder', auth, function(req, res, next) {
 						};
 
 						var queueDeleteAttachment = function() {
-							message.attachments.forEach(function(attachmentId) {
-								messageQ.add({
-									type: 'deleteAttachment',
+							return Promise.map(message.attachments, function(attachmentId) {
+								return messageQ.add({
+									type: 'checkUnique',
 									payload: attachmentId
 								}, config.Qconfig);
-							})
-							return;
+							});
 						}
 
 						return Promise.join(

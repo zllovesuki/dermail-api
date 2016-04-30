@@ -70,10 +70,31 @@ r.connect(config.rethinkdb).then(function(conn) {
 				return done(e);
 			});
 			break;
-			case 'deleteAttachment':
-			deleteAttachmentOnS3(r, data, s3)
+			case 'checkUnique':
+			deleteIfUnique(r, data)
+			.then(function(attachment) {
+				if (!attachment.hasOwnProperty('error')) {
+					return messageQ.add({
+						type: 'deleteAttachment',
+						payload: {
+							attachmentId: attachment.attachmentId,
+							checksum: attachment.checksum,
+							generatedFileName: attachment.generatedFileName
+						}
+					});
+				}
+			})
 			.then(function() {
-				return deleteAttachmentFromDatabase(r, data);
+				return done();
+			})
+			.catch(function(e) {
+				return done(e);
+			})
+			break;
+			case 'deleteAttachment':
+			deleteAttachmentOnS3(data.checksum, data.generatedFileName, s3)
+			.then(function() {
+				return deleteAttachmentFromDatabase(r, data.attachmentId)
 			})
 			.then(function() {
 				return done();
@@ -86,25 +107,47 @@ r.connect(config.rethinkdb).then(function(conn) {
 	});
 });
 
-var deleteAttachmentOnS3 = function(r, attachmentId, s3) {
+var deleteIfUnique = function(r, attachmentId) {
 	return new Promise(function(resolve, reject) {
 		r
 		.table('attachments')
 		.get(attachmentId)
 		.run(r.conn)
 		.then(function(attachment) {
-			var key = attachment.checksum + '/' + attachment.generatedFileName;
-			s3.deleteFile(key, function(err, res){
-				if (err) {
-					return reject(err);
-				}else{
-					return resolve(res);
+			if (attachment === null) { // ok... that's weird...
+				return resolve({
+					error: true
+				});
+			}
+			return r
+			.table('attachments')
+			.getAll(attachment.checksum, {index: 'checksum'})
+			.count()
+			.run(r.conn)
+			.then(function(count) {
+				if (count > 1) { // More than one copy, commencing assult
+					return resolve(attachment);
+				}else{ // don't delete the last copy.
+					return reject();
 				}
-			});
+			})
 		})
 		.error(function(e) {
 			return reject(e);
 		})
+	})
+}
+
+var deleteAttachmentOnS3 = function(checksum, generatedFileName, s3) {
+	return new Promise(function(resolve, reject) {
+		var key = checksum + '/' + generatedFileName;
+		s3.deleteFile(key, function(err, res){
+			if (err) {
+				return reject(err);
+			}else{
+				return resolve(res);
+			}
+		});
 	});
 }
 
