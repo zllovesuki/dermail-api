@@ -85,7 +85,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 				}
 			})
 			.then(function() {
-				return deleteAttachmentFromDatabase(r, data.attachmentId);
+				return deleteAttachmentFromDatabase(r, data);
 			})
 			.then(function() {
 				return done();
