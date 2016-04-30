@@ -19,7 +19,7 @@ Symmetric key (remoteSecret) needs to be configured beforehand.
 
 ## Endpoint version
 
-As of 1.7.0, the endpoint version is arbitrary and is left for future compatibility issues.
+As of 1.7.0, the endpoint version is arbitrary and is left for future backward compatibility.
 
 ## Definition
 
