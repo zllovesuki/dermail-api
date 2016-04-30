@@ -63,3 +63,19 @@ Sometimes "Complete Account" and "Account" are *synonymous*.
 - GET /__VERSION__/safe/image/* (Sanitize image requests)
 - GET /__VERSION__/safe/href/* (Sanitize link redirects)
 - POST /__VERSION__/login (Returns JWT if authenticated)
+
+## Endpoints
+
+`GET /__VERSION__/read/ping`
+- pre: none
+- post: "pong" is returned in the body
+
+`GET /__VERSION__/read/s3`
+- pre: none
+- post:
+```JSON
+{
+  "endpoint": "ENDPOINT",
+  "bucket": "BUCKET"
+}
+```
