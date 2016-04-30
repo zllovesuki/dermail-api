@@ -116,3 +116,28 @@ Sometimes "Complete Account" and "Account" are *synonymous*.
 }
 ```
 ---
+
+`POST /__VERSION__/read/getFoldersInAccount`
+- pre:
+
+```JSON
+{
+    "accountId": "UNIQUE_ID"
+}
+```
+
+- post: The list of Folders in the Account is returned
+	- "parent" field is the folderID of the parent folder; null means it is at the root
+
+```JSON
+[{
+	"accountId": "UNIQUE_ID",
+	"count": 0,
+	"description": "Main Inbox",
+	"displayName": "Inbox",
+	"folderId": "UNIQUE_ID",
+	"mutable": false,
+	"parent": null
+}]
+```
+---
