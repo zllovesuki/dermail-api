@@ -29,8 +29,11 @@ module.exports = function(r) {
 		maxAge: 86400
 	}));
 
+	var messageQ = new Queue('dermail-send', config.redisQ.port, config.redisQ.host);
+
 	app.use(function(req, res, next){
 		req.r = r;
+		req.Q = messageQ;
 		req.config = config;
 		next();
 	});
@@ -42,13 +45,6 @@ module.exports = function(r) {
 
 	app.use(version + '/read', read);
 	app.use(version + '/write', write);
-
-	var messageQ = new Queue('dermail-send', config.redisQ.port, config.redisQ.host);
-
-	app.use(function(req, res, next){
-		req.Q = messageQ;
-		next();
-	});
 
 	app.use(version + '/relay', relay);
 	app.use(version + '/safe', safe);
