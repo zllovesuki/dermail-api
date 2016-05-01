@@ -1,6 +1,5 @@
 var r = require('rethinkdb'),
-	config = require('./config');
-
+	config = require('../config');
 
 r.connect(config.rethinkdb).then(function(conn) {
 	r.table('filters').map(function(doc) {
