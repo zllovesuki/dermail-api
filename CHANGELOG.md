@@ -1,5 +1,13 @@
 ## Changelog
 
+04/31/2016 - 1.8.0 -> 1.8.2
+1. Introduces rate limiting on /login.
+2. If your API is running behind nginx (which you should be), please add an entry in `config.json`:
+
+```JSON
+"behindProxy": true
+```
+
 04/30/2016 - 1.7.0 -> 1.8.0
 1. Filters now use folderId instead of folder's displayName
 2. Please run usefulScripts/useFolderIdForFilters.js *once* to migrate

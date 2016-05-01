@@ -9,6 +9,7 @@ module.exports = function(r) {
 		jwt = require('jwt-simple'),
 		Queue = require('bull'),
 		app = express(),
+		RateLimit = require('express-rate-limit'),
 		rx = require('./api/rx'),
 		authentication = require('./api/authentication'),
 		read = require('./api/read'),
@@ -20,6 +21,11 @@ module.exports = function(r) {
 	app.use(bodyParser.json({limit: '100mb'}));
 	app.use(bodyParser.urlencoded({ extended: true, limit: '100mb' }));
 	app.use(passport.initialize());
+
+	if (!!config.behindProxy) {
+		app.enable('trust proxy');
+		app.set('trust proxy', 'loopback, linklocal, uniquelocal');
+	}
 
 	require('./lib/auth')(config, passport, r);
 
@@ -38,9 +44,17 @@ module.exports = function(r) {
 		next();
 	});
 
+	var loginLimiter = new RateLimit({
+		windowMs: 60 * 60 * 1000, // 1 hour window
+		delayAfter: 3, // begin slowing down responses after three requests
+		delayMs: 3 * 1000, // slow down subsequent responses by 3 seconds per request
+		max: 10, // start blocking after 10 requests
+		message: "Too many login attempts from this IP, please try again after an hour."
+	});
+
 	var version = '/v' + config.apiVersion;
 
-	app.use(version + '/login', authentication);
+	app.use(version + '/login', loginLimiter, authentication);
 	app.use(version + '/rx', rx);
 
 	app.use(version + '/read', read);
