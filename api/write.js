@@ -420,61 +420,87 @@ router.post('/modifyFilter', auth, function(req, res, next) {
 			var contain = !!!criteria.contain ? null : criteria.contain.toLowerCase().replace(/\s+/g,'').split(',');
 			var exclude = !!!criteria.exclude ? null : criteria.exclude.toLowerCase().replace(/\s+/g,'').split(',');
 
-			return r // First we add the filter
-			.table('filters')
-			.insert({
-				accountId: accountId,
-				pre: {
-					from: arrayOfFrom,
-					to: arrayOfTo,
-					subject: subject,
-					contain: contain,
-					exclude: exclude
-				},
-				post: action
-			})
-			.run(r.conn)
-			.then(function() {
-				return r // Then we searchWithFilter()
-				.table('messages')
-				.getAll(accountId, {index: 'accountId'})
-				.map(function(doc) {
-					return doc.merge(function() {
-						return {
-							'to': doc('to').concatMap(function(to) { // It's like a subquery
-								return [r.table('addresses').get(to).without('accountId', 'addressId', 'internalOwner')]
-							}),
-							'from': doc('from').concatMap(function(from) { // It's like a subquery
-								return [r.table('addresses').get(from).without('accountId', 'addressId', 'internalOwner')]
-							})
-						}
-					})
+			var folderId = action.folder;
+
+			var doAddFilter = function() {
+				return r // First we add the filter
+				.table('filters')
+				.insert({
+					accountId: accountId,
+					pre: {
+						from: arrayOfFrom,
+						to: arrayOfTo,
+						subject: subject,
+						contain: contain,
+						exclude: exclude
+					},
+					post: action
 				})
-				.pluck('from', 'to', 'subject', 'text', 'messageId', 'accountId')
 				.run(r.conn)
-				.then(function(cursor) {
-					return cursor.toArray();
-				})
-				.then(function(result) {
-					return common
-					.applyFilters(result, arrayOfFrom, arrayOfTo, subject, contain, exclude)
-					.then(function(filtered) {
-						return Promise.map(filtered, function(message) {
-							return Promise.map(Object.keys(action), function(key) {
-								if (!!existing[key]) {
-									return common.applyAction(r, key, action[key], message);
-								}
+				.then(function() {
+					return r // Then we searchWithFilter()
+					.table('messages')
+					.getAll(accountId, {index: 'accountId'})
+					.map(function(doc) {
+						return doc.merge(function() {
+							return {
+								'to': doc('to').concatMap(function(to) { // It's like a subquery
+									return [r.table('addresses').get(to).without('accountId', 'addressId', 'internalOwner')]
+								}),
+								'from': doc('from').concatMap(function(from) { // It's like a subquery
+									return [r.table('addresses').get(from).without('accountId', 'addressId', 'internalOwner')]
+								})
+							}
+						})
+					})
+					.pluck('from', 'to', 'subject', 'text', 'messageId', 'accountId')
+					.run(r.conn)
+					.then(function(cursor) {
+						return cursor.toArray();
+					})
+					.then(function(result) {
+						return common
+						.applyFilters(result, arrayOfFrom, arrayOfTo, subject, contain, exclude)
+						.then(function(filtered) {
+							return Promise.map(filtered, function(message) {
+								return Promise.map(Object.keys(action), function(key) {
+									if (!!existing[key]) {
+										return common.applyAction(r, key, action[key], message);
+									}
+								})
 							})
 						})
 					})
 				})
-			})
-			.then(function() {
-				return res.status(200).send();
-			})
-			.catch(function(e) {
-				return next(e);
-			})
+				.then(function() {
+					return res.status(200).send();
+				})
+				.catch(function(e) {
+					return next(e);
+				})
+			};
+
+			if (folderId !== 'default') {
+				// Never trust the user
+				return helper
+				.accountFolderMapping(r, accountId, folderId)
+				.then(function() {
+					return doAddFilter();
+				})
+				.catch(function(e) {
+					return res.status(403).send({message: 'Unspeakable horror.'});
+				})
+			}else{
+				return common.
+				getInternalFolder(r, accountId, 'Inbox')
+				.then(function(inboxId) {
+					action.folder = inboxId;
+					return doAddFilter();
+				})
+				.catch(function(e) {
+					return next(e);
+				})
+			}
 			break;
 		case 'delete':
 			return r

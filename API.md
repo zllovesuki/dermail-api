@@ -328,7 +328,14 @@ function buildTree(list) {
 	"filterId": "UNIQUE_ID",
 	"post": {
 		"doNotNotify": true,
-		"folder": "Spam",
+		"folder": {
+			"accountId": "UNIQUE_ID",
+			"description": "Unsolicited",
+			"displayName": "Spam",
+			"folderId": "UNIQUE_ID",
+			"mutable": false,
+			"parent": null
+		},
 		"markRead": true
 	},
 	"pre": {

@@ -330,6 +330,15 @@ router.post('/getFilters', auth, function(req, res, next) {
 	return r
 	.table('filters')
 	.getAll(accountId, { index: 'accountId'})
+	.map(function(doc) {
+		return doc.merge(function() {
+			return {
+				post: {
+					folder: r.db('dermail').table('folders').get(doc('post')('folder'))
+				}
+			}
+		})
+	})
 	.run(r.conn)
 	.then(function(cursor) {
 		return cursor.toArray();
