@@ -167,47 +167,47 @@ router.post('/updateFolder', auth, function(req, res, next) {
 				.then(function(cursor) {
 					return cursor.toArray();
 				})
-				.then(function(messages) {
-					return Promise.map(messages, function(message) {
+			})
+			.then(function(messages) {
+				return Promise.map(messages, function(message) {
 
-						var deleteMessage = function() {
-							return r
-							.table('messages')
-							.get(message.messageId)
-							.delete()
-							.run(r.conn)
-						};
+					var deleteMessage = function() {
+						return r
+						.table('messages')
+						.get(message.messageId)
+						.delete()
+						.run(r.conn)
+					};
 
-						var deleteHeader = function() {
-							return r
-							.table('messageHeaders')
-							.get(message.headers)
-							.delete()
-							.run(r.conn);
-						};
+					var deleteHeader = function() {
+						return r
+						.table('messageHeaders')
+						.get(message.headers)
+						.delete()
+						.run(r.conn);
+					};
 
-						var queueDeleteAttachment = function() {
-							return Promise.map(message.attachments, function(attachmentId) {
-								return messageQ.add({
-									type: 'checkUnique',
-									payload: attachmentId
-								}, config.Qconfig);
-							});
+					var queueDeleteAttachment = function() {
+						return Promise.map(message.attachments, function(attachmentId) {
+							return messageQ.add({
+								type: 'checkUnique',
+								payload: attachmentId
+							}, config.Qconfig);
+						});
+					}
+
+					return Promise.join(
+						deleteMessage(),
+						deleteHeader(),
+						queueDeleteAttachment(),
+						function(m, h, a) {
+							return;
 						}
-
-						return Promise.join(
-							deleteMessage(),
-							deleteHeader(),
-							queueDeleteAttachment(),
-							function(m, h) {
-								return;
-							}
-						)
-					})
+					)
 				})
-				.then(function() {
-					return res.status(200).send({});
-				})
+			})
+			.then(function() {
+				return res.status(200).send({});
 			})
 			.catch(function(e) {
 				return next(e);
@@ -458,17 +458,16 @@ router.post('/modifyFilter', auth, function(req, res, next) {
 					.then(function(cursor) {
 						return cursor.toArray();
 					})
-					.then(function(result) {
-						return common
-						.applyFilters(result, arrayOfFrom, arrayOfTo, subject, contain, exclude)
-						.then(function(filtered) {
-							return Promise.map(filtered, function(message) {
-								return Promise.map(Object.keys(action), function(key) {
-									if (!!existing[key]) {
-										return common.applyAction(r, key, action[key], message);
-									}
-								})
-							})
+				})
+				.then(function(result) {
+					return common.applyFilters(result, arrayOfFrom, arrayOfTo, subject, contain, exclude)
+				})
+				.then(function(filtered) {
+					return Promise.map(filtered, function(message) {
+						return Promise.map(Object.keys(action), function(key) {
+							if (!!existing[key]) {
+								return common.applyAction(r, key, action[key], message);
+							}
 						})
 					})
 				})

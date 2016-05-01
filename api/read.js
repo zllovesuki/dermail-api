@@ -397,16 +397,15 @@ router.post('/searchWithFilter', auth, function(req, res, next) {
 		var contain = !!!criteria.contain ? null : criteria.contain.toLowerCase().replace(/\s+/g,'').split(',');
 		var exclude = !!!criteria.exclude ? null : criteria.exclude.toLowerCase().replace(/\s+/g,'').split(',');
 
-		return common
-		.applyFilters(result, arrayOfFrom, arrayOfTo, subject, contain, exclude)
-		.then(function(filtered) {
-			for (var i = 0, flen = filtered.length; i < flen; i++) {
-				delete filtered[i].text;
-				delete filtered[i].to;
-				delete filtered[i].from;
-			}
-			return res.status(200).send(filtered);
-		})
+		return common.applyFilters(result, arrayOfFrom, arrayOfTo, subject, contain, exclude)
+	})
+	.then(function(filtered) {
+		for (var i = 0, flen = filtered.length; i < flen; i++) {
+			delete filtered[i].text;
+			delete filtered[i].to;
+			delete filtered[i].from;
+		}
+		return res.status(200).send(filtered);
 	})
 	.catch(function(e) {
 		return next(e);
