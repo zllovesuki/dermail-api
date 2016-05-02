@@ -163,8 +163,8 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 	.then(function(folder) {
 		return r
 		.table('messages')
-		.orderBy({index: r.desc('folderDate')})
 		.between([folderId, r.minval], [folderId, lastDate], {index: 'folderDate'})
+		.orderBy({index: r.desc('folderDate')})
 		.slice(start, end)
 		.pluck('messageId', 'date', 'to', 'from', 'folderId', 'accountId', 'subject', 'text', 'attachments', 'isRead', 'isStar')
 		// Save some bandwidth and processsing
