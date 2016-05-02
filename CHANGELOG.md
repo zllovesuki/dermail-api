@@ -1,5 +1,10 @@
 ## Changelog
 
+05/02/2015 -> 1.8.x -> 1.9.0
+1. You can attach files when sending emails
+2. All attachments will be uploaded to S3
+3. Because of how the uploading works, `usefulScripts/deleteAttachmentsOnS3.js` will delete orphaned attachments. You can run that with Cron
+
 04/31/2016 - 1.8.0 -> 1.8.2
 1. Introduces rate limiting on /login.
 2. If your API is running behind nginx (which you should be), please add an entry in `config.json`:
