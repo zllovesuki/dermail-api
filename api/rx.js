@@ -135,7 +135,7 @@ var checkDomain = Promise.method(function (r, domain) {
 	return r
 	.table('domains')
 	.getAll(domain, {index: 'domain'})
-	.limit(1)
+	.slice(0, 1)
 	.run(r.conn)
 	.then(function(cursor) {
 		return cursor.toArray();
@@ -145,7 +145,7 @@ var checkDomain = Promise.method(function (r, domain) {
 			return r
 			.table('domains')
 			.getAll(domain, {index: 'alias'})
-			.limit(1)
+			.slice(0, 1)
 			.run(r.conn)
 			.then(function(cursor) {
 				return cursor.toArray();
@@ -166,7 +166,7 @@ var checkAccount = Promise.method(function (r, account, domainId) {
 	return r
 	.table('accounts')
 	.getAll([account, domainId], {index: 'accountDomainId'})
-	.limit(1)
+	.slice(0, 1)
 	.run(r.conn)
 	.then(function(cursor) {
 		return cursor.toArray();
