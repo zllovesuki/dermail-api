@@ -3,6 +3,7 @@ module.exports = function(r) {
 		path = require('path'),
 		logger = require('morgan'),
 		bodyParser = require('body-parser'),
+		jsonParser = bodyParser.json({limit: '55mb'}),
 		passport = require('passport'),
 		config = require('./config'),
 		cors = require('cors'),
@@ -14,11 +15,10 @@ module.exports = function(r) {
 		read = require('./api/read'),
 		write = require('./api/write'),
 		relay = require('./api/relay'),
+		upload = require('./api/upload'),
 		safe = require('./api/safe');
 
 	if (process.env.RDB_HOST) app.use(logger('dev'));
-	app.use(bodyParser.json({limit: '100mb'}));
-	app.use(bodyParser.urlencoded({ extended: true, limit: '100mb' }));
 	app.use(passport.initialize());
 
 	require('./lib/auth')(config, passport, r);
@@ -40,13 +40,14 @@ module.exports = function(r) {
 
 	var version = '/v' + config.apiVersion;
 
-	app.use(version + '/login', authentication);
-	app.use(version + '/rx', rx);
+	app.use(version + '/login', jsonParser, authentication);
+	app.use(version + '/rx', jsonParser, rx);
 
-	app.use(version + '/read', read);
-	app.use(version + '/write', write);
+	app.use(version + '/read', jsonParser, read);
+	app.use(version + '/write', jsonParser, write);
 
-	app.use(version + '/relay', relay);
+	app.use(version + '/relay', jsonParser, relay);
+	app.use(version + '/upload', upload);
 	app.use(version + '/safe', safe);
 
 	// catch 404 and forward to error handler

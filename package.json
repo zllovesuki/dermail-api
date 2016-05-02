@@ -21,6 +21,7 @@
     "cors": "^2.7.1",
     "dermail-common": "git+https://github.com/zllovesuki/dermail-common.git",
     "express": "^4.13.4",
+    "formidable": "^1.0.17",
     "html-to-text": "^2.1.0",
     "jsonwebtoken": "^6.1.1",
     "jwt-simple": "^0.5.0",
