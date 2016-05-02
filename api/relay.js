@@ -91,7 +91,7 @@ function keepACopyInSentFolder(r, accountId, message, sentFolder) {
 			var mailparser = new MailParser();
 			mailparser.on("end", function(compose){
 
-				// Compatibility with dermail-rx where it is JSON.stringify processed
+				// Compatibility with dermail-smtp-inbound, line 204
 				compose.date = compose.date.toISOString();
 
 				async.each(compose.from, function(one, cb) {
@@ -137,12 +137,12 @@ function keepACopyInSentFolder(r, accountId, message, sentFolder) {
 								}
 							});
 						},
-						// Save the headers and message
+						// Save the headers, attachments, and message
 						function (compose, done) {
 							var headers = _.cloneDeep(compose.headers);
 							delete compose.headers;
-							// TODO Attachments
-							compose.attachments = [];
+							var attachments = _.cloneDeep(compose.attachments);
+							delete compose.attachments;
 
 							// Assign folder
 							compose.folderId = sentFolder;
@@ -160,15 +160,18 @@ function keepACopyInSentFolder(r, accountId, message, sentFolder) {
 								delete compose.messageId;
 							}
 
-							return common
-							.saveHeaders(r, headers)
-							.then(function(headerId) {
-								compose.headers = headerId;
-								return common
-								.saveMessage(r, compose)
-								.then(function(messageId) {
-									return done(null);
-								})
+							return Promise.join(
+								helper.saveHeaders(r, headers),
+								helper.saveAttachments(r, attachments),
+								function(headerId, arrayOfAttachments) {
+									compose.headers = headerId;
+									compose.attachments = arrayOfAttachments;
+									return common
+									.saveMessage(r, compose)
+								}
+							)
+							.then(function(messageId) {
+								return done(null);
 							})
 							.catch(function(e) {
 								return done(e);
@@ -201,13 +204,12 @@ var doSendMail = Promise.method(function(r, config, sender, accountId, userId, c
 		delete compose[field];
 	})
 	_.merge(compose, recipients);
-	return keepACopyInSentFolder(r, accountId, compose, sentFolder)
+	return messageQ.add({
+		type: 'sendMail',
+		payload: compose
+	}, config.Qconfig)
 	.then(function() {
-		messageQ.add({
-			type: 'sendMail',
-			payload: compose
-		}, config.Qconfig);
-		return true;
+		return keepACopyInSentFolder(r, accountId, compose, sentFolder)
 	})
 })
 

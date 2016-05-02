@@ -2,6 +2,7 @@ var express = require('express'),
 	router = express.Router(),
 	_ = require('lodash'),
 	common = require('dermail-common'),
+	helper = require('../lib/helper'),
 	Promise = require('bluebird');
 
 router.post('/get-s3', function(req, res, next) {
@@ -318,8 +319,8 @@ var saveMessage = function (r, accountId, arrayOfToAddress, arrayOfFromAddress, 
 			}
 
 			return Promise.join(
-				saveHeaders(r, headers),
-				saveAttachments(r, attachments),
+				helper.saveHeaders(r, headers),
+				helper.saveAttachments(r, attachments),
 				function(headerId, arrayOfAttachments) {
 					message.headers = headerId;
 					message.attachments = arrayOfAttachments;
@@ -332,38 +333,6 @@ var saveMessage = function (r, accountId, arrayOfToAddress, arrayOfFromAddress, 
 		})
 		.catch(function(e) {
 			return reject(throwError('save message', e));
-		})
-	})
-}
-
-var saveAttachments = function(r, attachments) {
-	var arrayOfAttachments = [];
-	return new Promise(function(resolve, reject) {
-		return Promise.map(attachments, function(attachment) {
-			return common
-			.saveAttachment(r, attachment)
-			.then(function(attachmentId) {
-				return arrayOfAttachments.push(attachmentId);
-			})
-		})
-		.then(function() {
-			return resolve(arrayOfAttachments);
-		})
-		.catch(function(e) {
-			return reject(throwError('save attachments', e));
-		})
-	})
-}
-
-var saveHeaders = function(r, headers) {
-	return new Promise(function(resolve, reject) {
-		return common
-		.saveHeaders(r, headers)
-		.then(function(headerId) {
-			return resolve(headerId);
-		})
-		.catch(function(e) {
-			return reject(throwError('save headers', e));
 		})
 	})
 }
