@@ -144,7 +144,7 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 	var userId = req.user.userId;
 	var accountId = req.body.accountId;
 	var folderId = req.body.folderId;
-	var slice = req.body.slice || {};
+	var slice = (typeof req.body.slice === 'object' ? req.body.slice : {} );
 	var lastDate = slice.date || r.maxval;
 	var start = 0;
 	var end = slice.perPage || 5;
