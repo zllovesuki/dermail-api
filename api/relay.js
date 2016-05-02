@@ -83,18 +83,18 @@ router.post('/sendMail', auth, function(req, res, next) {
 	})
 });
 
-function keepACopyInSentFolder(r, accountId, message, sentFolder) {
+function keepACopyInSentFolder(r, accountId, compose, sentFolder) {
 	return new Promise(function (resolve, reject) {
 		return Promise.try(function() {
-			var mail = mailcomposer(message);
+			var mail = mailcomposer(compose);
 			var stream = mail.createReadStream();
 			var mailparser = new MailParser();
-			mailparser.on("end", function(compose){
+			mailparser.on("end", function(message){
 
 				// Compatibility with dermail-smtp-inbound, line 204
-				compose.date = compose.date.toISOString();
+				message.date = message.date.toISOString();
 
-				async.each(compose.from, function(one, cb) {
+				async.each(message.from, function(one, cb) {
 					async.waterfall([
 						// 2. Get our addressId
 						function (done) {
@@ -103,18 +103,18 @@ function keepACopyInSentFolder(r, accountId, message, sentFolder) {
 							.then(function(addressObject) {
 								var addressId = addressObject.addressId;
 								var arrayOfFromAddress = [addressId];
-								return done(null, compose, arrayOfFromAddress);
+								return done(null, message, arrayOfFromAddress);
 							})
 							.catch(function(e) {
 								return done(e);
 							})
 						},
 						// 3. Assign "to" address in the database
-						function (compose, arrayOfFromAddress, done) {
+						function (message, arrayOfFromAddress, done) {
 
 							var arrayOfToAddress = [];
 
-							async.each(compose.to, function(one, cb) {
+							async.each(message.to, function(one, cb) {
 								if (!one) {
 									return cb();
 								}
@@ -131,43 +131,43 @@ function keepACopyInSentFolder(r, accountId, message, sentFolder) {
 								if (err) {
 									return done(err);
 								}else{
-									compose.from = arrayOfFromAddress;
-									compose.to = arrayOfToAddress;
-									return done(null, compose);
+									message.from = arrayOfFromAddress;
+									message.to = arrayOfToAddress;
+									return done(null, message);
 								}
 							});
 						},
 						// Save the headers, attachments, and message
-						function (compose, done) {
-							var headers = _.cloneDeep(compose.headers);
-							delete compose.headers;
-							var attachments = _.cloneDeep(compose.attachments);
-							delete compose.attachments;
+						function (message, done) {
+							var headers = _.cloneDeep(message.headers);
+							delete message.headers;
+							var attachments = _.cloneDeep(message.attachments);
+							delete message.attachments;
 
 							// Assign folder
-							compose.folderId = sentFolder;
+							message.folderId = sentFolder;
 							// Assign account
 							//message.userId = accountResult.userId;
-							compose.accountId = accountId;
+							message.accountId = accountId;
 							// Default value
-							compose.isRead = true;
-							compose.isStar = false;
-							compose.text = htmlToText.fromString(compose.html);
+							message.isRead = true;
+							message.isStar = false;
+							message.text = htmlToText.fromString(message.html);
 
 							//delete default messageId, if it has one
-							if (compose.hasOwnProperty('messageId')) {
-								compose._messageId = _.clone(compose.messageId);
-								delete compose.messageId;
+							if (message.hasOwnProperty('messageId')) {
+								message._messageId = _.clone(message.messageId);
+								delete message.messageId;
 							}
 
 							return Promise.join(
 								helper.saveHeaders(r, headers),
 								helper.saveAttachments(r, attachments),
 								function(headerId, arrayOfAttachments) {
-									compose.headers = headerId;
-									compose.attachments = arrayOfAttachments;
+									message.headers = headerId;
+									message.attachments = arrayOfAttachments;
 									return common
-									.saveMessage(r, compose)
+									.saveMessage(r, message)
 								}
 							)
 							.then(function(messageId) {
