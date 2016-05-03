@@ -122,7 +122,7 @@ router.post('/store', function(req, res, next) {
 				}
 			})
 			.then(function() {
-				res.send({ok: true});
+				return res.send({ok: true});
 			});
 		})
 	})
