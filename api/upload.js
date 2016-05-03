@@ -46,7 +46,9 @@ router.post('/s3Stream', auth, function(req, res, next) {
 							message: 'Cannot upload attachment.'
 						});
 					}
-					return res.status(200).send({});
+					return res.status(200).send({
+						checksum: checksum
+					});
 				})
 			});
 		})
