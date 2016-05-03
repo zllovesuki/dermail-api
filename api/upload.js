@@ -3,7 +3,7 @@ var express = require('express'),
 	passport = require('passport'),
 	config = require('../config'),
 	formidable = require('formidable'),
-	util = require('util'),
+	crypto = require('crypto'),
 	fs = require('fs'),
 	knox = require('knox'),
 	s3 = knox.createClient(config.s3);
@@ -22,19 +22,36 @@ router.post('/s3Stream', auth, function(req, res, next) {
 			'Content-Type': file.type
 		};
 
-		var key = '/'+ fields.checksum + '/' + fields.filename;
-		var fileStream = fs.createReadStream(file.path);
+		var hash = crypto.createHash('md5');
+		var hashStream = fs.createReadStream(file.path);
 
-		s3.putStream(fileStream, key, headers, function(uploadError, uploadRes) {
-			fs.unlink(file.path, function(rmError) {
-				if (uploadError || rmError) {
-					return res.status(500).send({
-						message: 'Cannot upload attachment.'
-					});
-				}
-				return res.status(200).send({});
-			})
+		hashStream.on('data', function(data) {
+			hash.update(data, 'utf8');
 		});
+
+		hashStream.on('error', function(e) {
+			return res.status(500).send({
+				message: 'Cannot calculate the checksum of attachment.'
+			});
+		});
+
+		hashStream.on('end', function() {
+			var checksum = hash.digest('hex');
+			var key = '/'+ checksum + '/' + fields.filename;
+			var uploadStream = fs.createReadStream(file.path);
+			s3.putStream(uploadStream, key, headers, function(uploadError, uploadRes) {
+				fs.unlink(file.path, function(rmError) {
+					if (uploadError || rmError) {
+						return res.status(500).send({
+							message: 'Cannot upload attachment.'
+						});
+					}
+					return res.status(200).send({
+						checksum: checksum
+					});
+				})
+			});
+		})
     });
 
 
