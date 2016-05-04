@@ -91,7 +91,9 @@ function keepACopyInSentFolder(r, accountId, compose, sentFolder) {
 			var mailparser = new MailParser();
 			mailparser.on("end", function(message){
 
-				// Compatibility with dermail-smtp-inbound, line 204
+				// dermail-smtp-inbound processMail();
+				message.cc = message.cc || [];
+				message.attachments = message.attachments || [];
 				message.date = message.date.toISOString();
 
 				async.each(message.from, function(one, cb) {
