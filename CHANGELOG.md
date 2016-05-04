@@ -1,6 +1,9 @@
 ## Changelog
 
-05/02/2015 -> 1.8.x -> 1.9.0
+05/04/2016 -> 1.9.x -> 1.10.0
+1. The structure of jwt payload has changed, please change your jwt secret to invalidate all jwt tokens.
+
+05/02/2016 -> 1.8.x -> 1.9.0
 1. You can attach files when sending emails
 2. All attachments will be uploaded to S3
 3. Because of how the uploading works, `usefulScripts/deleteAttachmentsOnS3.js` will delete orphaned attachments. You can run that with Cron

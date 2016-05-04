@@ -18,6 +18,7 @@ router.post('/', function(req, res, next) {
 	return r
 	.table('users')
 	.getAll(username, {index: 'username'})
+	.pluck('userId', 'password')
 	.run(r.conn)
 	.then(function(cursor) {
 		return cursor.toArray();
@@ -27,12 +28,33 @@ router.post('/', function(req, res, next) {
 			return res.status(403).send({message: 'Username or Password incorrect'});
 		}
 		bcrypt.compare(password, user[0].password, function(err, result) {
-			if (!result) {
+			if (err || !result) {
 				return res.status(403).send({message: 'Username or Password incorrect'});
 			}else{
-				return res.status(200).send({token: jwt.encode({
-					userId: user[0].userId
-				}, config.jwt.secret)});
+				return r
+				.table('users')
+				.get(user[0].userId)
+				.pluck('userId')
+				.merge(function(doc) {
+					return {
+						'accounts': r
+							.table('accounts')
+							.getAll(
+								doc('userId'),
+								{
+									index: 'userId'
+								}
+							)
+							.concatMap(function(d) {
+								return [ d('accountId') ]
+							})
+							.coerceTo('array')
+					}
+				})
+				.run(r.conn)
+				.then(function(user) {
+					return res.status(200).send({token: jwt.encode(user, config.jwt.secret)});
+				})
 			}
 		})
 	})
