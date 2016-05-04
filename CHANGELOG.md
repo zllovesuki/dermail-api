@@ -1,5 +1,8 @@
 ## Changelog
 
+05/04/2016 -> 1.11.x -> 1.11.2
+1. CRITICAL: Please change your jwt secret to invalidate all jwt tokens.
+
 05/04/2016 -> 1.10.x -> 1.11.0
 1. Deprecating the use of Dermail-Common. common functions are consolidated into a helper
 

@@ -34,7 +34,7 @@ router.post('/', function(req, res, next) {
 				return r
 				.table('users')
 				.get(user[0].userId)
-				.pluck('userId')
+				.without('password')
 				.merge(function(doc) {
 					return {
 						'accounts': r
