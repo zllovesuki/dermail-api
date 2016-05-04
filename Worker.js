@@ -34,7 +34,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 							done();
 						})
 						.catch(function(e) {
-							done(e);
+							done();
 						});
 					}
 					var server = servers.shift();
