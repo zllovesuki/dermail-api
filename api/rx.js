@@ -107,10 +107,14 @@ router.post('/store', function(req, res, next) {
 			//var myAddress = recipient;
 
 			return Promise.join(
-				getArrayOfToAddress(r, accountId, myAddress, message.to),
-				getArrayOfFromAddress(r, accountId, message.from),
+				helper.getArrayOfToAddress(r, accountId, myAddress, message.to),
+				helper.getArrayOfFromAddress(r, accountId, message.from),
 				function(arrayOfToAddress, arrayOfFromAddress) {
-					return saveMessage(r, accountId, arrayOfToAddress, arrayOfFromAddress, message)
+					return common
+					.getInternalFolder(r, accountId, 'Inbox')
+					.then(function(inboxFolder) {
+						return helper.saveMessage(r, accountId, inboxFolder, arrayOfToAddress, arrayOfFromAddress, message, false)
+					})
 				}
 			)
 			.then(function(messageId) {
@@ -180,59 +184,6 @@ var checkAccount = Promise.method(function (r, account, domainId) {
 	})
 })
 
-var getArrayOfFromAddress = function (r, accountId, fromAddresses) {
-	return new Promise(function(resolve, reject) {
-		var arrayOfFromAddress = [];
-
-		return Promise.map(fromAddresses, function(one) {
-			if (!one) return;
-			return common
-			.getOrCreateAddress(r, one, accountId)
-			.then(function(addressId) {
-				arrayOfFromAddress.push(addressId);
-				return;
-			})
-		})
-		.then(function() {
-			return resolve(arrayOfFromAddress);
-		})
-		.catch(function(e) {
-			return reject(e);
-		})
-	})
-}
-
-var getArrayOfToAddress = function (r, accountId, myAddress, toAddresses) {
-	return new Promise(function(resolve, reject) {
-		var arrayOfToAddress = [];
-
-		return Promise.map(toAddresses, function(one) {
-			if (!one) return;
-			return common
-			.getOrCreateAddress(r, one, accountId)
-			.then(function(addressId) {
-				arrayOfToAddress.push(addressId);
-				return;
-			})
-		})
-		.then(function() {
-			return common
-			.getAddress(r, myAddress, accountId)
-			.then(function(addressObject) {
-				var addressId = addressObject.addressId;
-				arrayOfToAddress.push(addressId);
-				return;
-			})
-		})
-		.then(function() {
-			return resolve(arrayOfToAddress);
-		})
-		.catch(function(e) {
-			return reject(throwError('array of to', e));
-		})
-	})
-}
-
 var filter = function (r, accountId, messageId) {
 	var notify = true;
 	return new Promise(function(resolve, reject) {
@@ -288,60 +239,6 @@ var filter = function (r, accountId, messageId) {
 			return reject(e);
 		})
 	});
-}
-
-var saveMessage = function (r, accountId, arrayOfToAddress, arrayOfFromAddress, message) {
-	return new Promise(function(resolve, reject) {
-		return common
-		.getInternalFolder(r, accountId, 'Inbox')
-		.then(function(inboxFolder) {
-			var headers = _.cloneDeep(message.headers);
-			delete message.headers;
-			var attachments = _.cloneDeep(message.attachments);
-			delete message.attachments;
-
-			message.from = arrayOfFromAddress;
-			message.to = arrayOfToAddress;
-
-			// Assign folder
-			message.folderId = inboxFolder;
-			// Assign account
-			//message.userId = accountResult.userId;
-			message.accountId = accountId;
-			// Default value
-			message.isRead = false;
-			message.isStar = false;
-
-			//delete default messageId, if it has one
-			if (message.hasOwnProperty('messageId')) {
-				message._messageId = _.clone(message.messageId);
-				delete message.messageId;
-			}
-
-			return Promise.join(
-				helper.saveHeaders(r, headers),
-				helper.saveAttachments(r, attachments),
-				function(headerId, arrayOfAttachments) {
-					message.headers = headerId;
-					message.attachments = arrayOfAttachments;
-					return common.saveMessage(r, message)
-				}
-			)
-		})
-		.then(function(messageId) {
-			return resolve(messageId);
-		})
-		.catch(function(e) {
-			return reject(throwError('save message', e));
-		})
-	})
-}
-
-function throwError(where, err) {
-	var error = {};
-	error.where = where;
-	error.error = err;
-	return error;
 }
 
 module.exports = router;

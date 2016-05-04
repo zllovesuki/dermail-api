@@ -83,118 +83,46 @@ router.post('/sendMail', auth, function(req, res, next) {
 	})
 });
 
-function keepACopyInSentFolder(r, accountId, compose, sentFolder) {
+function keepACopyInSentFolder(r, accountId, sender, compose, sentFolder) {
 	return new Promise(function (resolve, reject) {
-		return Promise.try(function() {
-			var mail = mailcomposer(compose);
-			var stream = mail.createReadStream();
-			var mailparser = new MailParser();
-			mailparser.on("end", function(message){
+		var mail = mailcomposer(compose);
+		var stream = mail.createReadStream();
+		var mailparser = new MailParser();
+		mailparser.on("end", function(message){
 
-				// dermail-smtp-inbound processMail();
-				message.cc = message.cc || [];
-				message.attachments = message.attachments || [];
-				message.date = message.date.toISOString();
+			// dermail-smtp-inbound processMail();
+			message.cc = message.cc || [];
+			message.attachments = message.attachments || [];
+			message.date = message.date.toISOString();
 
-				async.each(message.from, function(one, cb) {
-					async.waterfall([
-						// 2. Get our addressId
-						function (done) {
-							return common
-							.getAddress(r, one.address, accountId)
-							.then(function(addressObject) {
-								var addressId = addressObject.addressId;
-								var arrayOfFromAddress = [addressId];
-								return done(null, message, arrayOfFromAddress);
-							})
-							.catch(function(e) {
-								return done(e);
-							})
-						},
-						// 3. Assign "to" address in the database
-						function (message, arrayOfFromAddress, done) {
+			// Compatibility with MTA-Worker
+			message.text = htmlToText.fromString(message.html);
 
-							var arrayOfToAddress = [];
+			var myAddress = sender.address;
 
-							async.each(message.to, function(one, cb) {
-								if (!one) {
-									return cb();
-								}
-								return common
-								.getOrCreateAddress(r, one, accountId)
-								.then(function(addressId) {
-									arrayOfToAddress.push(addressId);
-									return cb();
-								})
-								.catch(function(e) {
-									return cb(e);
-								})
-							}, function(err) {
-								if (err) {
-									return done(err);
-								}else{
-									message.from = arrayOfFromAddress;
-									message.to = arrayOfToAddress;
-									return done(null, message);
-								}
-							});
-						},
-						// Save the headers, attachments, and message
-						function (message, done) {
-							var headers = _.cloneDeep(message.headers);
-							delete message.headers;
-							var attachments = _.cloneDeep(message.attachments);
-							delete message.attachments;
+			for (key in message.from) {
+				if (message.from[key].address == myAddress) {
+					delete message.from[key];
+				}
+			}
 
-							// Assign folder
-							message.folderId = sentFolder;
-							// Assign account
-							//message.userId = accountResult.userId;
-							message.accountId = accountId;
-							// Default value
-							message.isRead = true;
-							message.isStar = false;
-							message.text = htmlToText.fromString(message.html);
-
-							//delete default messageId, if it has one
-							if (message.hasOwnProperty('messageId')) {
-								message._messageId = _.clone(message.messageId);
-								delete message.messageId;
-							}
-
-							return Promise.join(
-								helper.saveHeaders(r, headers),
-								helper.saveAttachments(r, attachments),
-								function(headerId, arrayOfAttachments) {
-									message.headers = headerId;
-									message.attachments = arrayOfAttachments;
-									return common
-									.saveMessage(r, message)
-								}
-							)
-							.then(function(messageId) {
-								return done(null);
-							})
-							.catch(function(e) {
-								return done(e);
-							})
-						}
-					], function(err) {
-						return cb(err);
-					});
-				}, function(err) {
-					if (err) {
-						return reject(err);
-					}else{
-						return resolve();
-					}
-				});
-			});
-			stream.pipe(mailparser);
-		})
-		.catch(function(e) {
-			return reject(e);
-		})
+			return Promise.join(
+				// Perspective is relative. "From" in the eyes of RX, "To" in the eyes of TX
+				helper.getArrayOfFromAddress(r, accountId, message.to),
+				// Perspective is relative. "To" in the eyes of RX, "From" in the eyes of TX
+				helper.getArrayOfToAddress(r, accountId, myAddress, message.from),
+				function(arrayOfToAddress, arrayOfFromAddress) {
+					return helper.saveMessage(r, accountId, sentFolder, arrayOfToAddress, arrayOfFromAddress, message, true)
+				}
+			)
+			.then(function() {
+				return resolve();
+			})
+			.catch(function(e) {
+				return reject(e);
+			})
+		});
+		stream.pipe(mailparser);
 	})
 }
 
@@ -211,7 +139,7 @@ var doSendMail = Promise.method(function(r, config, sender, accountId, userId, c
 		payload: compose
 	}, config.Qconfig)
 	.then(function() {
-		return keepACopyInSentFolder(r, accountId, compose, sentFolder)
+		return keepACopyInSentFolder(r, accountId, sender, compose, sentFolder)
 	})
 })
 
