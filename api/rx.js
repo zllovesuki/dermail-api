@@ -1,7 +1,6 @@
 var express = require('express'),
 	router = express.Router(),
 	_ = require('lodash'),
-	common = require('dermail-common'),
 	helper = require('../lib/helper'),
 	Promise = require('bluebird');
 
@@ -110,7 +109,7 @@ router.post('/store', function(req, res, next) {
 				helper.getArrayOfToAddress(r, accountId, myAddress, message.to),
 				helper.getArrayOfFromAddress(r, accountId, message.from),
 				function(arrayOfToAddress, arrayOfFromAddress) {
-					return common
+					return helper
 					.getInternalFolder(r, accountId, 'Inbox')
 					.then(function(inboxFolder) {
 						return helper.saveMessage(r, accountId, inboxFolder, arrayOfToAddress, arrayOfFromAddress, message, false)
@@ -122,7 +121,7 @@ router.post('/store', function(req, res, next) {
 			})
 			.then(function(notify) {
 				if (notify) {
-					return common.sendNewMailNotification(r, userId, accountId, 'New mail at: ' + recipient)
+					return helper.sendNewMailNotification(r, userId, accountId, 'New mail at: ' + recipient)
 				}
 			})
 			.then(function() {
@@ -215,7 +214,7 @@ var filter = function (r, accountId, messageId) {
 				var results = [message];
 				return Promise.map(filters, function(filter) {
 					var criteria = filter.pre;
-					return common
+					return helper
 					.applyFilters(results, criteria.from, criteria.to, criteria.subject, criteria.contain, criteria.exclude)
 					.then(function(filtered) {
 						// It will always be a length of 1
@@ -224,7 +223,7 @@ var filter = function (r, accountId, messageId) {
 								if (key === 'doNotNotify') {
 									notify = !filter.post.doNotNotify;
 								}else{
-									return common.applyAction(r, key, filter.post[key], message);
+									return helper.applyAction(r, key, filter.post[key], message);
 								}
 							})
 						}

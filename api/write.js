@@ -12,8 +12,7 @@ var express = require('express'),
 	router = express.Router(),
 	passport = require('passport'),
 	Promise = require('bluebird'),
-	helper = require('../lib/helper'),
-	common = require('dermail-common');
+	helper = require('../lib/helper');
 
 var auth = passport.authenticate('jwt', { session: false });
 
@@ -68,7 +67,7 @@ router.post('/updateMail', auth, function(req, res, next) {
 
 			break;
 		case 'trash':
-			return common
+			return helper
 			.getInternalFolder(r, accountId, 'Trash')
 			.then(function(trashFolder) {
 				data.folderId = trashFolder;
@@ -82,7 +81,7 @@ router.post('/updateMail', auth, function(req, res, next) {
 			})
 			break;
 		case 'spam':
-			return common
+			return helper
 			.getInternalFolder(r, accountId, 'Spam')
 			.then(function(spamFolder) {
 				data.folderId = spamFolder;
@@ -97,7 +96,7 @@ router.post('/updateMail', auth, function(req, res, next) {
 			})
 			break;
 		case 'notspam':
-			return common
+			return helper
 			.getInternalFolder(r, accountId, 'Inbox')
 			.then(function(inboxFolder) {
 				data.folderId = inboxFolder;
@@ -232,7 +231,7 @@ router.post('/updateFolder', auth, function(req, res, next) {
 				if (childrenCount !== 0) {
 					throw new Error('Folder contains children.');
 				}
-				return common.getInternalFolder(r, accountId, 'Trash')
+				return helper.getInternalFolder(r, accountId, 'Trash')
 			})
 			.then(function(trashFolder) {
 				return batchMoveToTrashAndRemoveFolder(r, folderId, trashFolder)
@@ -313,6 +312,7 @@ router.post('/updateFolder', auth, function(req, res, next) {
 router.post('/pushSubscriptions', auth, function(req, res, next) {
 
 	var r = req.r;
+	var config = req.config;
 
 	var userId = req.user.userId;
 	var action = req.body.action;
@@ -384,7 +384,7 @@ router.post('/pushSubscriptions', auth, function(req, res, next) {
 		})
 		break;
 		case 'test':
-		return helper.sendNotification(r, {
+		return helper.sendNotification(r, config.gcm_api_key, {
 			message: 'This is a test!',
 			accountId: null
 		}, object).then(function() {
@@ -460,13 +460,13 @@ router.post('/modifyFilter', auth, function(req, res, next) {
 					})
 				})
 				.then(function(result) {
-					return common.applyFilters(result, arrayOfFrom, arrayOfTo, subject, contain, exclude)
+					return helper.applyFilters(result, arrayOfFrom, arrayOfTo, subject, contain, exclude)
 				})
 				.then(function(filtered) {
 					return Promise.map(filtered, function(message) {
 						return Promise.map(Object.keys(action), function(key) {
 							if (!!existing[key]) {
-								return common.applyAction(r, key, action[key], message);
+								return helper.applyAction(r, key, action[key], message);
 							}
 						})
 					})
@@ -490,8 +490,8 @@ router.post('/modifyFilter', auth, function(req, res, next) {
 					return res.status(403).send({message: 'Unspeakable horror.'});
 				})
 			}else{
-				return common.
-				getInternalFolder(r, accountId, 'Inbox')
+				return helper
+				.getInternalFolder(r, accountId, 'Inbox')
 				.then(function(inboxId) {
 					action.folder = inboxId;
 					return doAddFilter();

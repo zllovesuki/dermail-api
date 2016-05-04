@@ -6,7 +6,6 @@ var express = require('express'),
 	config = require('../config'),
 	_ = require('lodash'),
 	helper = require('../lib/helper'),
-	common = require('dermail-common'),
 	Promise = require('bluebird'),
 	mailcomposer = require("mailcomposer"),
 	MailParser = require("mailparser").MailParser,
@@ -65,7 +64,7 @@ router.post('/sendMail', auth, function(req, res, next) {
 		return helper
 		.userAccountMapping(r, userId, accountId)
 		.then(function(account) {
-			return common
+			return helper
 			.getInternalFolder(r, accountId, 'Sent')
 			.then(function(sentFolder) {
 				var sender = {};
