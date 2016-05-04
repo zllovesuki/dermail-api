@@ -1,5 +1,8 @@
 ## Changelog
 
+05/04/2016 -> 1.10.x -> 1.11.0
+1. Deprecating the use of Dermail-Common. common functions are consolidated into a helper
+
 05/04/2016 -> 1.9.x -> 1.10.0
 1. The structure of jwt payload has changed, please change your jwt secret to invalidate all jwt tokens.
 

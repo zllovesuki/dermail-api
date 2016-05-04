@@ -3,7 +3,6 @@ var express = require('express'),
 	passport = require('passport'),
 	unicodeSubstring = require('unicode-substring'),
 	helper = require('../lib/helper'),
-	common = require('dermail-common');
 	crypto = require('crypto');
 
 var auth = passport.authenticate('jwt', { session: false });
@@ -304,7 +303,7 @@ router.post('/getAddress', auth, function(req, res, next) {
 		return res.status(200).send(empty); // Early surrender: account does not belong to user
 	}
 
-	return common
+	return helper
 	.getAddress(r, email, accountId, empty)
 	.then(function(result) {
 		delete result.addressId;
@@ -397,7 +396,7 @@ router.post('/searchWithFilter', auth, function(req, res, next) {
 		var contain = !!!criteria.contain ? null : criteria.contain.toLowerCase().replace(/\s+/g,'').split(',');
 		var exclude = !!!criteria.exclude ? null : criteria.exclude.toLowerCase().replace(/\s+/g,'').split(',');
 
-		return common.applyFilters(result, arrayOfFrom, arrayOfTo, subject, contain, exclude)
+		return helper.applyFilters(result, arrayOfFrom, arrayOfTo, subject, contain, exclude)
 	})
 	.then(function(filtered) {
 		for (var i = 0, flen = filtered.length; i < flen; i++) {
