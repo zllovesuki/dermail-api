@@ -31,7 +31,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 						var errorMsg = 'No more outbound servers available.'
 						return sendNotification(r, data.userId, 'error', errorMsg)
 						.then(function(queueId) {
-							done(errorMsg);
+							done();
 						})
 						.catch(function(e) {
 							done(e);
