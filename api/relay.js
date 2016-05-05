@@ -46,6 +46,8 @@ router.post('/sendMail', auth, function(req, res, next) {
 		delete compose.addHTML;
 	}
 
+	compose.html = compose.html || '';
+
 	async.each(compose.recipients, function(each, cb) {
 		async.each(each, function(address, b) {
 			if (validator.isEmail(address.address)) {
