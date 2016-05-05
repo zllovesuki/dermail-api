@@ -203,7 +203,7 @@ router.post('/updateFolder', auth, function(req, res, next) {
 							return;
 						}
 					)
-				})
+				}, { concurrency: 3 });
 			})
 			.then(function() {
 				return res.status(200).send({});

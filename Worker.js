@@ -127,7 +127,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 							message: data.message,
 							accountId: data.accountId
 						}, subscription);
-					});
+					}, { concurrency: 3 });
 				}
 			})
 			.then(function() {
