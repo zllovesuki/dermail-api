@@ -32,7 +32,7 @@ router.post('/check-recipient', function(req, res, next) {
 	var r = req.r;
 
 	var email = req.body.to || null;
-	if (email === null) {
+	if (!!!email) {
 		return res.status(200).send({ok: false});
 	}
 	var account = email.substring(0, email.lastIndexOf("@")).toLowerCase();
@@ -73,7 +73,7 @@ router.post('/store', function(req, res, next) {
 		}
 	}
 
-	if (recipient === null) {
+	if (!!!recipient) {
 		return res.send({ok: false, error: 'No envelopeTo.'});
 	}
 
