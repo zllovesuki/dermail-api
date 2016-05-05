@@ -63,11 +63,9 @@ router.post('/sendMail', auth, function(req, res, next) {
 			return res.status(400).send({message: err});
 		}
 
-		return helper
-		.userAccountMapping(r, userId, accountId)
+		return helper.auth.userAccountMapping(r, userId, accountId)
 		.then(function(account) {
-			return helper
-			.getInternalFolder(r, accountId, 'Sent')
+			return helper.folder.getInternalFolder(r, accountId, 'Sent')
 			.then(function(sentFolder) {
 				var sender = {};
 				sender.name = req.user.firstName + ' ' + req.user.lastName;
@@ -109,11 +107,11 @@ function keepACopyInSentFolder(r, accountId, sender, compose, sentFolder) {
 
 			return Promise.join(
 				// Perspective is relative. "From" in the eyes of RX, "To" in the eyes of TX
-				helper.getArrayOfFromAddress(r, accountId, message.to),
+				helper.address.getArrayOfFromAddress(r, accountId, message.to),
 				// Perspective is relative. "To" in the eyes of RX, "From" in the eyes of TX
-				helper.getArrayOfToAddress(r, accountId, myAddress, message.from),
+				helper.address.getArrayOfToAddress(r, accountId, myAddress, message.from),
 				function(arrayOfToAddress, arrayOfFromAddress) {
-					return helper.saveMessage(r, accountId, sentFolder, arrayOfToAddress, arrayOfFromAddress, message, true)
+					return helper.insert.saveMessage(r, accountId, sentFolder, arrayOfToAddress, arrayOfFromAddress, message, true)
 				}
 			)
 			.then(function() {

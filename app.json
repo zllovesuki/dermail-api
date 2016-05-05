@@ -18,12 +18,6 @@
 			"restart_delay": 5000,
 			"exec_mode": "cluster",
 			"instances": 4
-		},
-		{
-			"name": "API-GCM",
-			"script": "GCM.js",
-			"watch": true,
-			"restart_delay": 5000
 		}
 	]
 }

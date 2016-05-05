@@ -55,8 +55,7 @@ router.post('/getAccount', auth, function(req, res, next) {
 		return res.status(400).send({message: 'Account ID Required'});
 	}
 
-	return helper
-	.userAccountMapping(r, userId, accountId)
+	return helper.auth.userAccountMapping(r, userId, accountId)
 	.then(function(account) {
 		return res.status(200).send(account);
 	})
@@ -125,8 +124,7 @@ router.post('/getFolder', auth, function(req, res, next) {
 		return res.status(403).send({message: 'Unspeakable horror.'}); // Early surrender: account does not belong to user
 	}
 
-	return helper
-	.accountFolderMapping(r, accountId, folderId)
+	return helper.auth.accountFolderMapping(r, accountId, folderId)
 	.then(function(folder) {
 		return res.status(200).send(folder);
 	})
@@ -157,8 +155,7 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 		return res.status(403).send({message: 'Unspeakable horror.'}); // Early surrender: account does not belong to user
 	}
 
-	return helper
-	.accountFolderMapping(r, accountId, folderId)
+	return helper.auth.accountFolderMapping(r, accountId, folderId)
 	.then(function(folder) {
 		return r
 		.table('messages')
@@ -216,8 +213,7 @@ router.post('/getMail', auth, function(req, res, next) {
 		return res.status(403).send({message: 'Unspeakable horror.'}); // Early surrender: account does not belong to user
 	}
 
-	return helper
-	.messageAccountMapping(r, messageId, accountId)
+	return helper.auth.messageAccountMapping(r, messageId, accountId)
 	.then(function() {
 		return r
 		.table('messages')
@@ -303,8 +299,7 @@ router.post('/getAddress', auth, function(req, res, next) {
 		return res.status(200).send(empty); // Early surrender: account does not belong to user
 	}
 
-	return helper
-	.getAddress(r, email, accountId, empty)
+	return helper.address.getAddress(r, email, accountId, empty)
 	.then(function(result) {
 		delete result.addressId;
 		return res.status(200).send(result);
@@ -396,7 +391,7 @@ router.post('/searchWithFilter', auth, function(req, res, next) {
 		var contain = !!!criteria.contain ? null : criteria.contain.toLowerCase().replace(/\s+/g,'').split(',');
 		var exclude = !!!criteria.exclude ? null : criteria.exclude.toLowerCase().replace(/\s+/g,'').split(',');
 
-		return helper.applyFilters(result, arrayOfFrom, arrayOfTo, subject, contain, exclude)
+		return helper.filter.applyFilters(result, arrayOfFrom, arrayOfTo, subject, contain, exclude)
 	})
 	.then(function(filtered) {
 		for (var i = 0, flen = filtered.length; i < flen; i++) {

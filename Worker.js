@@ -20,6 +20,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 
 		switch (type) {
 			case 'sendMail':
+
 			sendNotification(r, data.userId, 'log', 'Queued for delivery.')
 			.then(function(queueId) {
 				var servers = _.cloneDeep(config.tx);
@@ -69,8 +70,11 @@ r.connect(config.rethinkdb).then(function(conn) {
 			.catch(function(e) {
 				return done(e);
 			});
+
 			break;
+
 			case 'checkUnique':
+
 			deleteIfUnique(r, data)
 			.then(function(attachment) {
 				if (!attachment.hasOwnProperty('doNotDeleteS3')) {
@@ -93,8 +97,11 @@ r.connect(config.rethinkdb).then(function(conn) {
 			.catch(function(e) {
 				return done(e);
 			})
+
 			break;
+
 			case 'deleteAttachment':
+
 			deleteAttachmentOnS3(data.checksum, data.generatedFileName, s3)
 			.then(function() {
 				return done();
@@ -102,6 +109,33 @@ r.connect(config.rethinkdb).then(function(conn) {
 			.catch(function(e) {
 				return done(e);
 			})
+
+			break;
+
+			case 'pushNotification':
+
+			var userId = data.userId;
+			return r
+			.table('pushSubscriptions')
+			.get(userId)
+			.run(r.conn)
+			.then(function(result) {
+				if (result !== null) {
+					return Promise.map(result.subscriptions, function(subscription) {
+						return helper.sendNotification(r, config.gcm_api_key, {
+							message: data.message,
+							accountId: data.accountId
+						}, subscription);
+					});
+				}
+			})
+			.then(function() {
+				return done();
+			})
+			.catch(function(e) {
+				return done(e);
+			})
+			
 			break;
 		}
 	});

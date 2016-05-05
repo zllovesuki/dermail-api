@@ -215,8 +215,7 @@ router.post('/updateFolder', auth, function(req, res, next) {
 		case 'deleteFolder':
 			var folderId = req.body.folderId;
 
-			return helper
-			.accountFolderMapping(r, accountId, folderId)
+			return helper.auth.accountFolderMapping(r, accountId, folderId)
 			.then(function() {
 				return r
 				.table('folders')
@@ -231,7 +230,7 @@ router.post('/updateFolder', auth, function(req, res, next) {
 				if (childrenCount !== 0) {
 					throw new Error('Folder contains children.');
 				}
-				return helper.getInternalFolder(r, accountId, 'Trash')
+				return helper.folder.getInternalFolder(r, accountId, 'Trash')
 			})
 			.then(function(trashFolder) {
 				return batchMoveToTrashAndRemoveFolder(r, folderId, trashFolder)
@@ -249,8 +248,7 @@ router.post('/updateFolder', auth, function(req, res, next) {
 				return res.status(400).send({message: 'Folder ID Required'});
 			}
 
-			return helper
-			.accountFolderMapping(r, accountId, folderId)
+			return helper.auth.accountFolderMapping(r, accountId, folderId)
 			.then(function(folder) {
 				// Sanity check
 				if (folder.mutable === false) {
@@ -263,8 +261,7 @@ router.post('/updateFolder', auth, function(req, res, next) {
 					})
 				}
 
-				return helper
-				.accountFolderMapping(r, accountId, parent)
+				return helper.auth.accountFolderMapping(r, accountId, parent)
 				.then(parentTest)
 				.then(function() {
 					return doUpdateFolder(r, folderId, data)
@@ -288,8 +285,7 @@ router.post('/updateFolder', auth, function(req, res, next) {
 					return next(e);
 				})
 			}else{
-				return helper
-				.accountFolderMapping(r, accountId, data.parent)
+				return helper.auth.accountFolderMapping(r, accountId, data.parent)
 				.then(parentTest)
 				.then(function() {
 					return doAddFolder(r, data)
@@ -384,7 +380,7 @@ router.post('/pushSubscriptions', auth, function(req, res, next) {
 		})
 		break;
 		case 'test':
-		return helper.sendNotification(r, config.gcm_api_key, {
+		return helper.notification.sendNotification(r, config.gcm_api_key, {
 			message: 'This is a test!',
 			accountId: null
 		}, object).then(function() {
@@ -460,13 +456,13 @@ router.post('/modifyFilter', auth, function(req, res, next) {
 					})
 				})
 				.then(function(result) {
-					return helper.applyFilters(result, arrayOfFrom, arrayOfTo, subject, contain, exclude)
+					return helper.filter.applyFilters(result, arrayOfFrom, arrayOfTo, subject, contain, exclude)
 				})
 				.then(function(filtered) {
 					return Promise.map(filtered, function(message) {
 						return Promise.map(Object.keys(action), function(key) {
 							if (!!existing[key]) {
-								return helper.applyAction(r, key, action[key], message);
+								return helper.filter.applyAction(r, key, action[key], message);
 							}
 						})
 					})
@@ -481,8 +477,7 @@ router.post('/modifyFilter', auth, function(req, res, next) {
 
 			if (folderId !== 'default') {
 				// Never trust the user
-				return helper
-				.accountFolderMapping(r, accountId, folderId)
+				return helper.auth.accountFolderMapping(r, accountId, folderId)
 				.then(function() {
 					return doAddFilter();
 				})
@@ -490,8 +485,7 @@ router.post('/modifyFilter', auth, function(req, res, next) {
 					return res.status(403).send({message: 'Unspeakable horror.'});
 				})
 			}else{
-				return helper
-				.getInternalFolder(r, accountId, 'Inbox')
+				return helper.auth.getInternalFolder(r, accountId, 'Inbox')
 				.then(function(inboxId) {
 					action.folder = inboxId;
 					return doAddFilter();
@@ -572,8 +566,7 @@ var doUpdateFolder = Promise.method(function(r, folderId, data) {
 })
 
 var doUpdateMail = Promise.method(function(r, messageId, accountId, data) {
-	return helper
-	.messageAccountMapping(r, messageId, accountId)
+	return helper.auth.messageAccountMapping(r, messageId, accountId)
 	.then(function() {
 		return r
 		.table('messages')
