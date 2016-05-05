@@ -62,6 +62,7 @@ router.post('/store', function(req, res, next) {
 	delete req.body.remoteSecret;
 
 	var r = req.r;
+	var messageQ = req.Q;
 
 	var message = req.body;
 
@@ -120,7 +121,7 @@ router.post('/store', function(req, res, next) {
 			})
 			.then(function(notify) {
 				if (notify) {
-					return helper.notification.sendNewMailNotification(r, userId, accountId, 'New mail at: ' + recipient)
+					return helper.notification.queueNewMailNotification(r, messageQ, config, userId, accountId, 'New mail at: ' + recipient)
 				}
 			})
 			.then(function() {
