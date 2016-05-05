@@ -224,10 +224,10 @@ var filter = function (r, accountId, messageId) {
 								}else{
 									return helper.filter.applyAction(r, key, filter.post[key], message);
 								}
-							})
+							}, { concurrency: 3 });
 						}
 					})
-				});
+				}, { concurrency: 3 });
 			})
 		})
 		.then(function() {
