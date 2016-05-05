@@ -81,7 +81,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 							checksum: attachment.checksum,
 							generatedFileName: attachment.generatedFileName
 						}
-					});
+					}, config.Qconfig);
 				}
 			})
 			.then(function() {
