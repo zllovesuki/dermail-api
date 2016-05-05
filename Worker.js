@@ -3,6 +3,7 @@ var Queue = require('bull'),
 	config = require('./config'),
 	knox = require('knox'),
 	request = require('superagent'),
+	helper = require('./lib/helper'),
 	r = require('rethinkdb'),
 	config = require('./config'),
 	_ = require('lodash'),
@@ -122,7 +123,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 			.then(function(result) {
 				if (result !== null) {
 					return Promise.map(result.subscriptions, function(subscription) {
-						return helper.sendNotification(r, config.gcm_api_key, {
+						return helper.notification.sendNotification(r, config.gcm_api_key, {
 							message: data.message,
 							accountId: data.accountId
 						}, subscription);
@@ -135,7 +136,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 			.catch(function(e) {
 				return done(e);
 			})
-			
+
 			break;
 		}
 	});
