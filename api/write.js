@@ -52,8 +52,7 @@ router.post('/updateMail', auth, function(req, res, next) {
 			if (!folderId) {
 				return res.status(400).send({message: 'Folder ID Required'});
 			}
-			return helper
-			.accountFolderMapping(r, accountId, folderId)
+			return helper.auth.accountFolderMapping(r, accountId, folderId)
 			.then(function(folder) {
 				data.folderId = folderId;
 				return doUpdateMail(r, messageId, accountId, data)
@@ -67,8 +66,7 @@ router.post('/updateMail', auth, function(req, res, next) {
 
 			break;
 		case 'trash':
-			return helper
-			.getInternalFolder(r, accountId, 'Trash')
+			return helper.folder.getInternalFolder(r, accountId, 'Trash')
 			.then(function(trashFolder) {
 				data.folderId = trashFolder;
 				return doUpdateMail(r, messageId, accountId, data)
@@ -81,8 +79,7 @@ router.post('/updateMail', auth, function(req, res, next) {
 			})
 			break;
 		case 'spam':
-			return helper
-			.getInternalFolder(r, accountId, 'Spam')
+			return helper.folder.getInternalFolder(r, accountId, 'Spam')
 			.then(function(spamFolder) {
 				data.folderId = spamFolder;
 				return doUpdateMail(r, messageId, accountId, data)
@@ -96,8 +93,7 @@ router.post('/updateMail', auth, function(req, res, next) {
 			})
 			break;
 		case 'notspam':
-			return helper
-			.getInternalFolder(r, accountId, 'Inbox')
+			return helper.folder.getInternalFolder(r, accountId, 'Inbox')
 			.then(function(inboxFolder) {
 				data.folderId = inboxFolder;
 				return doUpdateMail(r, messageId, accountId, data)
@@ -155,8 +151,7 @@ router.post('/updateFolder', auth, function(req, res, next) {
 	switch (action) {
 		case 'truncateFolder':
 			var folderId = req.body.folderId;
-			return helper
-			.accountFolderMapping(r, accountId, folderId)
+			return helper.auth.accountFolderMapping(r, accountId, folderId)
 			.then(function() {
 				return r
 				.table('messages')
@@ -485,7 +480,7 @@ router.post('/modifyFilter', auth, function(req, res, next) {
 					return res.status(403).send({message: 'Unspeakable horror.'});
 				})
 			}else{
-				return helper.auth.getInternalFolder(r, accountId, 'Inbox')
+				return helper.folder.getInternalFolder(r, accountId, 'Inbox')
 				.then(function(inboxId) {
 					action.folder = inboxId;
 					return doAddFilter();
