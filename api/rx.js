@@ -120,7 +120,7 @@ router.post('/store', function(req, res, next) {
 				return filter(r, accountId, messageId)
 				.then(function(notify) {
 					if (!notify) return;
-					return helper.getMessageFolder(r, messageId)
+					return helper.folder.getMessageFolder(r, messageId)
 					.then(function(folder) {
 						var payload, msg;
 						if (folder !== null) {
