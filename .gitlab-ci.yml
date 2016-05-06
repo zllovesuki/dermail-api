@@ -15,7 +15,7 @@ cache:
     - config.json
 
 api:
-  stage: api
+  stage: test
   script:
     - forever start API.js
     - sleep 5
