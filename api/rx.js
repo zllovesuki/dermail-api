@@ -130,7 +130,7 @@ router.post('/store', function(req, res, next) {
 								folder: folder,
 								messageId: messageId
 							};
-							msg = 'New mail at ' + folder.displayName + ': ' + recipient;
+							msg = 'New mail in ' + folder.displayName + ' at: ' + recipient;
 						}else{
 							payload = {
 								userId: userId,
