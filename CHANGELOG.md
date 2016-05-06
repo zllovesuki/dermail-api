@@ -1,5 +1,10 @@
 ## Changelog
 
+05/05/2016 -> 1.11.x -> 1.12.0
+1. API breaking: Socket.io no longer runs with API processes; it is now running on a single process
+2. This should make nginx load balancing a lot more easier
+3. The default port is config.cluster.basePort - 1
+
 05/04/2016 -> 1.11.x -> 1.11.2
 1. CRITICAL: Please change your jwt secret to invalidate all jwt tokens.
 
