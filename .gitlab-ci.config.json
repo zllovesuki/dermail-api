@@ -1,0 +1,25 @@
+{
+	"remoteSecret": "abcde",
+	"jwt": "abcde",
+	"gcm_api_key": "abced",
+	"tx": [{
+		"priority": 10,
+		"hook": "https://dne.random.tld"
+	}],
+	"behindProxy": false,
+	"s3": {
+		"endpoint": "123.domain.tld",
+		"key": "123",
+		"secret": "123",
+		"bucket": "123"
+	},
+	"rethinkdb": {
+		"host": "rethinkdb",
+		"port": 28015,
+        "db": "test"
+	},
+	"redisQ": {
+		"host": "redis",
+		"port": 6379
+	}
+}

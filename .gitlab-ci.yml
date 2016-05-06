@@ -1,0 +1,22 @@
+image: node:4.4.3
+
+services:
+  - redis:latest
+  - rethinkdb: latest
+
+before_script:
+  - apt-get update -qq && apt-get install -y -qq curl
+  - npm install
+  - cp .gitlab-ci.config.json config.json
+
+cache:
+  paths:
+    - node_modules/
+    - config.json
+
+api:
+  stage: api
+  script:
+    - forever start API.js
+    - sleep 5
+    - curl -I http://127.0.0.1:2000/
