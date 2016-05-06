@@ -18,6 +18,6 @@ cache:
 api:
   stage: test
   script:
-    - forever start API.js
+    - node API.js
     - sleep 5
     - curl -I http://127.0.0.1:2000/
