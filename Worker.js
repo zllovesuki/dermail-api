@@ -123,10 +123,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 			.then(function(result) {
 				if (result !== null) {
 					return Promise.map(result.subscriptions, function(subscription) {
-						return helper.notification.sendNotification(r, config.gcm_api_key, {
-							message: data.message,
-							accountId: data.accountId
-						}, subscription);
+						return helper.notification.sendNotification(r, config.gcm_api_key, data, subscription);
 					}, { concurrency: 3 });
 				}
 			})

@@ -117,12 +117,30 @@ router.post('/store', function(req, res, next) {
 				}
 			)
 			.then(function(messageId) {
-				return filter(r, accountId, messageId);
-			})
-			.then(function(notify) {
-				if (notify) {
-					return helper.notification.queueNewMailNotification(r, messageQ, config, userId, accountId, 'New mail at: ' + recipient)
-				}
+				return filter(r, accountId, messageId)
+				.then(function(notify) {
+					if (!notify) return;
+					return helper.getMessageFolder(r, messageId)
+					.then(function(folder) {
+						var payload, msg;
+						if (folder !== null) {
+							payload = {
+								userId: userId,
+								accountId: accountId,
+								folder: folder,
+								messageId: messageId
+							};
+							msg = 'New mail at ' + folder.displayName + ': ' + recipient;
+						}else{
+							payload = {
+								userId: userId,
+								accountId: accountId
+							};
+							msg = 'New mail at : ' + recipient;
+						}
+						return helper.notification.queueNewMailNotification(r, messageQ, config, payload, msg);
+					})
+				})
 			})
 			.then(function() {
 				return res.send({ok: true});
