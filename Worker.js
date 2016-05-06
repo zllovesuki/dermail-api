@@ -142,40 +142,32 @@ r.connect(config.rethinkdb).then(function(conn) {
 	});
 });
 
-var deleteIfUnique = function(r, attachmentId) {
-	return new Promise(function(resolve, reject) {
-		var doNotDeleteS3 = {
-			doNotDeleteS3: true
-		};
-		r
+var deleteIfUnique = Promise.method(function(r, attachmentId) {
+	var doNotDeleteS3 = {
+		doNotDeleteS3: true
+	};
+	return r
+	.table('attachments')
+	.get(attachmentId)
+	.run(r.conn)
+	.then(function(attachment) {
+		if (attachment === null) { // ok... that's weird...
+			return doNotDeleteS3;
+		}
+		return r
 		.table('attachments')
-		.get(attachmentId)
+		.getAll(attachment.checksum, {index: 'checksum'})
+		.count()
 		.run(r.conn)
-		.then(function(attachment) {
-			if (attachment === null) { // ok... that's weird...
-				return resolve(doNotDeleteS3);
+		.then(function(count) {
+			if (count === 1) { // Last copy, go for it
+				return attachment;
+			}else{ // Other attachments have the same checksum, don't delete
+				return doNotDeleteS3;
 			}
-			r
-			.table('attachments')
-			.getAll(attachment.checksum, {index: 'checksum'})
-			.count()
-			.run(r.conn)
-			.then(function(count) {
-				if (count === 1) { // Last copy, go for it
-					return resolve(attachment);
-				}else{ // Other attachments have the same checksum, don't delete
-					return resolve(doNotDeleteS3);
-				}
-			})
-			.error(function(e) {
-				return reject(e);
-			})
-		})
-		.error(function(e) {
-			return reject(e);
 		})
 	})
-}
+})
 
 var deleteAttachmentOnS3 = function(checksum, generatedFileName, s3) {
 	return new Promise(function(resolve, reject) {
@@ -198,26 +190,21 @@ var deleteAttachmentFromDatabase = function(r, attachmentId) {
 	.run(r.conn)
 }
 
-var sendNotification = function (r, userId, level, msg) {
-	return new Promise(function(resolve, reject) {
-		var insert = {};
-		insert.userId = userId;
-		insert.type = 'notification';
-		insert.level = level;
-		insert.message = msg;
-		r
-		.table('queue')
-		.insert(insert)
-		.getField('generated_keys')
-		.do(function (keys) {
-			return keys(0);
-		})
-		.run(r.conn)
-		.then(function(queueId) {
-			return resolve(queueId);
-		})
-		.error(function(e) {
-			return reject(e);
-		})
+var sendNotification = Promise.method(function(r, userId, level, msg) {
+	var insert = {};
+	insert.userId = userId;
+	insert.type = 'notification';
+	insert.level = level;
+	insert.message = msg;
+	return r
+	.table('queue')
+	.insert(insert)
+	.getField('generated_keys')
+	.do(function (keys) {
+		return keys(0);
 	})
-}
+	.run(r.conn)
+	.then(function(queueId) {
+		return queueId;
+	})
+})
