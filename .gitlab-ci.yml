@@ -7,6 +7,7 @@ services:
 before_script:
   - apt-get update -qq && apt-get install -y -qq curl
   - npm install
+  - npm install forever -g
   - cp .gitlab-ci.config.json config.json
 
 cache:
