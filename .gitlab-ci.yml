@@ -2,7 +2,7 @@ image: node:4.4.3
 
 services:
   - redis:latest
-  - rethinkdb: latest
+  - rethinkdb:latest
 
 before_script:
   - apt-get update -qq && apt-get install -y -qq curl
