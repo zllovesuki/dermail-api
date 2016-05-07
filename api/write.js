@@ -364,7 +364,7 @@ router.post('/modifyFilter', auth, function(req, res, next) {
 	var op = req.body.op;
 
 	if (req.user.accounts.indexOf(accountId) === -1) {
-		return res.status(200).send(empty); // Early surrender: account does not belong to user
+		return res.status(403).send({message: 'Unspeakable horror.'}); // Early surrender: account does not belong to user
 	}
 
 	switch (op) {
