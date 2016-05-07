@@ -517,8 +517,11 @@ router.post('/updateDomain', auth, function(req, res, next) {
 	.get(domainId)
 	.run(r.conn)
 	.then(function(domain) {
-		if (domain === null || domain.domainAdmin !== userId) {
-			return res.status(403).send({message: 'Unspeakable horror.'});
+		if (domain === null) {
+			throw new Error('Domain does not exist.');
+		}
+		if (domain.domainAdmin !== userId) {
+			throw new Error('Only the domain admin can modify the domain.');
 		}
 	})
 	.then(function() {
