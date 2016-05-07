@@ -74,6 +74,53 @@ r.connect(config.rethinkdb).then(function(conn) {
 
 			break;
 
+			case 'truncateFolder':
+
+			return Promise.map(data.messages, function(message) {
+
+				var deleteMessage = function() {
+					return r
+					.table('messages')
+					.get(message.messageId)
+					.delete()
+					.run(r.conn)
+				};
+
+				var deleteHeader = function() {
+					return r
+					.table('messageHeaders')
+					.get(message.headers)
+					.delete()
+					.run(r.conn);
+				};
+
+				var queueDeleteAttachment = function() {
+					return Promise.map(message.attachments, function(attachmentId) {
+						return messageQ.add({
+							type: 'checkUnique',
+							payload: attachmentId
+						}, config.Qconfig);
+					}, { concurrency: 3 });
+				}
+
+				return Promise.all([
+					deleteMessage(),
+					deleteHeader(),
+					queueDeleteAttachment()
+				])
+			}, { concurrency: 3 })
+			.then(function() {
+				return sendNotification(r, data.userId, 'success', 'Folder truncated.')
+			})
+			.then(function() {
+				return done();
+			})
+			.catch(function(e) {
+				return done(e);
+			})
+
+			break;
+
 			case 'checkUnique':
 
 			deleteIfUnique(r, data)

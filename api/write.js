@@ -163,45 +163,16 @@ router.post('/updateFolder', auth, function(req, res, next) {
 				})
 			})
 			.then(function(messages) {
-				return Promise.map(messages, function(message) {
-
-					var deleteMessage = function() {
-						return r
-						.table('messages')
-						.get(message.messageId)
-						.delete()
-						.run(r.conn)
-					};
-
-					var deleteHeader = function() {
-						return r
-						.table('messageHeaders')
-						.get(message.headers)
-						.delete()
-						.run(r.conn);
-					};
-
-					var queueDeleteAttachment = function() {
-						return Promise.map(message.attachments, function(attachmentId) {
-							return messageQ.add({
-								type: 'checkUnique',
-								payload: attachmentId
-							}, config.Qconfig);
-						});
+				return messageQ.add({
+					type: 'truncateFolder',
+					payload: {
+						userId: userId,
+						messages: messages
 					}
-
-					return Promise.join(
-						deleteMessage(),
-						deleteHeader(),
-						queueDeleteAttachment(),
-						function(m, h, a) {
-							return;
-						}
-					)
-				}, { concurrency: 3 });
+				}, config.Qconfig);
 			})
 			.then(function() {
-				return res.status(200).send({});
+				return res.status(200).send({message: 'Action "truncateFolder" queued.'});
 			})
 			.catch(function(e) {
 				return next(e);
@@ -231,7 +202,7 @@ router.post('/updateFolder', auth, function(req, res, next) {
 				return batchMoveToTrashAndRemoveFolder(r, folderId, trashFolder)
 			})
 			.then(function(result) {
-				return res.status(200).send(result);
+				return res.status(200).send({message: 'Folder deleted.'});
 			})
 			.catch(function(e) {
 				return next(e);
@@ -251,19 +222,16 @@ router.post('/updateFolder', auth, function(req, res, next) {
 				}
 				if (parent === null) {
 					return doUpdateFolder(r, folderId, data)
-					.then(function(result) {
-						return res.status(200).send(result);
+				}else{
+					return helper.auth.accountFolderMapping(r, accountId, parent)
+					.then(parentTest)
+					.then(function() {
+						return doUpdateFolder(r, folderId, data)
 					})
 				}
-
-				return helper.auth.accountFolderMapping(r, accountId, parent)
-				.then(parentTest)
-				.then(function() {
-					return doUpdateFolder(r, folderId, data)
-				})
-				.then(function(result) {
-					return res.status(200).send(result);
-				})
+			})
+			.then(function(result) {
+				return res.status(200).send({message: 'Folder updated.'});
 			})
 			.catch(function(e) {
 				return next(e);
