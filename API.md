@@ -92,6 +92,7 @@ Sometimes "Complete Account" and "Account" are *synonymous*.
 [{
 	"account": "user",
 	"accountId": "UNIQUE_ID",
+	"domainId": "UNIQUE_ID",
 	"alias": [],
 	"domain": "domain.com"
 }]

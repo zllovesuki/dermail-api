@@ -1,5 +1,8 @@
 ## Changelog
 
+05/06/2016 -> 1.13.1 -> 1.13.2
+1. /read/getAccounts now returns domainId
+
 05/06/2016 -> 1.12.x -> 1.13.1
 1. Reverting to running Socket.io with API processes.
 2. If you are running nginx, proxy '/' to load balancing, but proxy '/socket.io' to sticky session.

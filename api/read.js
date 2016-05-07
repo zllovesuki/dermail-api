@@ -32,7 +32,7 @@ router.get('/getAccounts', auth, function(req, res, next) {
 	.getAll(userId, {index: 'userId'})
 	.eqJoin('domainId', r.table('domains'))
 	.zip()
-	.pluck('accountId', 'account', 'domain', 'alias')
+	.pluck('accountId', 'domainId', 'account', 'domain', 'alias')
 	.run(r.conn)
 	.then(function(cursor) {
 		return cursor.toArray();
