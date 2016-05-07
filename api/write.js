@@ -7,6 +7,10 @@ var reservedFolderNames = [
 var noChildrenAllowed = [
 	'trash',
 	'sent'
+];
+var allowTruncate = [
+	'trash',
+	'spam'
 ]
 var express = require('express'),
 	router = express.Router(),
@@ -152,7 +156,10 @@ router.post('/updateFolder', auth, function(req, res, next) {
 		case 'truncateFolder':
 			var folderId = req.body.folderId;
 			return helper.auth.accountFolderMapping(r, accountId, folderId)
-			.then(function() {
+			.then(function(folder) {
+				if (allowTruncate.indexOf(folder.displayName.toLowerCase().trim()) === -1) {
+					throw new Error('Only "SPAM" and "Trash" folders can be truncated.');
+				}
 				return r
 				.table('messages')
 				.between([folderId, r.minval], [folderId, r.maxval], {index: 'folderDate'})
