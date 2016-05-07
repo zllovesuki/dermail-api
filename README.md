@@ -14,6 +14,8 @@ Central API/Worker for Dermail System.
 
 ## Pro Tips
 
+### nginx rever proxy
+
 Supposed that you are running nginx (machine A, 192.168.0.10), and you have two Dermail-API instances running (machines B and C, .11, .12).
 
 In nginx's config file:
@@ -72,3 +74,49 @@ server {
 
 }
 ```
+
+### account ownership transfer
+
+Currently this requires open heart surgery, a.k.a. querying directly in the database. This functionality will not be implmented in the API as this is usually very messy.
+
+Before everything, take notes of the userId of the **old user**.
+
+First, create a new user:
+```
+r.table('users').insert({
+	firstName: 'Your first name',
+	lastName: 'Your last name',
+	username: 'Username to login',
+	password: 'bcrypt hashed password. I usually salt it 20 times'
+})
+```
+Take a notes of the "generated_keys", that's the userId of the **new user**.
+
+Then, transfer account ownership:
+```
+r.table('accounts').get('accountId here').update({
+	userId: 'new userId'
+})
+```
+
+Optionally, transfer the domain ownership:
+```
+r.table('domains').get('domainId here').update({
+	domainAdmin: 'new userId'
+})
+```
+
+Lastly, update the address book:
+```
+r.table('addresses').filter(function(doc) {
+	return doc('accountId').eq('accountId here');
+})
+```
+Then, in the results, find the addresses with an internalOwner, update the internalOwner to the new user:
+```
+r.table('addresses').get('addressId here').update({
+	internalOwner: 'new userId'
+})
+```
+
+That's it.
