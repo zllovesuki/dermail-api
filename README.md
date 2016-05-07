@@ -19,7 +19,7 @@ Central API/Worker for Dermail System.
 Supposed that you are running nginx (machine A, 192.168.0.10), and you have two Dermail-API instances running (machines B and C, .11, .12).
 
 In nginx's config file:
-```
+```nginx
 upstream dermail-api {
 	least_conn;
 	server 192.168.0.11:2000;
@@ -48,7 +48,7 @@ upstream dermail-socket {
 Notice the difference between socket and API. We want the socket connection to be "sticky", thus the ip_hash. Otherwise, the API requests are distributed across processes.
 
 Then, in your API.conf:
-```
+```nginx
 server {
 	listen 443 ssl http2;
 
@@ -82,7 +82,7 @@ Currently this requires open heart surgery, a.k.a. querying directly in the data
 Before everything, take notes of the userId of the **old user**.
 
 First, create a new user:
-```
+```javascript
 r.table('users').insert({
 	firstName: 'Your first name',
 	lastName: 'Your last name',
@@ -93,27 +93,27 @@ r.table('users').insert({
 Take a notes of the "generated_keys", that's the userId of the **new user**.
 
 Then, transfer account ownership:
-```
+```javascript
 r.table('accounts').get('accountId here').update({
 	userId: 'new userId'
 })
 ```
 
 Optionally, transfer the domain ownership:
-```
+```javascript
 r.table('domains').get('domainId here').update({
 	domainAdmin: 'new userId'
 })
 ```
 
 Lastly, update the address book:
-```
+```javascript
 r.table('addresses').filter(function(doc) {
 	return doc('accountId').eq('accountId here');
 })
 ```
 Then, in the results, find the addresses with an internalOwner, update the internalOwner to the new user:
-```
+```javascript
 r.table('addresses').get('addressId here').update({
 	internalOwner: 'new userId'
 })
