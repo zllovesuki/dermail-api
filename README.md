@@ -112,7 +112,7 @@ r.table('addresses').filter(function(doc) {
 	return doc('accountId').eq('accountId here');
 })
 ```
-Then, in the results, find the addresses with an internalOwner, update the internalOwner to the new user:
+Then, in the results, find an address with an internalOwner, update the internalOwner to the new user. **DO NOT UPDATE THE null ONES, YOU WILL BREAK EVERYTHING**
 ```javascript
 r.table('addresses').get('addressId here').update({
 	internalOwner: 'new userId'
