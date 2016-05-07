@@ -350,6 +350,9 @@ router.post('/pushSubscriptions', auth, function(req, res, next) {
 			return res.status(200).send();
 		})
 		break;
+		default:
+		return res.status(501).send({message: 'Not implemented.'});
+		break;
 	}
 });
 
@@ -483,9 +486,68 @@ router.post('/modifyFilter', auth, function(req, res, next) {
 				return next(e);
 			});
 			break;
+		default:
+		return res.status(501).send({message: 'Not implemented.'});
+		break;
+	}
+})
+
+router.post('/updateDomain', auth, function(req, res, next) {
+
+	var r = req.r;
+
+	var userId = req.user.userId;
+	var domainId = req.body.domainId;
+
+	if (!!!domainId) {
+		return res.status(400).send({message: 'domainID required.'});
 	}
 
-})
+	var action = req.body.action;
+
+	return r
+	.table('domains')
+	.get(domainId)
+	.run(r.conn)
+	.then(function(domain) {
+		if (domain === null || domain.domainAdmin !== userId) {
+			return res.status(403).send({message: 'Unspeakable horror.'});
+		}
+	})
+	.then(function() {
+		switch (action) {
+			case 'updateAlias':
+
+			var alias = req.body.alias;
+
+			// remove whitespace only element, and remove non-fqdn domains
+			alias = alias.filter(function(str) {
+				return /\S/.test(str) && /^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$/.test(str);
+			});
+
+			return r
+			.table('domains')
+			.get(domainId)
+			.update({
+				alias: alias
+			})
+			.run(r.conn)
+
+			break;
+
+			default:
+			throw new Error('Not implemented.');
+			break;
+		}
+	})
+	.then(function() {
+		return res.status(200).send({message: 'Domain updated.'});
+	})
+	.catch(function(e) {
+		return next(e);
+	});
+
+});
 
 var batchMoveToTrashAndRemoveFolder = Promise.method(function(r, fromFolder, trashFolder) {
 	return r
