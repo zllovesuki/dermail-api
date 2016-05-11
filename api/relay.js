@@ -133,12 +133,12 @@ var doSendMail = Promise.method(function(r, config, sender, accountId, userId, c
 		delete compose[field];
 	})
 	_.merge(compose, recipients);
-	return messageQ.add({
-		type: 'sendMail',
-		payload: compose
-	}, config.Qconfig)
+	return keepACopyInSentFolder(r, accountId, sender, compose, sentFolder)
 	.then(function() {
-		return keepACopyInSentFolder(r, accountId, sender, compose, sentFolder)
+		return messageQ.add({
+			type: 'sendMail',
+			payload: compose
+		}, config.Qconfig)
 	})
 })
 
