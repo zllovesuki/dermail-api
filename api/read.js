@@ -1,7 +1,6 @@
 var express = require('express'),
 	router = express.Router(),
 	passport = require('passport'),
-	unicodeSubstring = require('unicode-substring'),
 	helper = require('../lib/helper'),
 	crypto = require('crypto');
 
@@ -162,7 +161,7 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 		.between([folderId, r.minval], [folderId, lastDate], {index: 'folderDate'})
 		.orderBy({index: r.desc('folderDate')})
 		.slice(start, end)
-		.pluck('messageId', 'date', 'to', 'from', 'folderId', 'accountId', 'subject', 'text', 'attachments', 'isRead', 'isStar')
+		.pluck('messageId', 'date', 'to', 'from', 'folderId', 'accountId', 'subject', 'text', 'isRead', 'isStar')
 		// Save some bandwidth and processsing
 		.map(function(doc) {
 			return doc.merge(function() {
@@ -172,7 +171,8 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 					}),
 					'from': doc('from').concatMap(function(from) { // It's like a subquery
 						return [r.table('addresses').get(from).without('accountId', 'addressId', 'internalOwner')]
-					})
+					}),
+					'text': doc('text').slice(0, 100)
 				}
 			})
 		})
@@ -181,9 +181,6 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 			return cursor.toArray();
 		})
 		.then(function(messages) {
-			for (var k in messages) {
-				messages[k]['text'] = unicodeSubstring(messages[k]['text'], 0, 100);
-			}
 			return res.status(200).send(messages);
 		})
 		.error(function(e) {
