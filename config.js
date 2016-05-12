@@ -12,6 +12,7 @@ module.exports = {
 			delay: 2000
 		}
 	},
+	cleanInterval: require('./config.json').cleanInterval || 10,
 	behindProxy: require('./config.json').behindProxy,
 	s3: require('./config.json').s3,
 	remoteSecret: require('./config.json').remoteSecret,

@@ -1,5 +1,9 @@
 ## Changelog
 
+05/11/2016: 1.14.x -> 1.15.0
+1. New process to clean up the Redis queue using Bull's clean() method
+2. By default, the process will clean up "completed" jobs every 10 minutes, you can change the interval in `config.json` with key `cleanInterval`
+
 05/06/2016 -> 1.13.x -> 1.14.0
 1. new API: /write/updateDomain
 2. Initial release supports update alias. More functionalities on the way.
