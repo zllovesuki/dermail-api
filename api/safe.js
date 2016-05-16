@@ -45,6 +45,10 @@ router.get('/image/*', function(req, res, next) {
 
 	request({
 		url: url,
+		// Some websites are really being a dick about user-agent.
+		headers: {
+			'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.94 Safari/537.36'
+		},
 		timeout: 3000,
 		maxRedirects: 2
 	})
