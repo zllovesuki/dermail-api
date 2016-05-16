@@ -1,5 +1,8 @@
 var config = require('../config.js');
 var r = require('rethinkdb');
+var shortid = require('shortid');
+
+shortid.worker(process.pid % 16);
 
 r.connect(config.rethinkdb, function(err, conn) {
 	actual(conn);
@@ -13,85 +16,76 @@ var domain = 'domain.com'
 var fN = 'John';
 var lN = 'Doe';
 
+var userId = shortid.generate();
+var domainId = shortid.generate();
+var accountId = shortid.generate();
+var folderId = shortid.generate();
+var addressId = shortid.generate();
+
 function actual(conn) {
-	r
+	return r
 	.table('users')
 	.insert({
+		userId: userId,
 		username: username,
 		password: hash,
 		firstName: fN,
 		lastName: lN
 	})
-	.getField('generated_keys')
-	.do(function(keys) {
-		return keys(0);
-	})
 	.run(conn)
-	.then(function(userId) {
-		r
+	.then(function() {
+		return r
 		.table('domains')
 		.insert({
+			domainId: domainId,
 			userId: userId,
 			domain: domain,
 			alias: []
 		})
-		.getField('generated_keys')
-		.do(function(keys) {
-			return keys(0);
+		.run(conn)
+	})
+	.then(function() {
+		return r
+		.table('accounts')
+		.insert({
+			accountId: accountId,
+			userId: userId,
+			domainId: domainId,
+			account: account
 		})
 		.run(conn)
-		.then(function(domainId) {
-			r
-			.table('accounts')
-			.insert({
-				userId: userId,
-				domainId: domainId,
-				account: account
-			})
-			.getField('generated_keys')
-			.do(function(keys) {
-				return keys(0);
-			})
-			.run(conn)
-			.then(function(accountId) {
-				r
-				.table('folders')
-				.insert({
-					accountId: accountId,
-					parent: null,
-					displayName: 'Inbox',
-					description: 'Main Inbox',
-					mutable: false
-				})
-				.getField('generated_keys')
-				.do(function(keys) {
-					return keys(0);
-				})
-				.run(conn)
-				.then(function(folderId) {
-					r
-					.table('addresses')
-					.insert({
-						account: account,
-						domain: domain,
-						friendlyName: fN + ' ' + lN,
-						internalOwner: userId
-					})
-					.getField('generated_keys')
-					.do(function(keys) {
-						return keys(0);
-					})
-					.run(conn)
-					.then(function(addressId) {
-						console.log('Account ID: ' + accountId);
-						console.log('User ID: ' + userId);
-						console.log('Domain ID: ' + domainId);
-						console.log('Folder ID: ' + folderId);
-						console.log('Address ID: ' + addressId);
-						conn.close();
-					});
-				})
-			})
-		})
 	})
+	.then(function() {
+		return r
+		.table('folders')
+		.insert({
+			folderId: folderId,
+			accountId: accountId,
+			parent: null,
+			displayName: 'Inbox',
+			description: 'Main Inbox',
+			mutable: false
+		})
+		.run(conn)
+	})
+	.then(function() {
+		return r
+		.table('addresses')
+		.insert({
+			addressId: addressId,
+			account: account,
+			domain: domain,
+			friendlyName: fN + ' ' + lN,
+			internalOwner: userId
+		})
+		.run(conn)
+	})
+	.then(function() {
+		console.log('Account ID: ' + accountId);
+		console.log('User ID: ' + userId);
+		console.log('Domain ID: ' + domainId);
+		console.log('Folder ID: ' + folderId);
+		console.log('Address ID: ' + addressId);
+		conn.close();
+	});
 }

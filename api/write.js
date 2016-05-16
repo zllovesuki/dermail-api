@@ -16,7 +16,10 @@ var express = require('express'),
 	router = express.Router(),
 	passport = require('passport'),
 	Promise = require('bluebird'),
-	helper = require('../lib/helper');
+	helper = require('../lib/helper'),
+	shortid = require('shortid');
+
+shortid.worker(process.pid % 16);
 
 var auth = passport.authenticate('jwt', { session: false });
 
@@ -392,9 +395,11 @@ router.post('/modifyFilter', auth, function(req, res, next) {
 			var folderId = action.folder;
 
 			var doAddFilter = function() {
+				var id = shortid.generate();
 				return r // First we add the filter
 				.table('filters')
 				.insert({
+					filterId: id,
 					accountId: accountId,
 					pre: {
 						from: arrayOfFrom,
@@ -580,6 +585,8 @@ var batchMoveToTrashAndRemoveFolder = Promise.method(function(r, fromFolder, tra
 })
 
 var doAddFolder = Promise.method(function(r, data) {
+	var id = shortid.generate();
+	data.folderId = id;
 	return r
 	.table('folders')
 	.insert(data)
