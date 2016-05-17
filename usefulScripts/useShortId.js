@@ -493,7 +493,7 @@ var changeUserId = function() {
 			.then(function() {
 				return updateDomain(oldUserId, newUserId);
 			})
-			.then(fucntion() {
+			.then(function() {
 				return updateSubscriptions(oldUserId, newUserId)
 			})
 		}, { concurrency: 1 })
