@@ -464,6 +464,7 @@ var changeUserId = function() {
 				.delete({ returnChanges: true })
 				.run(r.conn)
 				.then(function(change) {
+					if (typeof change.changes[0] === 'undefined') return;
 					var result = change.changes[0].old_val;
 					result.userId = newId;
 					return result;
