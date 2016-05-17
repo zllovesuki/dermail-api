@@ -107,13 +107,20 @@ var changeAccountId = function() {
 				})
 			};
 
-			return Promise.all([
-				updateAddresses(oldAccountId, newAccountId),
-				updateFilters(oldAccountId, newAccountId),
-				updateFolders(oldAccountId, newAccountId),
-				updateMessages(oldAccountId, newAccountId),
-				updateAccount(oldAccountId, newAccountId)
-			])
+
+			return updateAddresses(oldAccountId, newAccountId)
+			.then(function() {
+				return updateFilters(oldAccountId, newAccountId);
+			})
+			.then(function() {
+				return updateFolders(oldAccountId, newAccountId);
+			})
+			.then(function() {
+				return updateMessages(oldAccountId, newAccountId)
+			})
+			.then(function() {
+				return updateAccount(oldAccountId, newAccountId)
+			})
 		}, { concurrency: 1 })
 	})
 	.then(function() {
@@ -195,12 +202,16 @@ var changeFolderId = function() {
 				.run(r.conn)
 			}
 
-			return Promise.all([
-				updateFilters(oldFolderId, newFolderId),
-				updateMessages(oldFolderId, newFolderId),
-				updateParent(oldFolderId, newFolderId),
-				updateFolder(oldFolderId, newFolderId)
-			])
+			return updateFilters(oldFolderId, newFolderId)
+			.then(function() {
+				return updateMessages(oldFolderId, newFolderId);
+			})
+			.then(function() {
+				return updateParent(oldFolderId, newFolderId);
+			})
+			.then(function() {
+				return updateFolder(oldFolderId, newFolderId);
+			})
 		}, { concurrency: 1 })
 	})
 	.then(function() {
@@ -295,10 +306,11 @@ var changeHeaderId = function() {
 				})
 				.run(r.conn)
 			}
-			return Promise.all([
-				updateHeader(oldHeaderId, newHeaderId),
-				updateMessage(oldHeaderId, newHeaderId)
-			])
+
+			return updateHeader(oldHeaderId, newHeaderId)
+			.then(function() {
+				return updateMessage(oldHeaderId, newHeaderId)
+			})
 		}, { concurrency: 1 })
 	})
 	.then(function() {
@@ -474,13 +486,16 @@ var changeUserId = function() {
 				})
 			}
 
-			return Promise.all([
-				updateAccount(oldUserId, newUserId),
-				updateUser(oldUserId, newUserId),
-				updateDomain(oldUserId, newUserId),
-				updateSubscriptions(oldUserId, newUserId)
-			])
-
+			return updateAccount(oldUserId, newUserId)
+			.then(function() {
+				return updateUser(oldUserId, newUserId);
+			})
+			.then(function() {
+				return updateDomain(oldUserId, newUserId);
+			})
+			.then(fucntion() {
+				return updateSubscriptions(oldUserId, newUserId)
+			})
 		}, { concurrency: 1 })
 	})
 	.then(function() {
@@ -536,10 +551,10 @@ var changeDomainId = function() {
 				})
 			}
 
-			return Promise.all([
-				updateAccount(oldDomainId, newDomainId),
-				updateDomain(oldDomainId, newDomainId)
-			])
+			return updateAccount(oldDomainId, newDomainId)
+			.then(function() {
+				return updateDomain(oldDomainId, newDomainId)
+			})
 
 		}, { concurrency: 1 })
 	})
@@ -623,10 +638,10 @@ var changeAddressId = function() {
 				})
 			}
 
-			return Promise.all([
-				updateMessage(oldAddressId, newAddressId),
-				updateAddress(oldAddressId, newAddressId)
-			])
+			return updateMessage(oldAddressId, newAddressId)
+			.then(function() {
+				return updateAddress(oldAddressId, newAddressId);
+			})
 		}, { concurrency: 1 }) // No concurrency
 	})
 	.then(function() {
