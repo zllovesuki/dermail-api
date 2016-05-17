@@ -467,12 +467,9 @@ var changeUserId = function() {
 					if (typeof change.changes[0] === 'undefined') return;
 					var result = change.changes[0].old_val;
 					result.userId = newId;
-					return result;
-				})
-				.then(function(newSub) {
 					return r
 					.table('pushSubscriptions')
-					.insert(newSub)
+					.insert(result)
 					.run(r.conn)
 				})
 			}
