@@ -457,10 +457,23 @@ var changeUserId = function() {
 				.run(r.conn)
 			}
 
+			var updateSubscriptions = function(oldId, newId) {
+				return r
+				.table('pushSubscriptions')
+				.filter(function(doc) {
+					return doc('userId').eq(oldId);
+				})
+				.update({
+					userId: newId
+				})
+				.run(r.conn)
+			}
+
 			return Promise.all([
 				updateAccount(oldUserId, newUserId),
 				updateUser(oldUserId, newUserId),
-				updateDomain(oldUserId, newUserId)
+				updateDomain(oldUserId, newUserId),
+				updateSubscriptions(oldUserId, newUserId)
 			])
 
 		}, { concurrency: 3 })
