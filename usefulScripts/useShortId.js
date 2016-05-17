@@ -114,7 +114,7 @@ var changeAccountId = function() {
 				updateMessages(oldAccountId, newAccountId),
 				updateAccount(oldAccountId, newAccountId)
 			])
-		}, { concurrency: 3 })
+		}, { concurrency: 1 })
 	})
 	.then(function() {
 		console.log('DONE: changing accounts id');
@@ -201,7 +201,7 @@ var changeFolderId = function() {
 				updateParent(oldFolderId, newFolderId),
 				updateFolder(oldFolderId, newFolderId)
 			])
-		}, { concurrency: 3 })
+		}, { concurrency: 1 })
 	})
 	.then(function() {
 		console.log('DONE: changing folders id');
@@ -241,7 +241,7 @@ var changeMessageId = function() {
 				.insert(newMessage)
 				.run(r.conn)
 			})
-		}, { concurrency: 3 })
+		}, { concurrency: 1 })
 	})
 	.then(function() {
 		console.log('DONE: changing messages id');
@@ -299,7 +299,7 @@ var changeHeaderId = function() {
 				updateHeader(oldHeaderId, newHeaderId),
 				updateMessage(oldHeaderId, newHeaderId)
 			])
-		}, { concurrency: 3 })
+		}, { concurrency: 1 })
 	})
 	.then(function() {
 		console.log('DONE: changing headers id');
@@ -340,7 +340,7 @@ var changeAttachmentId = function() {
 					.insert(newAttachment)
 					.run(r.conn)
 				})
-			}, { concurrency: 3 })
+			}, { concurrency: 1 })
 			.then(function() {
 				return r
 				.table('messages')
@@ -350,7 +350,7 @@ var changeAttachmentId = function() {
 				})
 				.run(r.conn)
 			})
-		}, { concurrency: 3 })
+		}, { concurrency: 1 })
 	})
 	.then(function() {
 		console.log('DONE: changing attachments id');
@@ -390,7 +390,7 @@ var changeFilterId = function() {
 				.insert(newFilter)
 				.run(r.conn)
 			})
-		}, { concurrency: 3 })
+		}, { concurrency: 1 })
 	})
 	.then(function() {
 		console.log('DONE: changing filters id');
@@ -481,7 +481,7 @@ var changeUserId = function() {
 				updateSubscriptions(oldUserId, newUserId)
 			])
 
-		}, { concurrency: 3 })
+		}, { concurrency: 1 })
 	})
 	.then(function() {
 		console.log('DONE: changing users id');
@@ -541,7 +541,7 @@ var changeDomainId = function() {
 				updateDomain(oldDomainId, newDomainId)
 			])
 
-		}, { concurrency: 3 })
+		}, { concurrency: 1 })
 	})
 	.then(function() {
 		console.log('DONE: changing domains id');
