@@ -460,13 +460,20 @@ var changeUserId = function() {
 			var updateSubscriptions = function(oldId, newId) {
 				return r
 				.table('pushSubscriptions')
-				.filter(function(doc) {
-					return doc('userId').eq(oldId);
-				})
-				.update({
-					userId: newId
-				})
+				.get(oldId)
+				.delete({ returnChanges: true })
 				.run(r.conn)
+				.then(function(change) {
+					var result = change.changes[0].old_val;
+					result.userId = newId;
+					return result;
+				})
+				.then(function(newSub) {
+					return r
+					.table('pushSubscriptions')
+					.insert(newSub)
+					.run(r.conn)
+				})
 			}
 
 			return Promise.all([
