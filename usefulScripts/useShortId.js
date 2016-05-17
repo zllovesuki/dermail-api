@@ -107,21 +107,14 @@ var changeAccountId = function() {
 				})
 			};
 
-
-			return updateAddresses(oldAccountId, newAccountId)
-			.then(function() {
-				return updateFilters(oldAccountId, newAccountId);
-			})
-			.then(function() {
-				return updateFolders(oldAccountId, newAccountId);
-			})
-			.then(function() {
-				return updateMessages(oldAccountId, newAccountId)
-			})
-			.then(function() {
-				return updateAccount(oldAccountId, newAccountId)
-			})
-		}, { concurrency: 1 })
+			return Promise.all([
+				updateAddresses(oldAccountId, newAccountId),
+				updateFilters(oldAccountId, newAccountId),
+				updateFolders(oldAccountId, newAccountId),
+				updateMessages(oldAccountId, newAccountId),
+				updateAccount(oldAccountId, newAccountId)
+			])
+		}, { concurrency: 3 })
 	})
 	.then(function() {
 		console.log('DONE: changing accounts id');
@@ -212,7 +205,7 @@ var changeFolderId = function() {
 			.then(function() {
 				return updateFolder(oldFolderId, newFolderId);
 			})
-		}, { concurrency: 1 })
+		}, { concurrency: 3 })
 	})
 	.then(function() {
 		console.log('DONE: changing folders id');
@@ -252,7 +245,7 @@ var changeMessageId = function() {
 				.insert(newMessage)
 				.run(r.conn)
 			})
-		}, { concurrency: 1 })
+		}, { concurrency: 3 })
 	})
 	.then(function() {
 		console.log('DONE: changing messages id');
@@ -306,12 +299,11 @@ var changeHeaderId = function() {
 				})
 				.run(r.conn)
 			}
-
-			return updateHeader(oldHeaderId, newHeaderId)
-			.then(function() {
-				return updateMessage(oldHeaderId, newHeaderId)
-			})
-		}, { concurrency: 1 })
+			return Promise.all([
+				updateHeader(oldHeaderId, newHeaderId),
+				updateMessage(oldHeaderId, newHeaderId)
+			])
+		}, { concurrency: 3 })
 	})
 	.then(function() {
 		console.log('DONE: changing headers id');
@@ -352,7 +344,7 @@ var changeAttachmentId = function() {
 					.insert(newAttachment)
 					.run(r.conn)
 				})
-			}, { concurrency: 1 })
+			}, { concurrency: 3 })
 			.then(function() {
 				return r
 				.table('messages')
@@ -362,7 +354,7 @@ var changeAttachmentId = function() {
 				})
 				.run(r.conn)
 			})
-		}, { concurrency: 1 })
+		}, { concurrency: 3 })
 	})
 	.then(function() {
 		console.log('DONE: changing attachments id');
@@ -402,7 +394,7 @@ var changeFilterId = function() {
 				.insert(newFilter)
 				.run(r.conn)
 			})
-		}, { concurrency: 1 })
+		}, { concurrency: 3 })
 	})
 	.then(function() {
 		console.log('DONE: changing filters id');
@@ -486,17 +478,14 @@ var changeUserId = function() {
 				})
 			}
 
-			return updateAccount(oldUserId, newUserId)
-			.then(function() {
-				return updateUser(oldUserId, newUserId);
-			})
-			.then(function() {
-				return updateDomain(oldUserId, newUserId);
-			})
-			.then(function() {
-				return updateSubscriptions(oldUserId, newUserId)
-			})
-		}, { concurrency: 1 })
+			return Promise.all([
+				updateAccount(oldUserId, newUserId),
+				updateUser(oldUserId, newUserId),
+				updateDomain(oldUserId, newUserId),
+				updateSubscriptions(oldUserId, newUserId)
+			])
+
+		}, { concurrency: 3 })
 	})
 	.then(function() {
 		console.log('DONE: changing users id');
@@ -551,12 +540,12 @@ var changeDomainId = function() {
 				})
 			}
 
-			return updateAccount(oldDomainId, newDomainId)
-			.then(function() {
-				return updateDomain(oldDomainId, newDomainId)
-			})
+			return Promise.all([
+				updateAccount(oldDomainId, newDomainId),
+				updateDomain(oldDomainId, newDomainId)
+			])
 
-		}, { concurrency: 1 })
+		}, { concurrency: 3 })
 	})
 	.then(function() {
 		console.log('DONE: changing domains id');
@@ -638,10 +627,10 @@ var changeAddressId = function() {
 				})
 			}
 
-			return updateMessage(oldAddressId, newAddressId)
-			.then(function() {
-				return updateAddress(oldAddressId, newAddressId);
-			})
+			return Promise.all([
+				updateMessage(oldAddressId, newAddressId),
+				updateAddress(oldAddressId, newAddressId)
+			])
 		}, { concurrency: 1 }) // No concurrency
 	})
 	.then(function() {
