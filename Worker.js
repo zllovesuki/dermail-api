@@ -43,7 +43,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 					var hook = server.hook;
 					request
 					.post(hook)
-					.timeout(10000)
+					.timeout(60000)
 					.send(data)
 					.set('Accept', 'application/json')
 					.end(function(err, res){
