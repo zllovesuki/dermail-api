@@ -28,7 +28,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 
 			var send = function(servers, data) {
 				if (servers.length === 0) {
-					return sendNotification(r, data.userId, 'error', 'No more outbound servers available.')
+					return helper.notification.sendAlert(r, data.userId, 'error', 'No more outbound servers available.')
 					.then(function(queueId) {
 						done();
 					})
@@ -45,7 +45,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 				.set('Accept', 'application/json')
 				.end(function(err, res){
 					if (err !== null || res.body.ok !== true) {
-						return sendNotification(r, data.userId, 'error', 'Trying another outbound server.')
+						return helper.notification.sendAlert(r, data.userId, 'error', 'Trying another outbound server.')
 						.then(function(queueId) {
 							send(servers, data);
 						})
@@ -53,7 +53,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 							done(e);
 						});
 					}
-					return sendNotification(r, data.userId, 'log', 'Queued for delivery.')
+					return helper.notification.sendAlert(r, data.userId, 'log', 'Queued for delivery.')
 					.then(function(queueId) {
 						done();
 					})
@@ -105,7 +105,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 				])
 			}, { concurrency: 3 })
 			.then(function() {
-				return sendNotification(r, data.userId, 'success', 'Folder truncated.')
+				return helper.notification.sendAlert(r, data.userId, 'success', 'Folder truncated.')
 			})
 			.then(function() {
 				return done();
@@ -228,22 +228,3 @@ var deleteAttachmentFromDatabase = function(r, attachmentId) {
 	.delete()
 	.run(r.conn)
 }
-
-var sendNotification = Promise.method(function(r, userId, level, msg) {
-	var insert = {};
-	insert.userId = userId;
-	insert.type = 'notification';
-	insert.level = level;
-	insert.message = msg;
-	return r
-	.table('queue')
-	.insert(insert)
-	.getField('generated_keys')
-	.do(function (keys) {
-		return keys(0);
-	})
-	.run(r.conn)
-	.then(function(queueId) {
-		return queueId;
-	})
-})

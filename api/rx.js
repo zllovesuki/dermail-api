@@ -26,6 +26,25 @@ router.post('/get-s3', auth, function(req, res, next) {
 	return res.status(200).send({ok: true, data: config.s3});
 })
 
+router.post('/notify', auth, function(req, res, next) {
+	res.setHeader('Content-Type', 'application/json');
+
+	var config = req.config;
+
+	var r = req.r;
+
+	var message = req.body;
+	return helper.notification.sendAlert(r, message.userId, message.level, message.msg)
+	.then(function() {
+		return res.status(200).send({ok: true});
+	})
+	.catch(function(e) {
+		console.dir(e);
+		return res.send({ok: false, error: e});
+	})
+
+})
+
 router.post('/store-tx', auth, function(req, res, next) {
 	res.setHeader('Content-Type', 'application/json');
 
