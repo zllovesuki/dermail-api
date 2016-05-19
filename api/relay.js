@@ -2,7 +2,6 @@ var express = require('express'),
 	router = express.Router(),
 	passport = require('passport'),
 	validator = require('validator'),
-	async = require('async'),
 	config = require('../config'),
 	_ = require('lodash'),
 	helper = require('../lib/helper'),
@@ -48,37 +47,30 @@ router.post('/sendMail', auth, function(req, res, next) {
 
 	compose.html = compose.html || '';
 
-	async.each(compose.recipients, function(each, cb) {
-		async.each(each, function(address, b) {
-			if (validator.isEmail(address.address)) {
-				b();
-			}else{
-				b('Invalid email: ' + address.address);
+	return Promise.map(compose.recipients, function(each) {
+		return Promise.map(each, function(recipient) {
+			if (!validator.isEmail(recipient.address)) {
+				throw new Error('Invalid email: ' + recipient.address);
 			}
-		}, function(err) {
-			cb(err);
-		})
-	}, function(err) {
-		if (err) {
-			return res.status(400).send({message: err});
-		}
-
+		}, { concurrency: 3 })
+	}, { concurrency: 3 })
+	.then(function() {
 		return helper.auth.userAccountMapping(r, userId, accountId)
-		.then(function(account) {
-			return helper.folder.getInternalFolder(r, accountId, 'Sent')
-			.then(function(sentFolder) {
-				var sender = {};
-				sender.name = req.user.firstName + ' ' + req.user.lastName;
-				sender.address = account['account'] + '@' + account['domain'];
-				return doSendMail(r, config, sender, account.accountId, userId, compose, sentFolder, messageQ)
-				.then(function() {
-					return res.status(200).send();
-				})
-			})
+	})
+	.then(function(account) {
+		return helper.folder.getInternalFolder(r, accountId, 'Sent')
+		.then(function(sentFolder) {
+			var sender = {};
+			sender.name = req.user.firstName + ' ' + req.user.lastName;
+			sender.address = account['account'] + '@' + account['domain'];
+			return doSendMail(r, config, sender, account.accountId, userId, compose, sentFolder, messageQ)
 		})
-		.catch(function(e) {
-			return next(e);
-		})
+	})
+	.then(function() {
+		return res.status(200).send();
+	})
+	.catch(function(err) {
+		return res.status(400).send({message: err});
 	})
 });
 
