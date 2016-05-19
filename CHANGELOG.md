@@ -1,5 +1,8 @@
 ## Changelog
 
+05/18/2016: 1.15.x -> 1.16.0
+1. Modernize TX: use web-worker on TX to compose mails instead of web-worked on API-Worker
+
 05/16/2016: 1.15.0 -> 1.15.1
 1. Uses `shortid` for generating new IDs
 

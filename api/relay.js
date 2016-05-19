@@ -2,17 +2,12 @@ var express = require('express'),
 	router = express.Router(),
 	passport = require('passport'),
 	validator = require('validator'),
-	async = require('async'),
 	config = require('../config'),
 	_ = require('lodash'),
 	helper = require('../lib/helper'),
 	Promise = require('bluebird'),
-	mailcomposer = require("mailcomposer"),
-	MailParser = require("mailparser").MailParser,
-	htmlToText = require('html-to-text'),
 	unNeededFields = [
 		'showMore',
-		'accountId',
 		'toBox',
 		'recipients'
 	];
@@ -48,98 +43,44 @@ router.post('/sendMail', auth, function(req, res, next) {
 
 	compose.html = compose.html || '';
 
-	async.each(compose.recipients, function(each, cb) {
-		async.each(each, function(address, b) {
-			if (validator.isEmail(address.address)) {
-				b();
-			}else{
-				b('Invalid email: ' + address.address);
+	return Promise.map(Object.keys(compose.recipients), function(each) {
+		return Promise.map(compose.recipients[each], function(recipient) {
+			if (!validator.isEmail(recipient.address)) {
+				throw new Error('Invalid email: ' + recipient.address);
 			}
-		}, function(err) {
-			cb(err);
-		})
-	}, function(err) {
-		if (err) {
-			return res.status(400).send({message: err});
-		}
-
+		}, { concurrency: 3 })
+	}, { concurrency: 3 })
+	.then(function() {
 		return helper.auth.userAccountMapping(r, userId, accountId)
-		.then(function(account) {
-			return helper.folder.getInternalFolder(r, accountId, 'Sent')
-			.then(function(sentFolder) {
-				var sender = {};
-				sender.name = req.user.firstName + ' ' + req.user.lastName;
-				sender.address = account['account'] + '@' + account['domain'];
-				return doSendMail(r, config, sender, account.accountId, userId, compose, sentFolder, messageQ)
-				.then(function() {
-					return res.status(200).send();
-				})
-			})
-		})
-		.catch(function(e) {
-			return next(e);
-		})
+	})
+	.then(function(account) {
+		var sender = {};
+		sender.name = req.user.firstName + ' ' + req.user.lastName;
+		sender.address = account['account'] + '@' + account['domain'];
+		return queueToTX(r, config, sender, account.accountId, userId, compose, messageQ)
+	})
+	.then(function() {
+		return res.status(200).send();
+	})
+	.catch(function(err) {
+		console.log(err);
+		return res.status(400).send({message: err});
 	})
 });
 
-function keepACopyInSentFolder(r, accountId, sender, compose, sentFolder) {
-	return new Promise(function (resolve, reject) {
-		var mail = mailcomposer(compose);
-		var stream = mail.createReadStream();
-		var mailparser = new MailParser();
-		mailparser.on("end", function(message){
-
-			// dermail-smtp-inbound processMail();
-			message.cc = message.cc || [];
-			message.attachments = message.attachments || [];
-			message.date = message.date.toISOString();
-
-			// Compatibility with MTA-Worker
-			message.text = htmlToText.fromString(message.html);
-
-			var myAddress = sender.address;
-
-			for (key in message.from) {
-				if (message.from[key].address == myAddress) {
-					delete message.from[key];
-				}
-			}
-
-			return Promise.join(
-				// Perspective is relative. "From" in the eyes of RX, "To" in the eyes of TX
-				helper.address.getArrayOfFromAddress(r, accountId, message.to),
-				// Perspective is relative. "To" in the eyes of RX, "From" in the eyes of TX
-				helper.address.getArrayOfToAddress(r, accountId, myAddress, message.from),
-				function(arrayOfToAddress, arrayOfFromAddress) {
-					return helper.insert.saveMessage(r, accountId, sentFolder, arrayOfToAddress, arrayOfFromAddress, message, true)
-				}
-			)
-			.then(function() {
-				return resolve();
-			})
-			.catch(function(e) {
-				return reject(e);
-			})
-		});
-		stream.pipe(mailparser);
-	})
-}
-
-var doSendMail = Promise.method(function(r, config, sender, accountId, userId, compose, sentFolder, messageQ) {
+var queueToTX = Promise.method(function(r, config, sender, accountId, userId, compose, messageQ) {
 	var recipients = _.cloneDeep(compose.recipients);
 	compose.from = sender;
 	compose.userId = userId;
+	compose.accountId = accountId;
 	unNeededFields.forEach(function(field) {
 		delete compose[field];
 	})
 	_.merge(compose, recipients);
-	return keepACopyInSentFolder(r, accountId, sender, compose, sentFolder)
-	.then(function() {
-		return messageQ.add({
-			type: 'sendMail',
-			payload: compose
-		}, config.Qconfig)
-	})
+	return messageQ.add({
+		type: 'queueTX',
+		payload: compose
+	}, config.Qconfig)
 })
 
 module.exports = router;
