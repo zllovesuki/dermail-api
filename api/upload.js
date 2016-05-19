@@ -30,9 +30,7 @@ router.post('/s3Stream', auth, function(req, res, next) {
 		});
 
 		hashStream.on('error', function(e) {
-			return res.status(500).send({
-				message: 'Cannot calculate the checksum of attachment.'
-			});
+			return next(new Error('Cannot calculate the checksum of attachment.'));
 		});
 
 		hashStream.on('end', function() {
@@ -42,9 +40,7 @@ router.post('/s3Stream', auth, function(req, res, next) {
 			s3.putStream(uploadStream, key, headers, function(uploadError, uploadRes) {
 				fs.unlink(file.path, function(rmError) {
 					if (uploadError || rmError) {
-						return res.status(500).send({
-							message: 'Cannot upload attachment.'
-						});
+						return next(new Error('Cannot upload attachment.'));
 					}
 					return res.status(200).send({
 						checksum: checksum

@@ -1,6 +1,5 @@
 var express = require('express'),
 	router = express.Router(),
-	passport = require('passport'),
 	validator = require('validator'),
 	config = require('../config'),
 	_ = require('lodash'),
@@ -12,7 +11,7 @@ var express = require('express'),
 		'recipients'
 	];
 
-var auth = passport.authenticate('jwt', { session: false });
+var auth = helper.auth.middleware;
 
 router.post('/sendMail', auth, function(req, res, next) {
 
@@ -25,11 +24,11 @@ router.post('/sendMail', auth, function(req, res, next) {
 	var accountId = req.body.accountId;
 
 	if (req.user.accounts.indexOf(compose.accountId) === -1) {
-		return res.status(403).send({message: 'Unspeakable horror.'}); // Early surrender: account does not belong to user
+		return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
 	}
 
 	if (compose.recipients.to.length === 0) {
-		return res.status(400).send({message: 'At least one "to" recipient is required.'});
+		return next(new Error('At least one "to" recipient is required.'));
 	}
 
 	delete compose.to;
@@ -64,7 +63,7 @@ router.post('/sendMail', auth, function(req, res, next) {
 	})
 	.catch(function(err) {
 		console.log(err);
-		return res.status(400).send({message: err});
+		return next(new Error(err));
 	})
 });
 

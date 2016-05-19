@@ -1,10 +1,9 @@
 var express = require('express'),
 	router = express.Router(),
-	passport = require('passport'),
 	helper = require('../lib/helper'),
 	crypto = require('crypto');
 
-var auth = passport.authenticate('jwt', { session: false });
+var auth = helper.auth.middleware;
 
 router.get('/ping', auth, function(req, res, next) {
 	return res.status(200).send('pong');
@@ -51,7 +50,7 @@ router.post('/getAccount', auth, function(req, res, next) {
 	var accountId = req.body.accountId;
 
 	if (!accountId) {
-		return res.status(400).send({message: 'Account ID Required'});
+		return next(new Error('Account ID Required'));
 	}
 
 	return helper.auth.userAccountMapping(r, userId, accountId)
@@ -71,11 +70,11 @@ router.post('/getFoldersInAccount', auth, function(req, res, next) {
 	var accountId = req.body.accountId;
 
 	if (!accountId) {
-		return res.status(400).send({message: 'Account ID Required'});
+		return next(new Error('Account ID Required'));
 	}
 
 	if (req.user.accounts.indexOf(accountId) === -1) {
-		return res.status(403).send({message: 'Unspeakable horror.'}); // Early surrender: account does not belong to user
+		return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
 	}
 
 	return r
@@ -95,7 +94,7 @@ router.post('/getFoldersInAccount', auth, function(req, res, next) {
 	.then(function(folders) {
 		if (folders.length === 0) {
 			// WTF? IT SHOULD HAVE FUCKING FOLDERS
-			return res.status(500).send({message: 'No folders found.'});
+			return next(new Error('No folders found'));
 		}
 		res.status(200).send(folders);
 	}).error(function(e) {
@@ -112,15 +111,15 @@ router.post('/getFolder', auth, function(req, res, next) {
 	var folderId = req.body.folderId;
 
 	if (!folderId) {
-		return res.status(403).send({message: 'Folder ID Required'});
+		return next(new Error('Folder ID Required.'));
 	}
 
 	if (!accountId) {
-		return res.status(403).send({message: 'Account ID Required'});
+		return next(new Error('Account ID Required'));
 	}
 
 	if (req.user.accounts.indexOf(accountId) === -1) {
-		return res.status(403).send({message: 'Unspeakable horror.'}); // Early surrender: account does not belong to user
+		return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
 	}
 
 	return helper.auth.accountFolderMapping(r, accountId, folderId)
@@ -147,11 +146,11 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 	end = parseInt(end);
 
 	if (!folderId) {
-		return res.status(400).send({message: 'Folder ID Required'});
+		return next(new Error('Folder ID Required.'));
 	}
 
 	if (req.user.accounts.indexOf(accountId) === -1) {
-		return res.status(403).send({message: 'Unspeakable horror.'}); // Early surrender: account does not belong to user
+		return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
 	}
 
 	return helper.auth.accountFolderMapping(r, accountId, folderId)
@@ -203,11 +202,11 @@ router.post('/getMail', auth, function(req, res, next) {
 	var messageId = req.body.messageId;
 
 	if (!messageId) {
-		return res.status(400).send({message: 'Message ID Required'});
+		return next(new Error('Message ID Required.'));
 	}
 
 	if (req.user.accounts.indexOf(accountId) === -1) {
-		return res.status(403).send({message: 'Unspeakable horror.'}); // Early surrender: account does not belong to user
+		return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
 	}
 
 	return helper.auth.messageAccountMapping(r, messageId, accountId)
@@ -352,7 +351,7 @@ router.post('/searchWithFilter', auth, function(req, res, next) {
 	var criteria = req.body.criteria || null;
 
 	if (criteria === null) {
-		return res.status(400).send({message: "No criteria was defined."})
+		return next(new Error('No criteria was defined.'));
 	}
 
 	if (req.user.accounts.indexOf(accountId) === -1) {

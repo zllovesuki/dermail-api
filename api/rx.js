@@ -4,19 +4,7 @@ var express = require('express'),
 	helper = require('../lib/helper'),
 	Promise = require('bluebird');
 
-var auth = function(req, res, next) {
-	var remoteSecret = req.body.remoteSecret || null;
-
-	var config = req.config;
-
-	if (remoteSecret !== config.remoteSecret) {
-		return res.status(200).send({ok: false});
-	}
-
-	delete req.body.remoteSecret;
-
-	return next();
-}
+var auth = helper.auth.middleware;
 
 router.post('/get-s3', auth, function(req, res, next) {
 	res.setHeader('Content-Type', 'application/json');
@@ -40,7 +28,7 @@ router.post('/notify', auth, function(req, res, next) {
 	})
 	.catch(function(e) {
 		console.dir(e);
-		return res.send({ok: false, error: e});
+		return res.send({ok: false, message: e});
 	})
 
 })
@@ -77,7 +65,7 @@ router.post('/store-tx', auth, function(req, res, next) {
 	})
 	.catch(function(e) {
 		console.dir(e);
-		return res.send({ok: false, error: e});
+		return res.send({ok: false, message: e});
 	})
 
 });
@@ -124,7 +112,7 @@ router.post('/store', auth, function(req, res, next) {
 	}
 
 	if (!!!recipient) {
-		return res.send({ok: false, error: 'No envelopeTo.'});
+		return res.send({ok: false, message: 'No envelopeTo.'});
 	}
 
 	// Delete ourselves
@@ -198,7 +186,7 @@ router.post('/store', auth, function(req, res, next) {
 	})
 	.catch(function(e) {
 		console.dir(e);
-		return res.send({ok: false, error: e});
+		return res.send({ok: false, message: e});
 	})
 });
 

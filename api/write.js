@@ -34,11 +34,11 @@ router.post('/updateMail', auth, function(req, res, next) {
 	var data = {};
 
 	if (!messageId) {
-		return res.status(400).send({message: 'Message ID Required'});
+		return next(new Error('Message ID Required.'));
 	}
 
 	if (req.user.accounts.indexOf(accountId) === -1) {
-		return res.status(403).send({message: 'Unspeakable horror.'}); // Early surrender: account does not belong to user
+		return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
 	}
 
 	switch (action.toLowerCase()) {
@@ -57,7 +57,7 @@ router.post('/updateMail', auth, function(req, res, next) {
 		case 'folder':
 			var folderId = req.body.folderId;
 			if (!folderId) {
-				return res.status(400).send({message: 'Folder ID Required'});
+				return next(new Error('Folder ID Required'));
 			}
 			return helper.auth.accountFolderMapping(r, accountId, folderId)
 			.then(function(folder) {
@@ -114,7 +114,7 @@ router.post('/updateMail', auth, function(req, res, next) {
 			})
 			break;
 		default:
-			return res.status(501).send({message: 'Not implemented.'});
+			return next(new Error('Not implemented.'));
 			break;
 	}
 
@@ -144,15 +144,15 @@ router.post('/updateFolder', auth, function(req, res, next) {
 	data.mutable = true;
 
 	if (req.user.accounts.indexOf(accountId) === -1) {
-		return res.status(403).send({message: 'Unspeakable horror.'}); // Early surrender: account does not belong to user
+		return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
 	}
 
 	if (action !== 'truncateFolder' && reservedFolderNames.indexOf(data.displayName.toLowerCase().trim()) !== -1) { // Some display names are reserved
-		return res.status(400).send({message: 'Cannot use reserved folder names.'});
+		return next(new Error('Cannot use reserved folder names.'));
 	}
 
 	if (data.displayName === '' || data.description === '') {
-		return res.status(400).send({message: 'Name and description cannot be empty.'});
+		return next(new Error('Name and description cannot be empty.'));
 	}
 
 	switch (action) {
@@ -221,7 +221,7 @@ router.post('/updateFolder', auth, function(req, res, next) {
 		case 'updateFolder':
 			var folderId = req.body.folderId;
 			if (!folderId) {
-				return res.status(400).send({message: 'Folder ID Required'});
+				return next(new Error('Folder ID Required'));
 			}
 
 			return helper.auth.accountFolderMapping(r, accountId, folderId)
@@ -272,7 +272,7 @@ router.post('/updateFolder', auth, function(req, res, next) {
 			}
 			break;
 		default:
-			return res.status(501).send({message: 'Not implemented.'});
+			return next(new Error('Not implemented.'));
 			break;
 	}
 
@@ -361,7 +361,7 @@ router.post('/pushSubscriptions', auth, function(req, res, next) {
 		})
 		break;
 		default:
-		return res.status(501).send({message: 'Not implemented.'});
+		return next(new Error('Not implemented.')); // Early surrender: account does not belong to user
 		break;
 	}
 });
@@ -377,7 +377,7 @@ router.post('/modifyFilter', auth, function(req, res, next) {
 	var op = req.body.op;
 
 	if (req.user.accounts.indexOf(accountId) === -1) {
-		return res.status(403).send({message: 'Unspeakable horror.'}); // Early surrender: account does not belong to user
+		return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
 	}
 
 	switch (op) {
@@ -460,7 +460,7 @@ router.post('/modifyFilter', auth, function(req, res, next) {
 					return doAddFilter();
 				})
 				.catch(function(e) {
-					return res.status(403).send({message: 'Unspeakable horror.'});
+					return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
 				})
 			}else{
 				return helper.folder.getInternalFolder(r, accountId, 'Inbox')
@@ -480,10 +480,10 @@ router.post('/modifyFilter', auth, function(req, res, next) {
 			.run(r.conn)
 			.then(function(filter) {
 				if (filter === null) {
-					return res.status(404).send({message: "Filter does not exist."});
+					return next(new Error('Filter does not exist.'));
 				}
 				if (filter.accountId !== accountId) {
-					return res.status(403).send({message: 'Unspeakable horror.'});
+					return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
 				}
 				return r
 				.table('filters')
@@ -499,7 +499,7 @@ router.post('/modifyFilter', auth, function(req, res, next) {
 			});
 			break;
 		default:
-		return res.status(501).send({message: 'Not implemented.'});
+		return next(new Error('Not implemented.'));
 		break;
 	}
 })
@@ -512,7 +512,7 @@ router.post('/updateDomain', auth, function(req, res, next) {
 	var domainId = req.body.domainId;
 
 	if (!!!domainId) {
-		return res.status(400).send({message: 'domainID required.'});
+		return next(new Error('Domain ID Required'));
 	}
 
 	var action = req.body.action;
