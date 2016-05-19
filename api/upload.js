@@ -1,14 +1,14 @@
 var express = require('express'),
 	router = express.Router(),
-	passport = require('passport'),
 	config = require('../config'),
 	formidable = require('formidable'),
+	helper = require('../lib/helper'),
 	crypto = require('crypto'),
 	fs = require('fs'),
 	knox = require('knox'),
 	s3 = knox.createClient(config.s3);
 
-var auth = passport.authenticate('jwt', { session: false });
+var auth = helper.auth.middleware;
 
 router.post('/s3Stream', auth, function(req, res, next) {
 

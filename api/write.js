@@ -21,7 +21,7 @@ var express = require('express'),
 
 shortid.worker(process.pid % 16);
 
-var auth = passport.authenticate('jwt', { session: false });
+var auth = helper.auth.middleware;
 
 router.post('/updateMail', auth, function(req, res, next) {
 
