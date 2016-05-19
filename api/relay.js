@@ -6,9 +6,6 @@ var express = require('express'),
 	_ = require('lodash'),
 	helper = require('../lib/helper'),
 	Promise = require('bluebird'),
-	mailcomposer = require("mailcomposer"),
-	MailParser = require("mailparser").MailParser,
-	htmlToText = require('html-to-text'),
 	unNeededFields = [
 		'showMore',
 		'accountId',
@@ -63,7 +60,7 @@ router.post('/sendMail', auth, function(req, res, next) {
 			var sender = {};
 			sender.name = req.user.firstName + ' ' + req.user.lastName;
 			sender.address = account['account'] + '@' + account['domain'];
-			return doSendMail(r, config, sender, account.accountId, userId, compose, sentFolder, messageQ)
+			return queueToTX(r, config, sender, account.accountId, userId, compose, sentFolder, messageQ)
 		})
 	})
 	.then(function() {
@@ -74,50 +71,7 @@ router.post('/sendMail', auth, function(req, res, next) {
 	})
 });
 
-function keepACopyInSentFolder(r, accountId, sender, compose, sentFolder) {
-	return new Promise(function (resolve, reject) {
-		var mail = mailcomposer(compose);
-		var stream = mail.createReadStream();
-		var mailparser = new MailParser();
-		mailparser.on("end", function(message){
-
-			// dermail-smtp-inbound processMail();
-			message.cc = message.cc || [];
-			message.attachments = message.attachments || [];
-			message.date = message.date.toISOString();
-
-			// Compatibility with MTA-Worker
-			message.text = htmlToText.fromString(message.html);
-
-			var myAddress = sender.address;
-
-			for (key in message.from) {
-				if (message.from[key].address == myAddress) {
-					delete message.from[key];
-				}
-			}
-
-			return Promise.join(
-				// Perspective is relative. "From" in the eyes of RX, "To" in the eyes of TX
-				helper.address.getArrayOfFromAddress(r, accountId, message.to),
-				// Perspective is relative. "To" in the eyes of RX, "From" in the eyes of TX
-				helper.address.getArrayOfToAddress(r, accountId, myAddress, message.from),
-				function(arrayOfToAddress, arrayOfFromAddress) {
-					return helper.insert.saveMessage(r, accountId, sentFolder, arrayOfToAddress, arrayOfFromAddress, message, true)
-				}
-			)
-			.then(function() {
-				return resolve();
-			})
-			.catch(function(e) {
-				return reject(e);
-			})
-		});
-		stream.pipe(mailparser);
-	})
-}
-
-var doSendMail = Promise.method(function(r, config, sender, accountId, userId, compose, sentFolder, messageQ) {
+var queueToTX = Promise.method(function(r, config, sender, accountId, userId, compose, sentFolder, messageQ) {
 	var recipients = _.cloneDeep(compose.recipients);
 	compose.from = sender;
 	compose.userId = userId;
@@ -125,13 +79,10 @@ var doSendMail = Promise.method(function(r, config, sender, accountId, userId, c
 		delete compose[field];
 	})
 	_.merge(compose, recipients);
-	return keepACopyInSentFolder(r, accountId, sender, compose, sentFolder)
-	.then(function() {
-		return messageQ.add({
-			type: 'sendMail',
-			payload: compose
-		}, config.Qconfig)
-	})
+	return messageQ.add({
+		type: 'queueTX',
+		payload: compose
+	}, config.Qconfig)
 })
 
 module.exports = router;

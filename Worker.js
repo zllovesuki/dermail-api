@@ -20,57 +20,52 @@ r.connect(config.rethinkdb).then(function(conn) {
 		data = data.payload;
 
 		switch (type) {
-			case 'sendMail':
+			case 'queueTX':
 
-			sendNotification(r, data.userId, 'log', 'Queued for delivery.')
-			.then(function(queueId) {
-				var servers = _.cloneDeep(config.tx);
+			var servers = _.cloneDeep(config.tx);
 
-				servers.sort(function(a,b) {return (a.priority > b.priority) ? 1 : ((b.priority > a.priority) ? -1 : 0);} );
+			servers.sort(function(a,b) {return (a.priority > b.priority) ? 1 : ((b.priority > a.priority) ? -1 : 0);} );
 
-				var send = function(servers, data) {
-					if (servers.length === 0) {
-						var errorMsg = 'No more outbound servers available.'
-						return sendNotification(r, data.userId, 'error', errorMsg)
+			var send = function(servers, data) {
+				if (servers.length === 0) {
+					return sendNotification(r, data.userId, 'error', 'No more outbound servers available.')
+					.then(function(queueId) {
+						done();
+					})
+					.catch(function(e) {
+						done();
+					});
+				}
+				var server = servers.shift();
+				var hook = server.hook;
+				request
+				.post(hook)
+				.timeout(60000)
+				.send(data)
+				.set('Accept', 'application/json')
+				.end(function(err, res){
+					if (err !== null || res.body.error !== null) {
+						return sendNotification(r, data.userId, 'error', 'Trying another outbound server.')
 						.then(function(queueId) {
-							done();
-						})
-						.catch(function(e) {
-							done();
-						});
-					}
-					var server = servers.shift();
-					var hook = server.hook;
-					request
-					.post(hook)
-					.timeout(60000)
-					.send(data)
-					.set('Accept', 'application/json')
-					.end(function(err, res){
-						if (err !== null || res.body.error !== null) {
-							return sendNotification(r, data.userId, 'error', 'Trying another outbound server.')
-							.then(function(queueId) {
-								send(servers, data);
-							})
-							.catch(function(e) {
-								done(e);
-							});
-						}
-						return sendNotification(r, data.userId, 'success', 'Message sent.')
-						.then(function(queueId) {
-							done();
+							send(servers, data);
 						})
 						.catch(function(e) {
 							done(e);
 						});
+					}
+					return sendNotification(r, data.userId, 'log', 'Queued for delivery.')
+					.then(function(queueId) {
+						done();
+					})
+					.catch(function(e) {
+						done(e);
 					});
-				}
+				});
+			}
 
-				send(servers, data);
-			})
-			.catch(function(e) {
-				return done(e);
-			});
+			data.remoteSecret = config.remoteSecret;
+
+			send(servers, data);
 
 			break;
 

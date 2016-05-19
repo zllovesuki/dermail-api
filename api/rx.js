@@ -4,31 +4,34 @@ var express = require('express'),
 	helper = require('../lib/helper'),
 	Promise = require('bluebird');
 
-router.post('/get-s3', function(req, res, next) {
-	res.setHeader('Content-Type', 'application/json');
-
-	var config = req.config;
-
+var auth = function(req, res, next) {
 	var remoteSecret = req.body.remoteSecret || null;
 
 	if (remoteSecret !== config.remoteSecret) {
 		return res.status(200).send({ok: false});
 	}
+
+	return next();
+}
+
+router.post('/get-s3', auth, function(req, res, next) {
+	res.setHeader('Content-Type', 'application/json');
+
+	var config = req.config;
 
 	return res.status(200).send({ok: true, data: config.s3});
 })
 
-router.post('/check-recipient', function(req, res, next) {
+router.post('/callback', auth, function(req, res, next) {
+	res.setHeader('Content-Type', 'application/json');
+
+	var r = req.r;
+});
+
+router.post('/check-recipient', auth, function(req, res, next) {
 	res.setHeader('Content-Type', 'application/json');
 
 	var config = req.config;
-
-	var remoteSecret = req.body.remoteSecret || null;
-
-	if (remoteSecret !== config.remoteSecret) {
-		return res.status(200).send({ok: false});
-	}
-
 	var r = req.r;
 
 	var email = req.body.to || null;
