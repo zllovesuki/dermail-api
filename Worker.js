@@ -40,11 +40,11 @@ r.connect(config.rethinkdb).then(function(conn) {
 				var hook = server.hook;
 				request
 				.post(hook)
-				.timeout(60000)
+				.timeout(10000)
 				.send(data)
 				.set('Accept', 'application/json')
 				.end(function(err, res){
-					if (err !== null || res.body.error !== null) {
+					if (err !== null || res.body.ok !== true) {
 						return sendNotification(r, data.userId, 'error', 'Trying another outbound server.')
 						.then(function(queueId) {
 							send(servers, data);

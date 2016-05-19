@@ -8,7 +8,6 @@ var express = require('express'),
 	Promise = require('bluebird'),
 	unNeededFields = [
 		'showMore',
-		'accountId',
 		'toBox',
 		'recipients'
 	];
@@ -44,8 +43,8 @@ router.post('/sendMail', auth, function(req, res, next) {
 
 	compose.html = compose.html || '';
 
-	return Promise.map(compose.recipients, function(each) {
-		return Promise.map(each, function(recipient) {
+	return Promise.map(Object.keys(compose.recipients), function(each) {
+		return Promise.map(compose.recipients[each], function(recipient) {
 			if (!validator.isEmail(recipient.address)) {
 				throw new Error('Invalid email: ' + recipient.address);
 			}
@@ -55,26 +54,25 @@ router.post('/sendMail', auth, function(req, res, next) {
 		return helper.auth.userAccountMapping(r, userId, accountId)
 	})
 	.then(function(account) {
-		return helper.folder.getInternalFolder(r, accountId, 'Sent')
-		.then(function(sentFolder) {
-			var sender = {};
-			sender.name = req.user.firstName + ' ' + req.user.lastName;
-			sender.address = account['account'] + '@' + account['domain'];
-			return queueToTX(r, config, sender, account.accountId, userId, compose, sentFolder, messageQ)
-		})
+		var sender = {};
+		sender.name = req.user.firstName + ' ' + req.user.lastName;
+		sender.address = account['account'] + '@' + account['domain'];
+		return queueToTX(r, config, sender, account.accountId, userId, compose, messageQ)
 	})
 	.then(function() {
 		return res.status(200).send();
 	})
 	.catch(function(err) {
+		console.log(err);
 		return res.status(400).send({message: err});
 	})
 });
 
-var queueToTX = Promise.method(function(r, config, sender, accountId, userId, compose, sentFolder, messageQ) {
+var queueToTX = Promise.method(function(r, config, sender, accountId, userId, compose, messageQ) {
 	var recipients = _.cloneDeep(compose.recipients);
 	compose.from = sender;
 	compose.userId = userId;
+	compose.accountId = accountId;
 	unNeededFields.forEach(function(field) {
 		delete compose[field];
 	})

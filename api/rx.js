@@ -7,9 +7,13 @@ var express = require('express'),
 var auth = function(req, res, next) {
 	var remoteSecret = req.body.remoteSecret || null;
 
+	var config = req.config;
+
 	if (remoteSecret !== config.remoteSecret) {
 		return res.status(200).send({ok: false});
 	}
+
+	delete req.body.remoteSecret;
 
 	return next();
 }
@@ -22,10 +26,41 @@ router.post('/get-s3', auth, function(req, res, next) {
 	return res.status(200).send({ok: true, data: config.s3});
 })
 
-router.post('/callback', auth, function(req, res, next) {
+router.post('/store-tx', auth, function(req, res, next) {
 	res.setHeader('Content-Type', 'application/json');
 
+	var config = req.config;
+
 	var r = req.r;
+	var messageQ = req.Q;
+
+	var message = req.body;
+	var accountId = message.accountId;
+	var myAddress = message.myAddress;
+
+	delete message.accountId;
+	delete message.myAddress;
+
+	return Promise.join(
+		// Perspective is relative. "From" in the eyes of RX, "To" in the eyes of TX
+		helper.address.getArrayOfFromAddress(r, accountId, message.to),
+		// Perspective is relative. "To" in the eyes of RX, "From" in the eyes of TX
+		helper.address.getArrayOfToAddress(r, accountId, myAddress, message.from),
+		function(arrayOfToAddress, arrayOfFromAddress) {
+			return helper.folder.getInternalFolder(r, accountId, 'Sent')
+			.then(function(sentFolder) {
+				return helper.insert.saveMessage(r, accountId, sentFolder, arrayOfToAddress, arrayOfFromAddress, message, true)
+			})
+		}
+	)
+	.then(function() {
+		return res.status(200).send({ok: true});
+	})
+	.catch(function(e) {
+		console.dir(e);
+		return res.send({ok: false, error: e});
+	})
+
 });
 
 router.post('/check-recipient', auth, function(req, res, next) {
@@ -51,18 +86,10 @@ router.post('/check-recipient', auth, function(req, res, next) {
 	})
 });
 
-router.post('/store', function(req, res, next) {
+router.post('/store', auth, function(req, res, next) {
 	res.setHeader('Content-Type', 'application/json');
 
 	var config = req.config;
-
-	var remoteSecret = req.body.remoteSecret || null;
-
-	if (remoteSecret !== config.remoteSecret) {
-		return res.status(200).send({ok: false, error: 'Invalid remoteSecret.'});
-	}
-
-	delete req.body.remoteSecret;
 
 	var r = req.r;
 	var messageQ = req.Q;
