@@ -38,7 +38,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 		var type = data.type;
 		data = data.payload;
 
-		log.info({ message: 'Received Job', type: type, payload: data });
+		log.info({ message: 'Received Job' + type, payload: data });
 
 		var callback = function(err) {
 			if (err) {
