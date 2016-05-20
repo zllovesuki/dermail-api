@@ -7,17 +7,38 @@ var Queue = require('bull'),
 	r = require('rethinkdb'),
 	config = require('./config'),
 	_ = require('lodash'),
-	s3 = knox.createClient(config.s3);
+	s3 = knox.createClient(config.s3),
+	bunyan = require('bunyan'),
+	stream = require('gelf-stream'),
+	log;
 
 var messageQ = new Queue('dermail-api-worker', config.redisQ.port, config.redisQ.host);
 
+if (!!config.graylog) {
+	log = bunyan.createLogger({
+		name: 'API-Worker',
+		streams: [{
+			type: 'raw',
+			stream: gelf.forBunyan(config.graylog)
+		}]
+	});
+}else{
+	log = bunyan.createLogger({
+		name: 'API-Worker'
+	});
+}
+
 r.connect(config.rethinkdb).then(function(conn) {
 	r.conn = conn;
-	console.log('Process ' + process.pid + ' is running as an API-Worker.')
+
+	log.info('Process ' + process.pid + ' is running as an API-Worker.');
+
 	messageQ.process(function(job, done) {
 		var data = job.data;
 		var type = data.type;
 		data = data.payload;
+
+		log.info('Rece')
 
 		switch (type) {
 			case 'queueTX':

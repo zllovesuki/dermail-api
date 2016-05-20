@@ -1,5 +1,22 @@
 var r = require('rethinkdb'),
-	config = require('./config');
+	config = require('./config'),
+	bunyan = require('bunyan'),
+	stream = require('gelf-stream'),
+	log;
+
+if (!!config.graylog) {
+	log = bunyan.createLogger({
+		name: 'API',
+		streams: [{
+			type: 'raw',
+			stream: gelf.forBunyan(config.graylog)
+		}]
+	});
+}else{
+	log = bunyan.createLogger({
+		name: 'API'
+	});
+}
 
 r.connect(config.rethinkdb).then(function(conn) {
 	r.conn = conn;
@@ -9,5 +26,5 @@ r.connect(config.rethinkdb).then(function(conn) {
 	var io = require('socket.io')(server);
 	require('./lib/socket')(io, r, config);
 
-	console.log('Process ' + process.pid + ' is listening on port ' + port + ' to incoming API requests.')
+	log.info('Process ' + process.pid + ' is listening on port ' + port + ' to incoming API requests.')
 });

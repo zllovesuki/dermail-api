@@ -12,6 +12,7 @@ module.exports = {
 			delay: 2000
 		}
 	},
+	graylog: require('./config.json').graylog || null,
 	cleanInterval: require('./config.json').cleanInterval || 10,
 	behindProxy: require('./config.json').behindProxy,
 	s3: require('./config.json').s3,

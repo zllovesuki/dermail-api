@@ -1,7 +1,6 @@
 module.exports = function(r) {
 	var express = require('express'),
 		path = require('path'),
-		logger = require('morgan'),
 		bodyParser = require('body-parser'),
 		jsonParser = bodyParser.json({limit: '55mb'}),
 		passport = require('passport'),
@@ -19,8 +18,20 @@ module.exports = function(r) {
 		upload = require('./api/upload'),
 		safe = require('./api/safe');
 
-	if (process.env.RDB_HOST) app.use(logger('dev'));
 	app.use(passport.initialize());
+	if (!!config.graylog) {
+		app.use(require('express-bunyan-logger')({
+			name: 'API',
+			streams: [{
+				type: 'raw',
+				stream: require('gelf-stream').forBunyan(config.graylog)
+			}]
+		}));
+	}else{
+		app.use(require('express-bunyan-logger')({
+			name: 'API'
+		}));
+	}
 
 	if (!!config.behindProxy) {
 		app.enable('trust proxy');
@@ -66,19 +77,20 @@ module.exports = function(r) {
 
 	// catch 404 and forward to error handler
 	app.use(function(req, res, next) {
-	  var err = new Error('Not Found');
-	  err.status = 404;
-	  next(err);
+		var err = new Error('Not Found');
+		err.status = 404;
+		next(err);
 	});
 
 	// production error handler
 	// no stacktraces leaked to user
 	app.use(function(err, req, res, next) {
-	  res.status(err.status || 500);
-	  res.send({
-		  ok: false,
-		  message: err.message
-	  });
+		req.log.error(err);
+		res.status(err.status || 500);
+		res.send({
+			ok: false,
+			message: err.message
+		});
 	});
 
 	return app;
