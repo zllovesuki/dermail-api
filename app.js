@@ -19,6 +19,12 @@ module.exports = function(r) {
 		safe = require('./api/safe');
 
 	app.use(passport.initialize());
+
+	if (!!config.behindProxy) {
+		app.enable('trust proxy');
+		app.set('trust proxy', 'loopback, linklocal, uniquelocal');
+	}
+
 	if (!!config.graylog) {
 		app.use(require('express-bunyan-logger')({
 			name: 'API',
@@ -31,11 +37,6 @@ module.exports = function(r) {
 		app.use(require('express-bunyan-logger')({
 			name: 'API'
 		}));
-	}
-
-	if (!!config.behindProxy) {
-		app.enable('trust proxy');
-		app.set('trust proxy', 'loopback, linklocal, uniquelocal');
 	}
 
 	require('./lib/auth')(config, passport, r);
