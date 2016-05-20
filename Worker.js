@@ -38,7 +38,14 @@ r.connect(config.rethinkdb).then(function(conn) {
 		var type = data.type;
 		data = data.payload;
 
-		log.info('Rece')
+		log.info('Received Job: ', job);
+
+		var callback = function(err) {
+			if (err) {
+				log.error(err);
+			}
+			return done(err);
+		}
 
 		switch (type) {
 			case 'queueTX':
@@ -51,10 +58,10 @@ r.connect(config.rethinkdb).then(function(conn) {
 				if (servers.length === 0) {
 					return helper.notification.sendAlert(r, data.userId, 'error', 'No more outbound servers available.')
 					.then(function(queueId) {
-						done();
+						callback();
 					})
 					.catch(function(e) {
-						done();
+						callback();
 					});
 				}
 				var server = servers.shift();
@@ -71,15 +78,15 @@ r.connect(config.rethinkdb).then(function(conn) {
 							send(servers, data);
 						})
 						.catch(function(e) {
-							done(e);
+							callback(e);
 						});
 					}
 					return helper.notification.sendAlert(r, data.userId, 'log', 'Queued for delivery.')
 					.then(function(queueId) {
-						done();
+						callback();
 					})
 					.catch(function(e) {
-						done(e);
+						callback(e);
 					});
 				});
 			}
@@ -129,10 +136,10 @@ r.connect(config.rethinkdb).then(function(conn) {
 				return helper.notification.sendAlert(r, data.userId, 'success', 'Folder truncated.')
 			})
 			.then(function() {
-				return done();
+				return callback();
 			})
 			.catch(function(e) {
-				return done(e);
+				return callback(e);
 			})
 
 			break;
@@ -156,10 +163,10 @@ r.connect(config.rethinkdb).then(function(conn) {
 				return deleteAttachmentFromDatabase(r, data);
 			})
 			.then(function() {
-				return done();
+				return callback();
 			})
 			.catch(function(e) {
-				return done(e);
+				return callback(e);
 			})
 
 			break;
@@ -168,10 +175,10 @@ r.connect(config.rethinkdb).then(function(conn) {
 
 			deleteAttachmentOnS3(data.checksum, data.generatedFileName, s3)
 			.then(function() {
-				return done();
+				return callback();
 			})
 			.catch(function(e) {
-				return done(e);
+				return callback(e);
 			})
 
 			break;
@@ -191,10 +198,10 @@ r.connect(config.rethinkdb).then(function(conn) {
 				}
 			})
 			.then(function() {
-				return done();
+				return callback();
 			})
 			.catch(function(e) {
-				return done(e);
+				return callback(e);
 			})
 
 			break;
