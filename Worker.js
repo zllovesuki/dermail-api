@@ -19,7 +19,7 @@ if (!!config.graylog) {
 		name: 'API-Worker',
 		streams: [{
 			type: 'raw',
-			stream: gelf.forBunyan(config.graylog)
+			stream: stream.forBunyan(config.graylog)
 		}]
 	});
 }else{
