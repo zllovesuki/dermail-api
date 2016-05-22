@@ -144,6 +144,7 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 	var start = 0;
 	var end = slice.perPage || 5;
 	end = parseInt(end);
+	var starOnly = !!slice.starOnly;
 
 	if (!folderId) {
 		return next(new Error('Folder ID Required.'));
@@ -159,6 +160,18 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 		.table('messages')
 		.between([folderId, r.minval], [folderId, lastDate], {index: 'folderDate'})
 		.orderBy({index: r.desc('folderDate')})
+	})
+	.then(function(p) {
+		if (starOnly) {
+			return p.filter(function(doc) {
+				return doc('isStar').eq(true)
+			})
+		}else{
+			return p
+		}
+	})
+	.then(function(p) {
+		p
 		.slice(start, end)
 		.pluck('messageId', 'date', 'to', 'from', 'folderId', 'accountId', 'subject', 'text', 'isRead', 'isStar')
 		// Save some bandwidth and processsing
