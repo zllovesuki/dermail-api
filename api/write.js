@@ -354,7 +354,8 @@ router.post('/pushSubscriptions', auth, function(req, res, next) {
 		break;
 		case 'test':
 		return helper.notification.sendNotification(r, config.gcm_api_key, {
-			message: 'This is a test!',
+			header: 'Test',
+			body: 'This is a test!',
 			accountId: null
 		}, object).then(function() {
 			return res.status(200).send();

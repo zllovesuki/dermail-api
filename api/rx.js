@@ -159,23 +159,27 @@ router.post('/store', auth, function(req, res, next) {
 					if (!notify) return;
 					return helper.folder.getMessageFolder(r, messageId)
 					.then(function(folder) {
-						var payload, msg;
+						var payload;
 						if (folder !== null) {
 							payload = {
 								userId: userId,
 								accountId: accountId,
 								folder: folder,
-								messageId: messageId
+								messageId: messageId,
+								header: folder.displayName + ' at: ' + recipient,
+								body: message.subject,
+								message: 'New mail in ' + folder.displayName + ' at: ' + recipient
 							};
-							msg = 'New mail in ' + folder.displayName + ' at: ' + recipient;
 						}else{
 							payload = {
 								userId: userId,
-								accountId: accountId
+								accountId: accountId,
+								header: folder.displayName + ' at: ' + recipient,
+								body: message.subject,
+								message: 'New mail in ' + folder.displayName + ' at: ' + recipient
 							};
-							msg = 'New mail at : ' + recipient;
 						}
-						return helper.notification.queueNewMailNotification(r, messageQ, config, payload, msg);
+						return helper.notification.queueNewMailNotification(r, messageQ, config, payload);
 					})
 				})
 			})
