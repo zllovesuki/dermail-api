@@ -143,19 +143,40 @@ router.post('/store', auth, function(req, res, next) {
 			var myAddress = accountResult.account + '@' + domainResult.domain;
 			//var myAddress = recipient;
 
+			var overrideNotify = false;
+			var overrideNotifyTo = false;
+
 			return Promise.join(
 				helper.address.getArrayOfToAddress(r, accountId, myAddress, message.to),
 				helper.address.getArrayOfFromAddress(r, accountId, message.from),
 				function(arrayOfToAddress, arrayOfFromAddress) {
-					return helper.folder.getInternalFolder(r, accountId, 'Inbox')
-					.then(function(inboxFolder) {
-						return helper.insert.saveMessage(r, accountId, inboxFolder, arrayOfToAddress, arrayOfFromAddress, message, false)
+					var p = {
+						arrayOfToAddress: arrayOfToAddress,
+						arrayOfFromAddress: arrayOfFromAddress
+					};
+					var dstFolderName = 'Inbox';
+					if (helper.filter.isFalseReply(message)) {
+						// If the message has "Re:" in the subject, but has no inReplyTo, it is possibly a spam
+						// Therefore, we will default it to SPAM, and override notification to doNotNotify
+						overrideNotify = true;
+						dstFolderName = 'Spam';
+					}
+					return helper.folder.getInternalFolder(r, accountId, dstFolderName)
+					.then(function(dstFolder) {
+						p.dstFolder = dstFolder;
+						return p;
 					})
 				}
 			)
+			.then(function(p) {
+				return helper.insert.saveMessage(r, accountId, p.dstFolder, p.arrayOfToAddress, p.arrayOfFromAddress, message, false)
+			})
 			.then(function(messageId) {
 				return filter(r, accountId, messageId)
 				.then(function(notify) {
+					if (overrideNotify) {
+						notify = overrideNotifyTo;
+					}
 					if (!notify) return;
 					return helper.folder.getMessageFolder(r, messageId)
 					.then(function(folder) {
