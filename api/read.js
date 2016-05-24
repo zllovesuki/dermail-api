@@ -227,7 +227,7 @@ router.post('/getMail', auth, function(req, res, next) {
 		return r
 		.table('messages')
 		.get(messageId)
-		.pluck('messageId', 'headers', 'date', 'to', 'from', 'replyTo', 'folderId', 'accountId', 'subject', 'html', 'attachments', 'isRead', 'isStar', 'replyTo')
+		.pluck('messageId', '_messageId', 'headers', 'date', 'to', 'from', 'replyTo', 'folderId', 'accountId', 'subject', 'html', 'attachments', 'isRead', 'isStar', 'replyTo')
 		// Save some bandwidth and processsing
 		.merge(function(doc) {
 			return {
