@@ -26,6 +26,8 @@ var auth = helper.auth.middleware;
 router.post('/updateMail', auth, function(req, res, next) {
 
 	var r = req.r;
+	var config = req.config;
+	var messageQ = req.Q;
 
 	var userId = req.user.userId;
 	var accountId = req.body.accountId || '';
@@ -111,6 +113,18 @@ router.post('/updateMail', auth, function(req, res, next) {
 			})
 			.catch(function(e) {
 				return next(e);
+			})
+			break;
+		case 'spamc':
+			return messageQ.add({
+				type: 'getRawEmail',
+				payload: {
+					userId: userId,
+					messageId: messageId
+				}
+			}, config.Qconfig)
+			.then(function() {
+				res.status(200).send();
 			})
 			break;
 		default:

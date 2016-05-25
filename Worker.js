@@ -8,8 +8,11 @@ var Queue = require('bull'),
 	config = require('./config'),
 	_ = require('lodash'),
 	s3 = knox.createClient(config.s3),
+	mailcomposer = require("mailcomposer"),
+	Spamc = require('spamc'),
 	bunyan = require('bunyan'),
 	stream = require('gelf-stream'),
+	spam,
 	log;
 
 var messageQ = new Queue('dermail-api-worker', config.redisQ.port, config.redisQ.host);
@@ -26,6 +29,12 @@ if (!!config.graylog) {
 	log = bunyan.createLogger({
 		name: 'API-Worker'
 	});
+}
+
+if (!!config.spamc) {
+	spamc = new Spamc(config.spamc.host, config.spamc.port, 15);
+}else{
+	spamc = false;
 }
 
 r.connect(config.rethinkdb).then(function(conn) {
@@ -203,6 +212,105 @@ r.connect(config.rethinkdb).then(function(conn) {
 			.catch(function(e) {
 				return callback(e);
 			})
+
+			break;
+
+			case 'getRawEmail':
+
+			var messageId = data.messageId;
+			var userId = data.userId;
+
+			return r
+			.table('messages')
+			.get(messageId)
+			.merge(function(doc) {
+				return {
+					'to': doc('to').concatMap(function(to) { // It's like a subquery
+						return [r.table('addresses').get(to).without('accountId', 'addressId', 'internalOwner')]
+					}),
+					'from': doc('from').concatMap(function(from) { // It's like a subquery
+						return [r.table('addresses').get(from).without('accountId', 'addressId', 'internalOwner')]
+					}),
+					'headers': r.table('messageHeaders').get(doc('headers')).without('accountId'),
+					'attachments': null
+				}
+			})
+			.merge(function(doc) {
+				return {
+					'to': doc('to').concatMap(function(to) { // It's like a subquery
+						return [{
+							'name': to('friendlyName'),
+							'address': to('account').add('@').add(to('domain'))
+						}]
+					}),
+					'from': doc('from').concatMap(function(from) { // It's like a subquery
+						return [{
+							'name': from('friendlyName'),
+							'address': from('account').add('@').add(from('domain'))
+						}]
+					}),
+					'messageId': r.branch(doc.hasFields('_messageId'), doc('_messageId'), null)
+				}
+			})
+			.run(conn)
+			.then(function(mail) {
+				if (mail === null) {
+					return callback();
+				}else{
+					mail.date = new Date(mail.date).toUTCString().replace(/GMT/g, '-0000');
+					var compose = mailcomposer(mail);
+					compose.build(function(err, message) {
+						if (err) {
+							return helper.notification.sendAlert(r, userId, 'error', 'Cannot get raw message for Spamc.')
+							.then(function() {
+								return callback();
+							})
+						}
+						return messageQ.add({
+							type: 'testSpamc',
+							payload: {
+								userId: userId,
+								message: message.toString()
+							}
+						}, config.Qconfig)
+						.then(function() {
+							return callback();
+						})
+					})
+				}
+			})
+
+			break;
+
+			case 'testSpamc':
+
+			var userId = data.userId;
+			var message = data.message;
+
+			if (spamc === false) {
+				return helper.notification.sendAlert(r, userId, 'error', 'Spamc is not available.')
+				.then(function() {
+					return callback();
+				})
+			}else{
+				spamc.report(message, function (err, result) {
+					if (err) {
+						log.error({ message: 'Spamc returns an error', error: err })
+						return helper.notification.sendAlert(r, userId, 'error', 'Spamc returns error.')
+						.then(function() {
+							return callback();
+						})
+					}else{
+						return helper.notification.sendDebug(r, userId, 'log', result)
+						.then(function() {
+							return helper.notification.sendAlert(r, userId, 'success', 'Please check console for result.')
+						})
+						.then(function() {
+							return callback();
+						})
+					}
+				})
+			}
 
 			break;
 		}
