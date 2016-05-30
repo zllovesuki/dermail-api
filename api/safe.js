@@ -2,8 +2,9 @@ var express = require('express'),
 	router = express.Router(),
 	request = require('request')
 	http = require('http'),
-	_url = require('url'),
-	emptyGif = new Buffer('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+	util = require('util'),
+	emptyGif = new Buffer('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64'),
+	redirect = "<html><head></head><body><script type='text/javascript'>window.location.href='%s'</script></body></html>";
 
 router.get('/inline/*', function(req, res, next) {
 
@@ -11,8 +12,7 @@ router.get('/inline/*', function(req, res, next) {
 
 	var config = req.config;
 
-	var base64 = req.query.s || '';
-	var cid = new Buffer(base64, 'base64').toString();
+	var cid = req.query.s || '';
 
 	var contentId = cid.substring(4);
 
@@ -37,8 +37,7 @@ router.get('/inline/*', function(req, res, next) {
 
 router.get('/image/*', function(req, res, next) {
 
-	var base64 = req.query.s || '';
-	var url = new Buffer(base64, 'base64').toString();
+	var url = req.query.s || '';
 
 	request({
 		url: url,
@@ -57,9 +56,8 @@ router.get('/image/*', function(req, res, next) {
 });
 
 router.get('/href/*', function(req, res, next) {
-	var base64 = req.query.s || '';
-	var url = new Buffer(base64, 'base64').toString();
-	res.redirect(url);
+	var url = req.query.s || '';
+	res.send(util.format(redirect, url));
 });
 
 module.exports = router;
