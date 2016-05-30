@@ -18,9 +18,7 @@ router.get('/inline/*', function(req, res, next) {
 
 	r
 	.table('attachments')
-	.filter({
-		contentId: contentId
-	})
+	.getAll(contentId, { index: 'contentId' })
 	.run(r.conn)
 	.then(function(cursor) {
 		return cursor.toArray();
@@ -31,7 +29,6 @@ router.get('/inline/*', function(req, res, next) {
 			res.end(emptyGif);
 		}else{
 			var attachment = results[0];
-			// TODO: Don't hard code this
 			var url = 'https://' + config.s3.bucket + '.' + config.s3.endpoint + '/' + attachment.checksum + '/' + attachment.generatedFileName;
 			res.redirect(url);
 		}

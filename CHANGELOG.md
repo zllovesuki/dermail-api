@@ -1,5 +1,9 @@
 ## Changelog
 
+05/30/2015: 1.16.0 -> 1.16.1
+1. Use contentId for efficient search.
+2. Please add a secondary index: `r.db('dermail').table("attachments").indexCreate("contentId")`
+
 05/18/2016: 1.15.x -> 1.16.0
 1. Modernize TX: use web-worker on TX to compose mails instead of web-worked on API-Worker
 

@@ -47,6 +47,7 @@ r.db('dermail').tableCreate('payload', {
 5. Add secondary index of "userId" to table "queue"
 6. Add secondary index of "accountId" to table "filters"
 7. Add secondary index of "checksum" to table "attachments"
+8. Add secondary index of "contentId" to table "attachments"
 
 ```javascript
 r.db('dermail').table("users").indexCreate("username")
@@ -56,6 +57,7 @@ r.db('dermail').table("messages").indexCreate("accountId")
 r.db('dermail').table("queue").indexCreate("userId")
 r.db('dermail').table("filters").indexCreate("accountId")
 r.db('dermail').table("attachments").indexCreate("checksum")
+r.db('dermail').table("attachments").indexCreate("contentId")
 ```
 
 
