@@ -269,6 +269,28 @@ var filter = function (r, accountId, messageId) {
 		return r
 		.table('filters')
 		.getAll(accountId, { index: 'accountId' })
+		.concatMap(function(doc) {
+			return doc('pre').keys().map(function(key) {
+				return {
+					id: doc('filterId'),
+					count: r.branch(doc('pre')(key).eq(null), 0, 1)
+				}
+			}).group('id').reduce(function(left, right) {
+				return {
+					id: left('id'),
+					count: left('count').add(right('count'))
+				}
+			}).ungroup().map(function(red) {
+				return {
+					filterId: red('reduction')('id'),
+					accountId: doc('accountId'),
+					criteriaCount: red('reduction')('count'),
+					pre: doc('pre'),
+					post: doc('post')
+				}
+			})
+		})
+		.orderBy(r.desc('criteriaCount'))
 		.run(r.conn)
 		.then(function(cursor) {
 			return cursor.toArray();
@@ -292,12 +314,15 @@ var filter = function (r, accountId, messageId) {
 			.run(r.conn)
 			.then(function(message) {
 				var results = [message];
-				return Promise.map(filters, function(filter) {
+				var once = false;
+				return Promise.mapSeries(filters, function(filter) {
+					if (once) return;
 					var criteria = filter.pre;
 					return helper.filter.applyFilters(results, criteria.from, criteria.to, criteria.subject, criteria.contain, criteria.exclude)
 					.then(function(filtered) {
 						// It will always be a length of 1
 						if (filtered.length === 1) {
+							once = true;
 							return Promise.map(Object.keys(filter.post), function(key) {
 								if (key === 'doNotNotify') {
 									notify = !filter.post.doNotNotify;
@@ -307,7 +332,7 @@ var filter = function (r, accountId, messageId) {
 							}, { concurrency: 3 });
 						}
 					})
-				}, { concurrency: 3 });
+				});
 			})
 		})
 		.then(function() {

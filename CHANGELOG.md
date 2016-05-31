@@ -1,6 +1,9 @@
 ## Changelog
 
-05/30/2015: 1.16.0 -> 1.16.1
+05/30/2016: 1.16.1 -> 1.16.2
+1. Filters now have priorities: filter with more criteria has a higher priority
+
+05/30/2016: 1.16.0 -> 1.16.1
 1. Use contentId for efficient search.
 2. Please add a secondary index: `r.db('dermail').table("attachments").indexCreate("contentId")`
 

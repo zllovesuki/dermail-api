@@ -342,6 +342,28 @@ router.post('/getFilters', auth, function(req, res, next) {
 			}
 		})
 	})
+	.concatMap(function(doc) {
+		return doc('pre').keys().map(function(key) {
+			return {
+				id: doc('filterId'),
+				count: r.branch(doc('pre')(key).eq(null), 0, 1)
+			}
+		}).group('id').reduce(function(left, right) {
+			return {
+				id: left('id'),
+				count: left('count').add(right('count'))
+			}
+		}).ungroup().map(function(red) {
+			return {
+				filterId: red('reduction')('id'),
+				accountId: doc('accountId'),
+				criteriaCount: red('reduction')('count'),
+				pre: doc('pre'),
+				post: doc('post')
+			}
+		})
+	})
+	.orderBy(r.desc('criteriaCount'))
 	.run(r.conn)
 	.then(function(cursor) {
 		return cursor.toArray();
