@@ -266,35 +266,7 @@ var checkAccount = Promise.method(function (r, account, domainId) {
 var filter = function (r, accountId, messageId) {
 	var notify = true;
 	return new Promise(function(resolve, reject) {
-		return r
-		.table('filters')
-		.getAll(accountId, { index: 'accountId' })
-		.concatMap(function(doc) {
-			return doc('pre').keys().map(function(key) {
-				return {
-					id: doc('filterId'),
-					count: r.branch(doc('pre')(key).eq(null), 0, 1)
-				}
-			}).group('id').reduce(function(left, right) {
-				return {
-					id: left('id'),
-					count: left('count').add(right('count'))
-				}
-			}).ungroup().map(function(red) {
-				return {
-					filterId: red('reduction')('id'),
-					accountId: doc('accountId'),
-					criteriaCount: red('reduction')('count'),
-					pre: doc('pre'),
-					post: doc('post')
-				}
-			})
-		})
-		.orderBy(r.desc('criteriaCount'))
-		.run(r.conn)
-		.then(function(cursor) {
-			return cursor.toArray();
-		})
+		return helper.filter.getFilters(r, accountId, false)
 		.then(function(filters) {
 			if (filters.length === 0) return; // Early surrender if account has no filters
 			return r
