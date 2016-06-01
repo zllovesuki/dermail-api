@@ -35,12 +35,12 @@ router.post('/sendMail', auth, function(req, res, next) {
 	delete compose.cc;
 	delete compose.bcc; // Better safe than sorry
 
+	compose.html = compose.html || '';
+
 	if (typeof compose.addHTML !== 'undefined') {
 		compose.html += compose.addHTML;
 		delete compose.addHTML;
 	}
-
-	compose.html = compose.html || '';
 
 	return Promise.map(Object.keys(compose.recipients), function(each) {
 		return Promise.map(compose.recipients[each], function(recipient) {
