@@ -6,6 +6,8 @@ var express = require('express'),
 	Promise = require('bluebird'),
 	fs = Promise.promisifyAll(require("fs"));
 
+var Exception = require('../lib/error');
+
 var auth = helper.auth.middleware;
 
 router.post('/get-s3', auth, function(req, res, next) {
@@ -48,7 +50,7 @@ router.post('/notify', auth, function(req, res, next) {
 		return res.status(200).send({ok: true});
 	})
 	.catch(function(e) {
-		console.dir(e);
+		req.log.error(e);
 		return res.send({ok: false, message: e});
 	})
 
@@ -74,8 +76,8 @@ router.post('/store-tx', auth, function(req, res, next) {
 		return res.status(200).send({ok: true});
 	})
 	.catch(function(e) {
-		console.dir(e);
-		return res.send({ok: false, message: e});
+		req.log.error(e);
+		return res.status(200).send({ok: false, message: e});
 	})
 
 });
@@ -99,7 +101,14 @@ router.post('/check-recipient', auth, function(req, res, next) {
 		})
 	})
 	.catch(function(e) {
-		return res.status(200).send({ok: false});
+		req.log.error(e);
+		if (e.name === 'Unauthorized') {
+			// Indeed unauthorized
+			return res.status(200).send({ok: false});
+		}else{
+			// Database error
+			return res.status(200).send({ok: true});
+		}
 	})
 });
 
@@ -147,14 +156,16 @@ router.post('/store', auth, function(req, res, next) {
 					message: message
 				}
 			}, config.Qconfig)
-			.then(function() {
-				return res.send({ok: true});
-			});
 		})
 	})
+	.then(function() {
+		return res.status(200).send({ok: true});
+	});
 	.catch(function(e) {
-		console.dir(e);
-		return res.send({ok: false, message: e});
+		req.log.error(e);
+		// Edge cases where the database is not available when "check-recipient" was excuted
+		// Also, return false if the database is not available
+		return res.status(200).send({ok: false});
 	})
 });
 
@@ -178,7 +189,7 @@ var checkDomain = Promise.method(function (r, domain) {
 				return cursor.toArray();
 			}).then(function(result) {
 				if (result.length === 0) {
-					throw new Error('Domain does not exist: ' + domain);
+					throw new Exception.Unauthorized('Domain does not exist: ' + domain);
 				}else{
 					return result[0];
 				}
@@ -199,7 +210,7 @@ var checkAccount = Promise.method(function (r, account, domainId) {
 		return cursor.toArray();
 	}).then(function(result) {
 		if (result.length === 0) {
-			throw new Error('Account does not exist: ' + account);
+			throw new Exception.Unauthorized('Account does not exist: ' + account);
 		}else{
 			return result[0];
 		}
