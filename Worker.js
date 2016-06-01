@@ -51,7 +51,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 
 		var callback = function(err) {
 			if (err) {
-				log.error(err);
+				log.error({ message: 'Job ' + type + ' returns an error.', error: err });
 			}
 			return done(err);
 		}
