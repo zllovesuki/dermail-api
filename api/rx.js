@@ -217,7 +217,7 @@ router.post('/store', auth, function(req, res, next) {
 
 var checkDomain = Promise.method(function (r, domain) {
 	return r
-	.table('domains')
+	.table('domains', {readMode: 'majority'})
 	.getAll(domain, {index: 'domain'})
 	.slice(0, 1)
 	.run(r.conn)
@@ -248,7 +248,7 @@ var checkDomain = Promise.method(function (r, domain) {
 
 var checkAccount = Promise.method(function (r, account, domainId) {
 	return r
-	.table('accounts')
+	.table('accounts', {readMode: 'majority'})
 	.getAll([account, domainId], {index: 'accountDomainId'})
 	.slice(0, 1)
 	.run(r.conn)
