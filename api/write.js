@@ -196,7 +196,7 @@ router.post('/updateFolder', auth, function(req, res, next) {
 				}, config.Qconfig);
 			})
 			.then(function() {
-				return res.status(200).send({message: 'Action "truncateFolder" queued.'});
+				return res.status(200).send({});
 			})
 			.catch(function(e) {
 				return next(e);
@@ -226,7 +226,7 @@ router.post('/updateFolder', auth, function(req, res, next) {
 				return batchMoveToTrashAndRemoveFolder(r, folderId, trashFolder)
 			})
 			.then(function(result) {
-				return res.status(200).send({message: 'Folder deleted.'});
+				return res.status(200).send({});
 			})
 			.catch(function(e) {
 				return next(e);
@@ -255,7 +255,7 @@ router.post('/updateFolder', auth, function(req, res, next) {
 				}
 			})
 			.then(function(result) {
-				return res.status(200).send({message: 'Folder updated.'});
+				return res.status(200).send({});
 			})
 			.catch(function(e) {
 				return next(e);
@@ -278,7 +278,7 @@ router.post('/updateFolder', auth, function(req, res, next) {
 					return doAddFolder(r, data)
 				})
 				.then(function(result) {
-					res.status(200).send(result);
+					res.status(200).send({});
 				})
 				.catch(function(e) {
 					return next(e);
@@ -571,7 +571,7 @@ router.post('/updateDomain', auth, function(req, res, next) {
 		}
 	})
 	.then(function() {
-		return res.status(200).send({message: 'Domain updated.'});
+		return res.status(200).send({});
 	})
 	.catch(function(e) {
 		return next(e);
