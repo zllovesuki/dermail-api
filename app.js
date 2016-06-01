@@ -90,7 +90,7 @@ module.exports = function(r) {
 		res.status(err.status || 500);
 		res.send({
 			ok: false,
-			name: err.name,
+			errName: err.name,
 			message: err.message
 		});
 	});
