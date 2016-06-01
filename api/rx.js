@@ -107,7 +107,7 @@ router.post('/check-recipient', auth, function(req, res, next) {
 			return res.status(200).send({ok: false});
 		}else{
 			// Database error
-			return res.status(200).send({ok: true});
+			return next(e);
 		}
 	})
 });
