@@ -42,24 +42,13 @@ router.post('/store-tx', auth, function(req, res, next) {
 	var messageQ = req.Q;
 
 	var message = req.body;
-	var accountId = message.accountId;
-	var myAddress = message.myAddress;
 
-	delete message.accountId;
-	delete message.myAddress;
-
-	return Promise.join(
-		// Perspective is relative. "From" in the eyes of RX, "To" in the eyes of TX
-		helper.address.getArrayOfFromAddress(r, accountId, message.to),
-		// Perspective is relative. "To" in the eyes of RX, "From" in the eyes of TX
-		helper.address.getArrayOfToAddress(r, accountId, myAddress, message.from),
-		function(arrayOfToAddress, arrayOfFromAddress) {
-			return helper.folder.getInternalFolder(r, accountId, 'Sent')
-			.then(function(sentFolder) {
-				return helper.insert.saveMessage(r, accountId, sentFolder, arrayOfToAddress, arrayOfFromAddress, message, true)
-			})
+	return messageQ.add({
+		type: 'saveTX',
+		payload: {
+			message: message
 		}
-	)
+	}, config.Qconfig)
 	.then(function() {
 		return res.status(200).send({ok: true});
 	})
@@ -128,82 +117,15 @@ router.post('/store', auth, function(req, res, next) {
 	return checkDomain(r, recipientDomain).then(function(domainResult) {
 		var domainId = domainResult.domainId;
 		return checkAccount(r, recipientAccount, domainId).then(function(accountResult) {
-			// Now account and domain are correct, let's:
-			// 1. Assign "from" address in the database
-			// 2. Get our addressId
-			// 3. Assign "to" address in the database
-			// 4. Put the message into the correct folder
-			// 5. Save the attachments
-			// 6. Save the headers
-			// 7. Send new mail notification
-
-			var accountId = accountResult.accountId;
-			var userId = accountResult.userId;
-			// we need to normalize alias to "canonical" one
-			var myAddress = accountResult.account + '@' + domainResult.domain;
-			//var myAddress = recipient;
-
-			var overrideNotify = false;
-			var overrideNotifyTo = false;
-
-			return Promise.join(
-				helper.address.getArrayOfToAddress(r, accountId, myAddress, message.to),
-				helper.address.getArrayOfFromAddress(r, accountId, message.from),
-				function(arrayOfToAddress, arrayOfFromAddress) {
-					var p = {
-						arrayOfToAddress: arrayOfToAddress,
-						arrayOfFromAddress: arrayOfFromAddress
-					};
-					var dstFolderName = 'Inbox';
-					if (helper.filter.isFalseReply(message)) {
-						// If the message has "Re:" in the subject, but has no inReplyTo, it is possibly a spam
-						// Therefore, we will default it to SPAM, and override notification to doNotNotify
-						overrideNotify = true;
-						dstFolderName = 'Spam';
-					}
-					return helper.folder.getInternalFolder(r, accountId, dstFolderName)
-					.then(function(dstFolder) {
-						p.dstFolder = dstFolder;
-						return p;
-					})
+			return messageQ.add({
+				type: 'saveRX',
+				payload: {
+					accountId: accountResult.accountId,
+					userId: accountResult.userId,
+					myAddress: accountResult.account + '@' + domainResult.domain,
+					message: message
 				}
-			)
-			.then(function(p) {
-				return helper.insert.saveMessage(r, accountId, p.dstFolder, p.arrayOfToAddress, p.arrayOfFromAddress, message, false)
-			})
-			.then(function(messageId) {
-				return filter(r, accountId, messageId)
-				.then(function(notify) {
-					if (overrideNotify) {
-						notify = overrideNotifyTo;
-					}
-					if (!notify) return;
-					return helper.folder.getMessageFolder(r, messageId)
-					.then(function(folder) {
-						var payload;
-						if (folder !== null) {
-							payload = {
-								userId: userId,
-								accountId: accountId,
-								folder: folder,
-								messageId: messageId,
-								header: folder.displayName + ' at: ' + recipient,
-								body: message.subject,
-								message: 'New mail in ' + folder.displayName + ' at: ' + recipient
-							};
-						}else{
-							payload = {
-								userId: userId,
-								accountId: accountId,
-								header: folder.displayName + ' at: ' + recipient,
-								body: message.subject,
-								message: 'New mail in ' + folder.displayName + ' at: ' + recipient
-							};
-						}
-						return helper.notification.queueNewMailNotification(r, messageQ, config, payload);
-					})
-				})
-			})
+			}, config.Qconfig)
 			.then(function() {
 				return res.send({ok: true});
 			});
