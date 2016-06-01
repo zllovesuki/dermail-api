@@ -18,7 +18,9 @@ s3.list({}, function(err, data){
 				async.each(data.Contents, function(file, cb) {
 					var key = file.Key;
 					var checksum = key.substring(0, key.indexOf("/")).toLowerCase();
-					onS3[checksum] = key;
+					if (checksum !== 'raw') {
+						onS3[checksum] = key;
+					}
 					cb();
 				}, function(err) {
 					done();
