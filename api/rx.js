@@ -160,7 +160,7 @@ router.post('/store', auth, function(req, res, next) {
 	})
 	.then(function() {
 		return res.status(200).send({ok: true});
-	});
+	})
 	.catch(function(e) {
 		req.log.error(e);
 		// Edge cases where the database is not available when "check-recipient" was excuted
