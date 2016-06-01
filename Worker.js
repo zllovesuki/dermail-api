@@ -76,6 +76,13 @@ r.connect(config.rethinkdb).then(function(conn) {
 			var message = data.message;
 			//var myAddress = recipient;
 
+			message.WorkerExtra = {
+				attemptsMade: job.attemptsMade,
+				maxAttempts: job.attempts,
+				delay: job.delay,
+				jobId: job.jobId
+			};
+
 			var overrideNotify = false;
 			var overrideNotifyTo = false;
 
@@ -120,17 +127,17 @@ r.connect(config.rethinkdb).then(function(conn) {
 								accountId: accountId,
 								folder: folder,
 								messageId: messageId,
-								header: folder.displayName + ' at: ' + recipient,
+								header: folder.displayName + ' at: ' + myAddress,
 								body: message.subject,
-								message: 'New mail in ' + folder.displayName + ' at: ' + recipient
+								message: 'New mail in ' + folder.displayName + ' at: ' + myAddress
 							};
 						}else{
 							payload = {
 								userId: userId,
 								accountId: accountId,
-								header: folder.displayName + ' at: ' + recipient,
+								header: folder.displayName + ' at: ' + myAddress,
 								body: message.subject,
-								message: 'New mail in ' + folder.displayName + ' at: ' + recipient
+								message: 'New mail in ' + folder.displayName + ' at: ' + myAddress
 							};
 						}
 						return helper.notification.queueNewMailNotification(r, messageQ, config, payload);
