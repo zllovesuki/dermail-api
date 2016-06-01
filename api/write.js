@@ -178,7 +178,7 @@ router.post('/updateFolder', auth, function(req, res, next) {
 					throw new Error('Only "SPAM" and "Trash" folders can be truncated.');
 				}
 				return r
-				.table('messages')
+				.table('messages', {readMode: 'majority'})
 				.between([folderId, r.minval], [folderId, r.maxval], {index: 'folderDate'})
 				.pluck('messageId', 'headers', 'attachments')
 				.run(r.conn)
@@ -208,7 +208,7 @@ router.post('/updateFolder', auth, function(req, res, next) {
 			return helper.auth.accountFolderMapping(r, accountId, folderId)
 			.then(function() {
 				return r
-				.table('folders')
+				.table('folders', {readMode: 'majority'})
 				.getAll(accountId, {index: 'accountId'})
 				.filter({
 					parent: folderId
@@ -306,7 +306,7 @@ router.post('/pushSubscriptions', auth, function(req, res, next) {
 	switch (action) {
 		case 'subscribe':
 		return r
-		.table('pushSubscriptions')
+		.table('pushSubscriptions', {readMode: 'majority'})
 		.get(userId)
 		.run(r.conn)
 		.then(function(result) {
@@ -323,7 +323,7 @@ router.post('/pushSubscriptions', auth, function(req, res, next) {
 				})
 			}else{
 				return r
-				.table('pushSubscriptions')
+				.table('pushSubscriptions', {readMode: 'majority'})
 				.get(userId)
 				.update({
 					subscriptions: r.row('subscriptions').append(object)
@@ -337,7 +337,7 @@ router.post('/pushSubscriptions', auth, function(req, res, next) {
 		break;
 		case 'unsubscribe':
 		return r
-		.table('pushSubscriptions')
+		.table('pushSubscriptions', {readMode: 'majority'})
 		.get(userId)
 		.run(r.conn)
 		.then(function(result) {
@@ -345,7 +345,7 @@ router.post('/pushSubscriptions', auth, function(req, res, next) {
 				return res.status(500).send({message: 'No subscription found.'})
 			}else{
 				return r
-				.table('pushSubscriptions')
+				.table('pushSubscriptions', {readMode: 'majority'})
 				.get(userId)
 				.getField('subscriptions')
 				.run(r.conn)
@@ -353,7 +353,7 @@ router.post('/pushSubscriptions', auth, function(req, res, next) {
 					result = result.filter(function(f) {
 						return f['endpoint'] !== object.endpoint;
 					})
-					return r.table('pushSubscriptions')
+					return r.table('pushSubscriptions', {readMode: 'majority'})
 					.get(userId)
 					.update({
 						subscriptions: result
@@ -428,16 +428,16 @@ router.post('/modifyFilter', auth, function(req, res, next) {
 				.run(r.conn)
 				.then(function() {
 					return r // Then we searchWithFilter()
-					.table('messages')
+					.table('messages', {readMode: 'majority'})
 					.getAll(accountId, {index: 'accountId'})
 					.map(function(doc) {
 						return doc.merge(function() {
 							return {
 								'to': doc('to').concatMap(function(to) { // It's like a subquery
-									return [r.table('addresses').get(to).without('accountId', 'addressId', 'internalOwner')]
+									return [r.table('addresses', {readMode: 'majority'}).get(to).without('accountId', 'addressId', 'internalOwner')]
 								}),
 								'from': doc('from').concatMap(function(from) { // It's like a subquery
-									return [r.table('addresses').get(from).without('accountId', 'addressId', 'internalOwner')]
+									return [r.table('addresses', {readMode: 'majority'}).get(from).without('accountId', 'addressId', 'internalOwner')]
 								})
 							}
 						})
@@ -490,7 +490,7 @@ router.post('/modifyFilter', auth, function(req, res, next) {
 			break;
 		case 'delete':
 			return r
-			.table('filters')
+			.table('filters', {readMode: 'majority'})
 			.get(filterId)
 			.run(r.conn)
 			.then(function(filter) {
@@ -501,7 +501,7 @@ router.post('/modifyFilter', auth, function(req, res, next) {
 					return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
 				}
 				return r
-				.table('filters')
+				.table('filters', {readMode: 'majority'})
 				.get(filterId)
 				.delete()
 				.run(r.conn)
@@ -533,7 +533,7 @@ router.post('/updateDomain', auth, function(req, res, next) {
 	var action = req.body.action;
 
 	return r
-	.table('domains')
+	.table('domains', {readMode: 'majority'})
 	.get(domainId)
 	.run(r.conn)
 	.then(function(domain) {
@@ -556,7 +556,7 @@ router.post('/updateDomain', auth, function(req, res, next) {
 			});
 
 			return r
-			.table('domains')
+			.table('domains', {readMode: 'majority'})
 			.get(domainId)
 			.update({
 				alias: alias
@@ -581,7 +581,7 @@ router.post('/updateDomain', auth, function(req, res, next) {
 
 var batchMoveToTrashAndRemoveFolder = Promise.method(function(r, fromFolder, trashFolder) {
 	return r
-	.table('messages')
+	.table('messages', {readMode: 'majority'})
 	.between([fromFolder, r.minval], [fromFolder, r.maxval], {index: 'folderDate'})
 	.update({
 		folderId: trashFolder
@@ -589,7 +589,7 @@ var batchMoveToTrashAndRemoveFolder = Promise.method(function(r, fromFolder, tra
 	.run(r.conn)
 	.then(function() {
 		return r
-		.table('folders')
+		.table('folders', {readMode: 'majority'})
 		.get(fromFolder)
 		.delete()
 		.run(r.conn)
@@ -603,7 +603,7 @@ var doAddFolder = Promise.method(function(r, data) {
 	var id = shortid.generate();
 	data.folderId = id;
 	return r
-	.table('folders')
+	.table('folders', {readMode: 'majority'})
 	.insert(data)
 	.run(r.conn)
 	.then(function(result) {
@@ -626,7 +626,7 @@ var doUpdateMail = Promise.method(function(r, messageId, accountId, data) {
 	return helper.auth.messageAccountMapping(r, messageId, accountId)
 	.then(function() {
 		return r
-		.table('messages')
+		.table('messages', {readMode: 'majority'})
 		.get(messageId)
 		.update(data)
 		.run(r.conn)

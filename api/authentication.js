@@ -17,7 +17,7 @@ router.post('/', function(req, res, next) {
 	}
 
 	return r
-	.table('users')
+	.table('users', {readMode: 'majority'})
 	.getAll(username, {index: 'username'})
 	.pluck('userId', 'password')
 	.run(r.conn)

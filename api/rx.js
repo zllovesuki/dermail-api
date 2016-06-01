@@ -227,7 +227,7 @@ var checkDomain = Promise.method(function (r, domain) {
 		if (result.length === 0) {
 			// Maybe it is one of the alias?
 			return r
-			.table('domains')
+			.table('domains', {readMode: 'majority'})
 			.getAll(domain, {index: 'alias'})
 			.slice(0, 1)
 			.run(r.conn)
@@ -270,15 +270,15 @@ var filter = function (r, accountId, messageId) {
 		.then(function(filters) {
 			if (filters.length === 0) return; // Early surrender if account has no filters
 			return r
-			.table('messages')
+			.table('messages', {readMode: 'majority'})
 			.get(messageId)
 			.merge(function(doc) {
 				return {
 					'to': doc('to').concatMap(function(to) { // It's like a subquery
-						return [r.table('addresses').get(to).without('accountId', 'addressId', 'internalOwner')]
+						return [r.table('addresses', {readMode: 'majority'}).get(to).without('accountId', 'addressId', 'internalOwner')]
 					}),
 					'from': doc('from').concatMap(function(from) { // It's like a subquery
-						return [r.table('addresses').get(from).without('accountId', 'addressId', 'internalOwner')]
+						return [r.table('addresses', {readMode: 'majority'}).get(from).without('accountId', 'addressId', 'internalOwner')]
 					})
 				}
 			})

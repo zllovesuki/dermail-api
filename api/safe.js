@@ -17,7 +17,7 @@ router.get('/inline/*', function(req, res, next) {
 	var contentId = cid.substring(4);
 
 	r
-	.table('attachments')
+	.table('attachments', {readMode: 'majority'})
 	.getAll(contentId, { index: 'contentId' })
 	.run(r.conn)
 	.then(function(cursor) {

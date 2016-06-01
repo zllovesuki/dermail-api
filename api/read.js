@@ -26,9 +26,9 @@ router.get('/getAccounts', auth, function(req, res, next) {
 	var userId = req.user.userId;
 
 	return r
-	.table('accounts')
+	.table('accounts', {readMode: 'majority'})
 	.getAll(userId, {index: 'userId'})
-	.eqJoin('domainId', r.table('domains'))
+	.eqJoin('domainId', r.table('domains', {readMode: 'majority'}))
 	.zip()
 	.pluck('accountId', 'domainId', 'account', 'domain', 'alias')
 	.run(r.conn)
@@ -78,12 +78,12 @@ router.post('/getFoldersInAccount', auth, function(req, res, next) {
 	}
 
 	return r
-	.table('folders')
+	.table('folders', {readMode: 'majority'})
 	.getAll(accountId, {index: 'accountId'})
 	.map(function(doc) {
 		return doc.merge(function(z) {
 			return {
-				count: r.table('messages').getAll([doc('folderId'), false], {index: "unreadCount"}).count()
+				count: r.table('messages', {readMode: 'majority'}).getAll([doc('folderId'), false], {index: "unreadCount"}).count()
 			}
 		})
 	})
@@ -157,7 +157,7 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 	return helper.auth.accountFolderMapping(r, accountId, folderId)
 	.then(function(folder) {
 		return r
-		.table('messages')
+		.table('messages', {readMode: 'majority'})
 		.between([folderId, r.minval], [folderId, lastDate], {index: 'folderDate'})
 		.orderBy({index: r.desc('folderDate')})
 	})
@@ -179,10 +179,10 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 			return doc.merge(function() {
 				return {
 					'to': doc('to').concatMap(function(to) { // It's like a subquery
-						return [r.table('addresses').get(to).without('accountId', 'addressId', 'internalOwner')]
+						return [r.table('addresses', {readMode: 'majority'}).get(to).without('accountId', 'addressId', 'internalOwner')]
 					}),
 					'from': doc('from').concatMap(function(from) { // It's like a subquery
-						return [r.table('addresses').get(from).without('accountId', 'addressId', 'internalOwner')]
+						return [r.table('addresses', {readMode: 'majority'}).get(from).without('accountId', 'addressId', 'internalOwner')]
 					}),
 					'text': doc('text').slice(0, 100)
 				}
@@ -225,21 +225,21 @@ router.post('/getMail', auth, function(req, res, next) {
 	return helper.auth.messageAccountMapping(r, messageId, accountId)
 	.then(function() {
 		return r
-		.table('messages')
+		.table('messages', {readMode: 'majority'})
 		.get(messageId)
 		.pluck('messageId', '_messageId', 'headers', 'date', 'to', 'from', 'replyTo', 'folderId', 'accountId', 'subject', 'html', 'attachments', 'isRead', 'isStar', 'replyTo')
 		// Save some bandwidth and processsing
 		.merge(function(doc) {
 			return {
 				'to': doc('to').concatMap(function(to) { // It's like a subquery
-					return [r.table('addresses').get(to).without('accountId', 'addressId', 'internalOwner')]
+					return [r.table('addresses', {readMode: 'majority'}).get(to).without('accountId', 'addressId', 'internalOwner')]
 				}),
 				'from': doc('from').concatMap(function(from) { // It's like a subquery
-					return [r.table('addresses').get(from).without('accountId', 'addressId', 'internalOwner')]
+					return [r.table('addresses', {readMode: 'majority'}).get(from).without('accountId', 'addressId', 'internalOwner')]
 				}),
-				'headers': r.table('messageHeaders').get(doc('headers')).without('accountId'),
+				'headers': r.table('messageHeaders', {readMode: 'majority'}).get(doc('headers')).without('accountId'),
 				'attachments': doc('attachments').concatMap(function(attachment) { // It's like a subquery
-					return [r.table('attachments').get(attachment)]
+					return [r.table('attachments', {readMode: 'majority'}).get(attachment)]
 				})
 			}
 		})
@@ -278,7 +278,7 @@ router.post('/searchMailsInAccount', auth, function(req, res, next) {
 	*/
 
 	return r
-	.table('messages')
+	.table('messages', {readMode: 'majority'})
 	.getAll(accountId, {index: 'accountId'})
 	.filter(function(doc){
 		return r.or(doc('text').match("(?i)" + searchString), doc('subject').match("(?i)" + searchString))
@@ -357,18 +357,18 @@ router.post('/searchWithFilter', auth, function(req, res, next) {
 	}
 
 	return r
-	.table('messages')
+	.table('messages', {readMode: 'majority'})
 	.getAll(accountId, {index: 'accountId'})
 	.map(function(doc) {
 		return doc.merge(function() {
 			return {
 				'to': doc('to').concatMap(function(to) { // It's like a subquery
-					return [r.table('addresses').get(to).without('accountId', 'addressId', 'internalOwner')]
+					return [r.table('addresses', {readMode: 'majority'}).get(to).without('accountId', 'addressId', 'internalOwner')]
 				}),
 				'from': doc('from').concatMap(function(from) { // It's like a subquery
-					return [r.table('addresses').get(from).without('accountId', 'addressId', 'internalOwner')]
+					return [r.table('addresses', {readMode: 'majority'}).get(from).without('accountId', 'addressId', 'internalOwner')]
 				}),
-				'folder': r.table('folders').get(doc('folderId'))
+				'folder': r.table('folders', {readMode: 'majority'}).get(doc('folderId'))
 			}
 		})
 	})
@@ -407,7 +407,7 @@ router.get('/getPayload', function(req, res, next) {
 	var hash = crypto.createHash('sha1').update(req.query.endpoint).digest("hex");
 
 	return r
-	.table('payload')
+	.table('payload', {readMode: 'majority'})
 	.get(hash)
 	.run(r.conn)
 	.then(function(result) {
@@ -427,7 +427,7 @@ router.get('/getPayload', function(req, res, next) {
 
 function snapchat(r, hash) {
 	return r
-	.table('payload')
+	.table('payload', {readMode: 'majority'})
 	.get(hash)
 	.delete()
 	.run(r.conn)
