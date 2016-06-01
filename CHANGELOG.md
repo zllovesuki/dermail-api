@@ -1,5 +1,11 @@
 ## Changelog
 
+06/01/2016: 1.16.x -> 1.17.0
+1. API now provides domainName, DKIM selector, and the DKIM private key to TX. Please generate a key pair (You can use http://dkimcore.org/tools/), then setup the public key
+2. Then, add `domainName` and `dkimSelector` in your `config.json` file
+3. The private key will need to be in `ssl/dkim`
+4. `domainName`, `dkimSelector`, and `ssl/dkim` must be present, or **TX will not start**
+
 05/30/2016: 1.16.1 -> 1.16.2
 1. Filters now have priorities: filter with more criteria has a higher priority
 

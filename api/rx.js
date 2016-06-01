@@ -1,8 +1,10 @@
 var express = require('express'),
 	router = express.Router(),
+	path = require('path'),
 	_ = require('lodash'),
 	helper = require('../lib/helper'),
-	Promise = require('bluebird');
+	Promise = require('bluebird'),
+	fs = Promise.promisifyAll(require("fs"));
 
 var auth = helper.auth.middleware;
 
@@ -12,6 +14,25 @@ router.post('/get-s3', auth, function(req, res, next) {
 	var config = req.config;
 
 	return res.status(200).send({ok: true, data: config.s3});
+})
+
+router.post('/setup-tx', auth, function(req, res, next) {
+	res.setHeader('Content-Type', 'application/json');
+
+	var config = req.config;
+
+	if (!!!config.domainName || !!!config.dkimSelector) {
+		return next(new Error('API is not setup correctly.'));
+	}
+
+	fs.readFileAsync(path.join(config.root, 'ssl', 'dkim'))
+	.then(function(buffer) {
+		return res.status(200).send({ok: true, key: buffer.toString(), domainName: config.domainName, dkimSelector: config.dkimSelector});
+	})
+	.catch(function(e) {
+		return next(e);
+	})
+
 })
 
 router.post('/notify', auth, function(req, res, next) {
