@@ -83,7 +83,7 @@ router.post('/getFoldersInAccount', auth, function(req, res, next) {
 	.map(function(doc) {
 		return doc.merge(function(z) {
 			return {
-				count: r.table('messages', {readMode: 'majority'}).getAll([doc('folderId'), false], {index: "unreadCount"}).count()
+				count: r.table('messages', {readMode: 'outdated'}).getAll([doc('folderId'), false], {index: "unreadCount"}).count()
 			}
 		})
 	})
