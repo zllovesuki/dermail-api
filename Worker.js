@@ -42,7 +42,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 
 	log.info('Process ' + process.pid + ' is running as an API-Worker.');
 
-	messageQ.process(function(job, done) {
+	messageQ.process(3, function(job, done) {
 		var data = job.data;
 		var type = data.type;
 		data = data.payload;
