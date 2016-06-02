@@ -1,5 +1,10 @@
 ## Changelog
 
+06/01/2016: 1.17.x-> 1.18.0
+1. API now handles email manipulations when replying/forwarding. Field `inReplyTo` is now required to reply/forward
+2. Please add a secondary index: `r.db('dermail').table("messages").indexCreate("_messageId")`
+3. Please run migration script `usefulScripts/add_messageId.js`
+
 06/01/2016: 1.16.x -> 1.17.0
 1. API now provides domainName, DKIM selector, and the DKIM private key to TX. Please generate a key pair (You can use http://dkimcore.org/tools/), then setup the public key
 2. Then, add `domainName` and `dkimSelector` in your `config.json` file
