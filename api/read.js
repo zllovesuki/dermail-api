@@ -173,7 +173,7 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 	.then(function(p) {
 		p
 		.slice(start, end)
-		.pluck('messageId', 'date', 'to', 'from', 'folderId', 'accountId', 'subject', 'text', 'isRead', 'isStar')
+		.pluck('messageId', '_messageId', 'date', 'to', 'from', 'folderId', 'accountId', 'subject', 'text', 'isRead', 'isStar')
 		// Save some bandwidth and processsing
 		.map(function(doc) {
 			return doc.merge(function() {
@@ -283,7 +283,7 @@ router.post('/searchMailsInAccount', auth, function(req, res, next) {
 	.filter(function(doc){
 		return r.or(doc('text').match("(?i)" + searchString), doc('subject').match("(?i)" + searchString))
 	})
-	.pluck('subject', 'messageId', 'folderId')
+	.pluck('subject', 'messageId', '_messageId', 'folderId')
 	.run(r.conn)
 	.then(function(cursor) {
 		return cursor.toArray();
