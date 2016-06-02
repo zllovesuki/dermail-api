@@ -6,7 +6,7 @@ module.exports = {
 	rethinkdb: require('./config.json').rethinkdb,
 	'redisQ': require('./config.json').redisQ,
 	'Qconfig': {
-		attempts: 10,
+		attempts: 50,
 		backoff: {
 			type: 'exponential',
 			delay: 2000
