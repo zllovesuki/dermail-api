@@ -555,13 +555,68 @@ router.post('/updateDomain', auth, function(req, res, next) {
 				return /\S/.test(str) && /^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$/.test(str);
 			});
 
+			// Now we are going to do a very inefficient operation: creating an alias for each domain mapping to an account
+
+			// First, get all accounts under the domain
 			return r
-			.table('domains', {readMode: 'majority'})
-			.get(domainId)
-			.update({
-				alias: alias
+			.table('accounts', {readMode: 'majority'})
+			.getAll(userId, { index: 'userId' })
+			.filter(function(doc) {
+				return doc('domainId').eq(domainId)
+			})
+			.map(function(doc) {
+				return doc.merge(function() {
+					return {
+						domain: r.table('domains', {readMode: 'majority'}).get(doc('domainId'))('domain')
+					}
+				})
 			})
 			.run(r.conn)
+			.then(function(cursor) {
+				return cursor.toArray();
+			})
+			.then(function(addresses) {
+				var customizeEmptyResponse = 'everything is awesome';
+				// This is the inefficiency
+				return Promise.map(addresses, function(address) {
+					var sourceOfTruth = address.account + '@' + address.domain;
+					return helper.address.getAddress(r, sourceOfTruth, address.accountId, customizeEmptyResponse)
+					.then(function(truth) {
+						return Promise.map(alias, function(domain) {
+							var email = address.account + '@' + domain;
+							return helper.address.getAddress(r, email, address.accountId, customizeEmptyResponse)
+							.then(function(exist) {
+								if (exist === customizeEmptyResponse) {
+									// Address (alias) does not exist, let's create one
+									if (truth === customizeEmptyResponse) {
+										// We have a problem
+										throw new Error('Cannot find the single source of truth')
+									}
+									var one = {
+										address: email,
+										name: truth.friendlyName
+									}
+									return helper.address.createAlias(r, one, truth.addressId, address.accountId, userId);
+								}else{
+									// Address (alias) already exist, but we will not touch them
+									// Aliases in address book will only be created, but never deleted (single source of truth)
+									// Since each account has its own "address book", it does not affect other users' ability
+									// to use the same domain
+								}
+							})
+						}, { concurrency: 3 })
+					})
+				}, { concurrency: 3 })
+			})
+			.then(function() {
+				return r
+				.table('domains', {readMode: 'majority'})
+				.get(domainId)
+				.update({
+					alias: alias
+				})
+				.run(r.conn)
+			})
 
 			break;
 
