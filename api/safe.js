@@ -6,13 +6,6 @@ var express = require('express'),
 	emptyGif = new Buffer('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64'),
 	redirect = "<html><head></head><body><script type='text/javascript'>window.location.href='%s'</script></body></html>";
 
-var replaceMap = [
-	{
-		from: '&#58;',
-		to: ':'
-	}
-];
-
 router.get('/inline/*', function(req, res, next) {
 
 	var r = req.r;
@@ -45,10 +38,6 @@ router.get('/inline/*', function(req, res, next) {
 router.get('/image/*', function(req, res, next) {
 
 	var url = req.query.s || '';
-
-	replaceMap.forEach(function(single) {
-		url = url.replace(new RegExp('[' + single.from + ']', 'g'), single.to);
-	})
 
 	request({
 		url: url,
