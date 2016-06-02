@@ -556,6 +556,10 @@ router.post('/updateDomain', auth, function(req, res, next) {
 			});
 
 			// Now we are going to do a very inefficient operation: creating an alias for each domain mapping to an account
+			// Then if the aliases no longer have dependencies, we will remove the alias
+
+			var listOfAccounts = [];
+			var customizeEmptyResponse = 'everything is awesome';
 
 			// First, get all accounts under the domain
 			return r
@@ -576,10 +580,13 @@ router.post('/updateDomain', auth, function(req, res, next) {
 				return cursor.toArray();
 			})
 			.then(function(addresses) {
-				var customizeEmptyResponse = 'everything is awesome';
 				// This is the inefficiency
 				return Promise.map(addresses, function(address) {
 					var sourceOfTruth = address.account + '@' + address.domain;
+					listOfAccounts.push({
+						accountId: address.accountId,
+						account: address.account
+					});
 					return helper.address.getAddress(r, sourceOfTruth, address.accountId, customizeEmptyResponse)
 					.then(function(truth) {
 						return Promise.map(alias, function(domain) {
@@ -598,10 +605,13 @@ router.post('/updateDomain', auth, function(req, res, next) {
 									}
 									return helper.address.createAlias(r, one, truth.addressId, address.accountId, userId);
 								}else{
-									// Address (alias) already exist, but we will not touch them
+									// Address (alias) already exist, but we will not touch them **here**
 									// Aliases in address book will only be created, but never deleted (single source of truth)
 									// Since each account has its own "address book", it does not affect other users' ability
 									// to use the same domain
+
+									// Actually, we will delete alias in address book ***if and only if*** they have no dependencies
+									// e.g. No messages has the alias attached to it
 								}
 							})
 						}, { concurrency: 3 })
@@ -614,8 +624,69 @@ router.post('/updateDomain', auth, function(req, res, next) {
 				.get(domainId)
 				.update({
 					alias: alias
-				})
+				}, { returnChanges: true })
 				.run(r.conn)
+				.then(function(delta) {
+					return Promise.map(delta.changes, function(change) {
+
+						if (typeof change.old_val !== 'object') return;
+						if (typeof change.new_val !== 'object') return;
+
+						var before = change.old_val.alias;
+						var after = change.new_val.alias;
+
+						if (typeof before !== 'object') return;
+						if (typeof after !== 'object') return;
+
+						var difference = before.filter(function(element) {
+							return after.indexOf(element) < 0;
+						})
+
+						// the net change is difference, we want to check them
+
+						if (difference.length > 0) {
+							return Promise.map(listOfAccounts, function(address) {
+								return Promise.map(difference, function(domain) {
+									var email = address.account + '@' + domain;
+									return helper.address.getAddress(r, email, address.accountId, customizeEmptyResponse)
+									.then(function(truth) {
+										if (truth !== customizeEmptyResponse) {
+											var addressId = truth.addressId;
+
+											// This is the inefficiency -> table scan
+
+											return r
+											.table('messages', {readMode: 'majority'})
+											.pluck('to', 'from')
+											.filter(function(doc) {
+												return doc('from').contains(addressId).or(doc('to').contains(addressId))
+											})
+											.count()
+											.run(r.conn)
+											.then(function(count) {
+												if (count === 0) {
+													return addressId;
+												}else{
+													return null;
+												}
+											})
+										}else{
+											return null;
+										}
+									})
+									.then(function(addressId) {
+										if (addressId === null) return;
+										return r
+										.table('addresses', {readMode: 'majority'})
+										.get(addressId)
+										.delete()
+										.run(r.conn);
+									})
+								})
+							})
+						}
+					})
+				})
 			})
 
 			break;
