@@ -21,6 +21,7 @@
     "bull": "^1.0.0-rc1",
     "bunyan": "^1.8.1",
     "cors": "^2.7.1",
+    "dkim-verify": "git+https://git.fm/zllovesuki/dkim-verify.git",
     "express": "^4.13.4",
     "express-bunyan-logger": "^1.2.0",
     "express-rate-limit": "^2.2.0",
