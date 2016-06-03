@@ -102,7 +102,7 @@ s3.list({ prefix: 'raw/'}, function(err, data){
 								_cb()
 							});
 						});
-						res.pipe(verifier);
+						res.pipe(verifier, { line_endings: '\r\n' });
 					})
 					.end();
 				}, function(err) {
