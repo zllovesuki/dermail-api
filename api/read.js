@@ -173,7 +173,7 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 	.then(function(p) {
 		p
 		.slice(start, end)
-		.pluck('messageId', '_messageId', 'date', 'to', 'from', 'folderId', 'accountId', 'subject', 'text', 'isRead', 'isStar', 'dkim')
+		.pluck('messageId', '_messageId', 'date', 'to', 'from', 'folderId', 'accountId', 'subject', 'text', 'isRead', 'isStar', 'authentication_results', 'dkim')
 		// Save some bandwidth and processsing
 		.map(function(doc) {
 			return doc.merge(function() {
@@ -227,7 +227,7 @@ router.post('/getMail', auth, function(req, res, next) {
 		return r
 		.table('messages', {readMode: 'majority'})
 		.get(messageId)
-		.pluck('messageId', '_messageId', 'headers', 'date', 'to', 'from', 'replyTo', 'folderId', 'accountId', 'subject', 'html', 'attachments', 'isRead', 'isStar', 'references', 'dkim')
+		.pluck('messageId', '_messageId', 'headers', 'date', 'to', 'from', 'replyTo', 'folderId', 'accountId', 'subject', 'html', 'attachments', 'isRead', 'isStar', 'references', 'authentication_results', 'dkim')
 		// Save some bandwidth and processsing
 		.merge(function(doc) {
 			return {
