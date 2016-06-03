@@ -3,7 +3,7 @@ var express = require('express'),
 	validator = require('validator'),
 	config = require('../config'),
 	_ = require('lodash'),
-	moment = require('moment'),
+	moment = require('moment-timezone'),
 	helper = require('../lib/helper'),
 	Promise = require('bluebird'),
 	unNeededFields = [
@@ -93,12 +93,14 @@ router.post('/sendMail', auth, function(req, res, next) {
 				// Jesus... Regex from http://stackoverflow.com/questions/1207975/regex-to-match-contents-of-html-body
 				html = (typeof body[1] === 'undefined' ? original.html : body[1]);
 
+				var date = moment(original.date).tz('UTC').format("ddd, MMM D, YYYY [at] hh:mm a z");
+
 				switch (compose.type) {
 					case 'reply':
 					// Reply specificed
 
 					compose.addHTML = '<div class="dermail_extra"><br>' +
-						'<div class="dermail_quote">On ' + moment(original.date).format("ddd, MMM D, YYYY [at] hh:mm a") +
+						'<div class="dermail_quote">On ' + date +
 						', ' + name + ' &lt;<a href="mailto:' + email + '" target="_blank">' + email +
 						'</a>&gt; wrote: <br><blockquote class="dermail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">' +
 						html + '</blockquote></div></div>';
@@ -112,7 +114,7 @@ router.post('/sendMail', auth, function(req, res, next) {
 					compose.addHTML = '<div class="dermail_extra"><br>' +
 						'<div class="dermail_quote">---------- Forwarded message ----------<br>' +
 						'From: ' + (name.length > 0 ? name + ' ' : '') + '&lt;<a href="mailto:' + email + '" target="_blank">' + email + '</a>&gt;<br>'+
-						'Date: ' + moment(original.date).format("ddd, MMM D, YYYY [at] hh:mm a") + '<br>' +
+						'Date: ' + date + '<br>' +
 						'Subject: ' + original.subject + '<br>' +
 						'To: ' + '<a href="mailto:' + originalRecipient + '" target="_blank">' + originalRecipient + '</a><br><br><br>'+
 						html + '</div></div>';
