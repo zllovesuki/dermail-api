@@ -89,6 +89,10 @@ router.post('/sendMail', auth, function(req, res, next) {
 				var name = obj.friendlyName;
 				var email = obj.account + '@' + obj.domain;
 
+				var body = original.html.match(/^\s*(?:<(?:!(?:(?:--(?:[^-]+|-[^-])*--)+|\[CDATA\[(?:[^\]]+|](?:[^\]]|][^>]))*\]\]|[^<>]+)|(?!body[\s>])[a-z]+(?:\s*(?:[^<>"']+|"[^"]*"|'[^']*'))*|\/[a-z]+)\s*>|[^<]+)*\s*<body(?:\s*(?:[^<>"']+|"[^"]*"|'[^']*'))*\s*>([\s\S]+)<\/body\s*>/i);
+				// Jesus... Regex from http://stackoverflow.com/questions/1207975/regex-to-match-contents-of-html-body
+				html = (typeof body[1] === 'undefined' ? original.html : body[1]);
+
 				switch (compose.type) {
 					case 'reply':
 					// Reply specificed
@@ -97,7 +101,7 @@ router.post('/sendMail', auth, function(req, res, next) {
 						'<div class="dermail_quote">On ' + moment(original.date).format("ddd, MMM D, YYYY [at] hh:mm a") +
 						', ' + name + ' &lt;<a href="mailto:' + email + '" target="_blank">' + email +
 						'</a>&gt; wrote: <br><blockquote class="dermail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">' +
-						original.html + '</blockquote></div></div>';
+						html + '</blockquote></div></div>';
 
 					break;
 					case 'forward':
@@ -111,7 +115,7 @@ router.post('/sendMail', auth, function(req, res, next) {
 						'Date: ' + moment(original.date).format("ddd, MMM D, YYYY [at] hh:mm a") + '<br>' +
 						'Subject: ' + original.subject + '<br>' +
 						'To: ' + '<a href="mailto:' + originalRecipient + '" target="_blank">' + originalRecipient + '</a><br><br><br>'+
-						original.html + '</div></div>';
+						html + '</div></div>';
 
 					break;
 					default:
