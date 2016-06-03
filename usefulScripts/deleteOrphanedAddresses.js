@@ -9,10 +9,11 @@ r.connect(config.rethinkdb).then(function(conn) {
 	r.conn = conn;
 	return r
 	.table('addresses')
-	.pluck('addressId')
+	.pluck('addressId', 'aliasOf')
 	.map(function(doc) {
 		return {
 			addressId: doc('addressId'),
+			alias: r.branch(doc.hasFields('aliasOf'), true, false),
 			count: r
 			.table('messages')
 			.pluck('to', 'from')
@@ -28,7 +29,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 	})
 	.then(function(results) {
 		return Promise.map(results, function(result) {
-			if (result.count === 0) {
+			if (result.count === 0 && result.alias === false) {
 				deleted.push(result.addressId)
 				return r.table('addresses').get(result.addressId).delete().run(r.conn);
 			}
