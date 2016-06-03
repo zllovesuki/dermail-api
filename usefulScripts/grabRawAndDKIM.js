@@ -3,19 +3,20 @@ var r = require('rethinkdb'),
 	knox = require('knox'),
 	async = require('async'),
 	crypto = require('crypto'),
-	dkim = require('dkim-verify'),
+	dkim = require('./haraka_dkim'),
 	s3 = knox.createClient(config.s3);
 
 var onS3 = {};
 var inDB = {};
 var raw = {};
 
-var update = function(r, messageId, dkim) {
+var update = function(r, messageId, auth, fullDkim) {
 	return r
 	.table('messages')
 	.get(messageId)
 	.update({
-		dkim: dkim
+		authentication_results: auth,
+		dkim: fullDkim
 	})
 	.run(r.conn)
 }
@@ -68,20 +69,40 @@ s3.list({ prefix: 'raw/'}, function(err, data){
 				async.each(Object.keys(raw), function(file, _cb) {
 					s3.get('/raw/' + file)
 					.on('response', function(res) {
-						var verify = new dkim();
-						verify.on('end', function(results) {
-							update(r, raw[file], results).then(function() {
+
+						var authentication_results = [];
+
+						var auth_results = function (message) {
+						    if (message) {
+								authentication_results.push(message);
+							}
+						    var header = [ 'operator' ];
+						    header = header.concat(authentication_results);
+						    if (header.length === 1) return '';  // no results
+						    return header.join('; ');
+						};
+
+						var verifier = new dkim.DKIMVerifyStream(function(err, result, results) {
+							var putInMail = null;
+							console.log(err, result, results);
+							if (results) {
+								results.forEach(function (res) {
+									auth_results(
+										'dkim=' + res.result +
+										((res.error) ? ' (' + res.error + ')' : '') +
+										' header.i=' + res.identity
+									);
+								});
+								putInMail = auth_results();
+							}
+
+							results = results || [];
+
+							update(r, raw[file], putInMail, results).then(function() {
 								_cb()
 							});
-						})
-
-						verify.on('error', function(error) {
-							update(r, raw[file], error).then(function() {
-								_cb()
-							});
-						})
-
-						res.pipe(verify);
+						});
+						res.pipe(verifier);
 					})
 					.end();
 				}, function(err) {
