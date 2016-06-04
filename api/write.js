@@ -644,47 +644,47 @@ router.post('/updateDomain', auth, function(req, res, next) {
 
 						// the net change is difference, we want to check them
 
-						if (difference.length > 0) {
-							return Promise.map(listOfAccounts, function(address) {
-								return Promise.map(difference, function(domain) {
-									var email = address.account + '@' + domain;
-									return helper.address.getAddress(r, email, address.accountId, customizeEmptyResponse)
-									.then(function(truth) {
-										if (truth !== customizeEmptyResponse) {
-											var addressId = truth.addressId;
+						if (difference.length === 0) return;
 
-											// This is the inefficiency -> table scan
+						return Promise.map(listOfAccounts, function(address) {
+							return Promise.map(difference, function(domain) {
+								var email = address.account + '@' + domain;
+								return helper.address.getAddress(r, email, address.accountId, customizeEmptyResponse)
+								.then(function(truth) {
+									if (truth !== customizeEmptyResponse) {
+										var addressId = truth.addressId;
 
-											return r
-											.table('messages', {readMode: 'majority'})
-											.pluck('to', 'from')
-											.filter(function(doc) {
-												return doc('from').contains(addressId).or(doc('to').contains(addressId))
-											})
-											.count()
-											.run(r.conn)
-											.then(function(count) {
-												if (count === 0) {
-													return addressId;
-												}else{
-													return null;
-												}
-											})
-										}else{
-											return null;
-										}
-									})
-									.then(function(addressId) {
-										if (addressId === null) return;
+										// This is the inefficiency -> table scan
+
 										return r
-										.table('addresses', {readMode: 'majority'})
-										.get(addressId)
-										.delete()
-										.run(r.conn);
-									})
+										.table('messages', {readMode: 'majority'})
+										.pluck('to', 'from')
+										.filter(function(doc) {
+											return doc('from').contains(addressId).or(doc('to').contains(addressId))
+										})
+										.count()
+										.run(r.conn)
+										.then(function(count) {
+											if (count === 0) {
+												return addressId;
+											}else{
+												return null;
+											}
+										})
+									}else{
+										return null;
+									}
+								})
+								.then(function(addressId) {
+									if (addressId === null) return;
+									return r
+									.table('addresses', {readMode: 'majority'})
+									.get(addressId)
+									.delete()
+									.run(r.conn);
 								})
 							})
-						}
+						})
 					})
 				})
 			})
