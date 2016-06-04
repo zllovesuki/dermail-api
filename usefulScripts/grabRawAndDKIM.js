@@ -3,7 +3,7 @@ var r = require('rethinkdb'),
 	knox = require('knox'),
 	async = require('async'),
 	crypto = require('crypto'),
-	dkim = require('./haraka_dkim'),
+	dkim = require('./haraka/dkim'),
 	s3 = knox.createClient(config.s3);
 
 var onS3 = {};
@@ -84,7 +84,7 @@ s3.list({ prefix: 'raw/'}, function(err, data){
 
 						var verifier = new dkim.DKIMVerifyStream(function(err, result, results) {
 							var putInMail = null;
-							console.log(err, result, results);
+							console.log(inDB[file], err, result, results);
 							if (results) {
 								results.forEach(function (res) {
 									auth_results(

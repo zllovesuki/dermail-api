@@ -6,3 +6,4 @@ public/app.js
 public/prod.js
 config.json
 ssl/
+usefulScripts/test_dkim.js
