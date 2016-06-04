@@ -593,26 +593,27 @@ router.post('/updateDomain', auth, function(req, res, next) {
 							var email = address.account + '@' + domain;
 							return helper.address.getAddress(r, email, address.accountId, customizeEmptyResponse)
 							.then(function(exist) {
-								if (exist === customizeEmptyResponse) {
-									// Address (alias) does not exist, let's create one
-									if (truth === customizeEmptyResponse) {
-										// We have a problem
-										throw new Error('Cannot find the single source of truth')
-									}
-									var one = {
-										address: email,
-										name: truth.friendlyName
-									}
-									return helper.address.createAlias(r, one, truth.addressId, address.accountId, userId);
-								}else{
-									// Address (alias) already exist, but we will not touch them **here**
-									// Aliases in address book will only be created, but never deleted (single source of truth)
-									// Since each account has its own "address book", it does not affect other users' ability
-									// to use the same domain
+								if (exist !== customizeEmptyResponse)  return;
+								// Address (alias) already exist, but we will not touch them **here**
+								// Aliases in address book will only be created, but never deleted (single source of truth)
+								// Since each account has its own "address book", it does not affect other users' ability
+								// to use the same domain
 
-									// Actually, we will delete alias in address book ***if and only if*** they have no dependencies
-									// e.g. No messages has the alias attached to it
+								// Actually, we will delete alias in address book ***if and only if*** they have no dependencies
+								// e.g. No messages has the alias attached to it
+
+								//
+
+								// Address (alias) does not exist, let's create one
+								if (truth === customizeEmptyResponse) {
+									// We have a problem
+									throw new Error('Cannot find the single source of truth')
 								}
+								var one = {
+									address: email,
+									name: truth.friendlyName
+								}
+								return helper.address.createAlias(r, one, truth.addressId, address.accountId, userId);
 							})
 						}, { concurrency: 3 })
 					})
