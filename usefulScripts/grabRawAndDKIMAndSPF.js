@@ -4,19 +4,22 @@ var r = require('rethinkdb'),
 	async = require('async'),
 	crypto = require('crypto'),
 	dkim = require('./haraka/dkim'),
+	SPF = require('./haraka/spf').SPF,
 	s3 = knox.createClient(config.s3);
 
 var onS3 = {};
 var inDB = {};
 var raw = {};
+var connections = {};
 
-var update = function(r, messageId, auth, fullDkim) {
+var update = function(r, messageId, auth, fullDkim, spf) {
 	return r
 	.table('messages')
 	.get(messageId)
 	.update({
 		authentication_results: auth,
-		dkim: fullDkim
+		dkim: fullDkim,
+		spf: spf
 	})
 	.run(r.conn)
 }
@@ -51,7 +54,9 @@ s3.list({ prefix: 'raw/'}, function(err, data){
 							var tmpPath = res.connection.tmpPath;
 							var hash = crypto.createHash('md5')
 							hash.update(tmpPath);
-							inDB[hash.digest('hex')] = res.messageId;
+							var md5 = hash.digest('hex');
+							inDB[md5] = res.messageId;
+							connections[md5] = res.connection;
 						}
 						cb();
 					}, function(err) {
@@ -84,7 +89,7 @@ s3.list({ prefix: 'raw/'}, function(err, data){
 
 						var verifier = new dkim.DKIMVerifyStream(function(err, result, results) {
 							var putInMail = null;
-							console.log(inDB[file], err, result, results);
+
 							if (results) {
 								results.forEach(function (res) {
 									auth_results(
@@ -96,11 +101,32 @@ s3.list({ prefix: 'raw/'}, function(err, data){
 								putInMail = auth_results();
 							}
 
-							results = results || [];
+							var dkimResults = results || [];
 
-							update(r, raw[file], putInMail, results).then(function() {
-								_cb()
-							});
+							var connection = connections[file];
+							var mailFrom = connection.envelope.mailFrom.address;
+							var domain = mailFrom.substring(mailFrom.lastIndexOf("@") + 1).toLowerCase();
+
+							var spf = new SPF();
+
+							spf.helo = connection.remoteAddress;
+
+							var spfResult = '';
+
+							spf.check_host(connection.remoteAddress, domain, mailFrom, function(err, result) {
+
+								if (!err) {
+									spfResult = spf.result(result).toLowerCase();
+									auth_results( "spf="+spfResult+" smtp.mailfrom="+domain);
+									putInMail = auth_results();
+								}
+
+								update(r, raw[file], putInMail, dkimResults, spfResult).then(function() {
+									console.log(inDB[file], putInMail)
+									_cb()
+								});
+							})
+
 						});
 						res.pipe(verifier, { line_endings: '\r\n' });
 					})
