@@ -17,7 +17,11 @@ var express = require('express'),
 	passport = require('passport'),
 	Promise = require('bluebird'),
 	helper = require('../lib/helper'),
-	shortid = require('shortid');
+	shortid = require('shortid'),
+	dns = Promise.promisifyAll(require('dns')),
+	crypto = require('crypto'),
+	forge = require('node-forge'),
+	rsa = forge.pki.rsa;
 
 shortid.worker(process.pid % 16);
 
@@ -543,8 +547,9 @@ router.post('/updateDomain', auth, function(req, res, next) {
 		if (domain.domainAdmin !== userId) {
 			throw new Error('Only the domain admin can modify the domain.');
 		}
+		return domain;
 	})
-	.then(function() {
+	.then(function(domain) {
 		switch (action) {
 			case 'updateAlias':
 
@@ -688,6 +693,98 @@ router.post('/updateDomain', auth, function(req, res, next) {
 					})
 				})
 			})
+			.then(function() {
+				return res.status(200).send({});
+			})
+
+			break;
+
+			case 'generateKeyPair':
+
+			if (typeof domain.dkim === 'object') {
+				throw new Error('Please delete the old keypair before generating a new pair.');
+			}
+
+			var keyPair = rsa.generateKeyPair({bits: 2048, e: 0x10001});
+
+			var pemPublic = forge.pki.publicKeyToPem(keyPair.publicKey);
+        	var pemPrivate = forge.pki.privateKeyToPem(keyPair.privateKey);
+
+			var pubLines = pemPublic.split("\r\n");
+			pubLines = pubLines.filter(function(line) {
+				return (line.length > 0) && (line.substring(0, 5) != '-----');
+			});
+			var publicKey = pubLines.join("");
+
+			var privLines = pemPrivate.split("\r\n");
+			privLines = privLines.filter(function(line) {
+				return (line.length > 0) && (line.substring(0, 5) != '-----');
+			});
+			var privateKey = privLines.join("");
+
+			var selector = Math.floor(new Date() / 1000) + '.dermail';
+
+			return r
+			.table('domains', {readMode: 'majority'})
+			.get(domainId)
+			.update({
+				dkim: {
+					selector: selector,
+					publicKey: publicKey,
+					privateKey: privateKey
+				}
+			})
+			.run(r.conn)
+			.then(function() {
+				return res.status(200).send({});
+			})
+
+			break;
+
+			case 'verifyKeyPair':
+
+			if (typeof domain.dkim !== 'object') {
+				throw new Error('No keypair found.');
+			}
+
+			var query = [domain.dkim.selector, '_domainkey', domain.domain].join('.');
+
+			return dns.resolveTxtAsync(query)
+			.then(function(result) {
+				if (!result || !result.length) {
+	            	throw new Error('Selector not found (%s)', query);
+	        	}
+				var data = {};
+	        	[].concat(result[0] || []).join('').split(/;/).forEach(function(row) {
+	            	var key, val;
+	            	row = row.split('=');
+	            	key = (row.shift() || '').toString().trim();
+	            	val = (row.join('=') || '').toString().trim();
+	            	data[key] = val;
+	        	});
+
+	        	if (!data.p) {
+	            	throw new Error('DNS TXT record does not seem to be a DKIM value', query);
+	        	}
+
+				var pubKey = '-----BEGIN PUBLIC KEY-----\r\n' + data.p.replace(/.{78}/g, '$&\r\n') + '\r\n-----END PUBLIC KEY-----';
+				var privKey = '-----BEGIN RSA PRIVATE KEY-----\r\n' + domain.dkim.privateKey.replace(/.{78}/g, '$&\r\n') + '\r\n-----END RSA PRIVATE KEY-----';
+
+				var sign = crypto.createSign('RSA-SHA256');
+				sign.update('dermail');
+				var signature = sign.sign(privKey, 'hex');
+				var verifier = crypto.createVerify('RSA-SHA256');
+            	verifier.update('dermail');
+
+				if (verifier.verify(pubKey, signature, 'hex')) {
+					return res.status(200).send({});
+				}else{
+					throw new Error('Verification failed: keys not match');
+				}
+			})
+			.catch(function(e) {
+				throw e;
+			});
 
 			break;
 
@@ -695,9 +792,6 @@ router.post('/updateDomain', auth, function(req, res, next) {
 			throw new Error('Not implemented.');
 			break;
 		}
-	})
-	.then(function() {
-		return res.status(200).send({});
 	})
 	.catch(function(e) {
 		return next(e);

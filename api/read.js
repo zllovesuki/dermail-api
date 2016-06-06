@@ -9,6 +9,44 @@ router.get('/ping', auth, function(req, res, next) {
 	return res.status(200).send('pong');
 });
 
+router.get('/security', auth, function(req, res, next) {
+
+	var config = req.config;
+	var r = req.r;
+
+	var userId = req.user.userId;
+
+	return r
+	.table('accounts', {readMode: 'majority'})
+	.getAll(userId, {index: 'userId'})
+	.eqJoin('domainId', r.table('domains', {readMode: 'majority'}))
+	.zip()
+	.pluck('domainId')
+	.concatMap(function(doc) {
+		return doc.merge(function() {
+			return [r.table('domains').get(doc('domainId'))]
+		})
+	})
+	.map(function(doc) {
+		return {
+			domainId: doc('domainId'),
+			domain: doc('domain'),
+			isAdmin: doc('domainAdmin').eq(userId),
+			dkim: r.branch(doc.hasFields('dkim'), doc('dkim').without('privateKey'), false)
+		}
+	})
+	.run(r.conn)
+	.then(function(cursor) {
+		return cursor.toArray();
+	})
+	.then(function(results) {
+		return res.status(200).send({
+			spf: config.domainName,
+			dkim: results
+		});
+	})
+})
+
 router.get('/s3', auth, function(req, res, next) {
 
 	var config = req.config;
