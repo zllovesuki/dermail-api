@@ -1,5 +1,10 @@
 ## Changelog
 
+06/07/2016: 1.x -> 2.0.0
+1. Dermail now supports per (main) domain DKIM signing outbound and verifying inbound.
+2. By default, Dermail checks for incoming emails for SPF. If SPF is not either "pass", "neutral", or "softfail", the emails will be moved to SPAM folder
+3. By default, Dermail checks for incoming emails for DKIM. If *any* DKIM signature fails the verification (not "pass" or "tempfail"), the emails will be moved to SPAM folder
+
 06/01/2016: 1.17.x-> 1.18.0
 1. API now handles email manipulations when replying/forwarding. Field `inReplyTo` is now required to reply/forward
 2. Please add a secondary index: `r.db('dermail').table("messages").indexCreate("_messageId")`
