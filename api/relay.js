@@ -70,9 +70,8 @@ router.post('/sendMail', auth, function(req, res, next) {
 					compose.dkim = false;
 				}else{
 					compose.dkim = dkim[0].dkim;
+					compose.dkim.domain = dkim[0].domain;
 				}
-				console.log(compose);
-				return;
 				return queueToTX(r, config, sender, account.accountId, userId, compose, messageQ)
 			})
 		})
