@@ -784,7 +784,16 @@ router.post('/updateDomain', auth, function(req, res, next) {
 				}
 			})
 			.catch(function(e) {
-				throw e;
+				switch (e.code) {
+					case dns.NOTFOUND:
+					case dns.NODATA:
+					case dns.NXDOMAIN:
+						throw new Error('No key was found.');
+						break;
+					default:
+						throw new Error('DNS lookup error.');
+						break;
+				}
 			});
 
 			break;
