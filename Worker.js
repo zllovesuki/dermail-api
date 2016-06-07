@@ -101,6 +101,12 @@ r.connect(config.rethinkdb).then(function(conn) {
 						overrideNotify = true;
 						dstFolderName = 'Spam';
 					}
+					if (!helper.filter.isSPFAndDKIMValid(message)) {
+						// By default, Dermail spams emails without SPF or failing the SPF test;
+						// and spams emails with invalid DKIM signature
+						overrideNotify = true;
+						dstFolderName = 'Spam';
+					}
 					return helper.folder.getInternalFolder(r, accountId, dstFolderName)
 					.then(function(dstFolder) {
 						p.dstFolder = dstFolder;
