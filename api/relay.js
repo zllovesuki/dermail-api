@@ -63,7 +63,18 @@ router.post('/sendMail', auth, function(req, res, next) {
 			var sender = {};
 			sender.name = req.user.firstName + ' ' + req.user.lastName;
 			sender.address = account['account'] + '@' + account['domain'];
-			return queueToTX(r, config, sender, account.accountId, userId, compose, messageQ)
+			return helper.dkim.getDKIMGivenAccountId(r, userId, accountId)
+			.then(function(dkim) {
+				if (dkim.length === 0) {
+					// DKIM is not setup
+					compose.dkim = false;
+				}else{
+					compose.dkim = dkim[0].dkim;
+				}
+				console.log(compose);
+				return;
+				return queueToTX(r, config, sender, account.accountId, userId, compose, messageQ)
+			})
 		})
 	}
 

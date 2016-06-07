@@ -788,6 +788,19 @@ router.post('/updateDomain', auth, function(req, res, next) {
 
 			break;
 
+			case 'deleteKeyPair':
+
+			return r
+			.table('domains', {readMode: 'majority'})
+			.get(domainId)
+			.replace(r.row.without('dkim'))
+			.run(r.conn)
+			.then(function() {
+				return res.status(200).send({});
+			})
+
+			break;
+
 			default:
 			throw new Error('Not implemented.');
 			break;
