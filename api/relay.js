@@ -65,7 +65,7 @@ router.post('/sendMail', auth, function(req, res, next) {
 			sender.address = account['account'] + '@' + account['domain'];
 			return helper.dkim.getDKIMGivenAccountId(r, userId, accountId)
 			.then(function(dkim) {
-				if (dkim.length === 0) {
+				if (typeof dkim[0].dkim !== 'object') {
 					// DKIM is not setup
 					compose.dkim = false;
 				}else{
