@@ -23,17 +23,11 @@ router.post('/setup-tx', auth, function(req, res, next) {
 
 	var config = req.config;
 
-	if (!!!config.domainName || !!!config.dkimSelector) {
+	if (!!!config.domainName) {
 		return next(new Error('API is not setup correctly.'));
 	}
 
-	fs.readFileAsync(path.join(config.root, 'ssl', 'dkim'))
-	.then(function(buffer) {
-		return res.status(200).send({ok: true, key: buffer.toString(), domainName: config.domainName, dkimSelector: config.dkimSelector});
-	})
-	.catch(function(e) {
-		return next(e);
-	})
+	return res.status(200).send({ok: true, domainName: config.domainName});
 
 })
 
