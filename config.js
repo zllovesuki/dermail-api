@@ -23,7 +23,5 @@ module.exports = {
 	},
 	gcm_api_key: require('./config.json').gcm_api_key,
 	tx: require('./config.json').tx,
-	domainName: require('./config.json').domainName || null,
-	dkimSelector: require('./config.json').dkimSelector || null,
-	root: __dirname
+	domainName: require('./config.json').domainName || null
 }
