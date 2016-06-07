@@ -98,10 +98,16 @@ router.post('/sendMail', auth, function(req, res, next) {
 
 				var name = obj.friendlyName;
 				var email = obj.account + '@' + obj.domain;
+				var html;
 
 				var body = original.html.match(/^\s*(?:<(?:!(?:(?:--(?:[^-]+|-[^-])*--)+|\[CDATA\[(?:[^\]]+|](?:[^\]]|][^>]))*\]\]|[^<>]+)|(?!body[\s>])[a-z]+(?:\s*(?:[^<>"']+|"[^"]*"|'[^']*'))*|\/[a-z]+)\s*>|[^<]+)*\s*<body(?:\s*(?:[^<>"']+|"[^"]*"|'[^']*'))*\s*>([\s\S]+)<\/body\s*>/i);
 				// Jesus... Regex from http://stackoverflow.com/questions/1207975/regex-to-match-contents-of-html-body
-				html = (typeof body[1] === 'undefined' ? original.html : body[1]);
+				if (body) {
+					html = (typeof body[1] === 'undefined' ? original.html : body[1]);
+				}else{
+					html = original.html;
+				}
+
 
 				var date = moment(original.date).tz('UTC').format("ddd, MMM D, YYYY [at] hh:mm a z");
 
