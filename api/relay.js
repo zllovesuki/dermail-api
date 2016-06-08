@@ -100,14 +100,15 @@ router.post('/sendMail', auth, function(req, res, next) {
 				var email = obj.account + '@' + obj.domain;
 				var html;
 
-				var body = original.html.match(/^\s*(?:<(?:!(?:(?:--(?:[^-]+|-[^-])*--)+|\[CDATA\[(?:[^\]]+|](?:[^\]]|][^>]))*\]\]|[^<>]+)|(?!body[\s>])[a-z]+(?:\s*(?:[^<>"']+|"[^"]*"|'[^']*'))*|\/[a-z]+)\s*>|[^<]+)*\s*<body(?:\s*(?:[^<>"']+|"[^"]*"|'[^']*'))*\s*>([\s\S]+)<\/body\s*>/i);
+
+				//var body = original.html.match(/^\s*(?:<(?:!(?:(?:--(?:[^-]+|-[^-])*--)+|\[CDATA\[(?:[^\]]+|](?:[^\]]|][^>]))*\]\]|[^<>]+)|(?!body[\s>])[a-z]+(?:\s*(?:[^<>"']+|"[^"]*"|'[^']*'))*|\/[a-z]+)\s*>|[^<]+)*\s*<body(?:\s*(?:[^<>"']+|"[^"]*"|'[^']*'))*\s*>([\s\S]+)<\/body\s*>/i);
 				// Jesus... Regex from http://stackoverflow.com/questions/1207975/regex-to-match-contents-of-html-body
+				var body = /<body[^>]*>((.|[\n\r])*)<\/body>/im.exec(original.html);
 				if (body) {
-					html = (typeof body[1] === 'undefined' ? original.html : body[1]);
+					html = body[1];
 				}else{
 					html = original.html;
 				}
-
 
 				var date = moment(original.date).tz('UTC').format("ddd, MMM D, YYYY [at] hh:mm a z");
 
@@ -150,7 +151,7 @@ router.post('/sendMail', auth, function(req, res, next) {
 	})
 	.then(actual)
 	.then(function() {
-		return res.status(200).send();
+		return res.status(200).send({});
 	})
 	.catch(function(err) {
 		console.log(err);
