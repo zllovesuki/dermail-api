@@ -85,6 +85,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 
 			var overrideNotify = false;
 			var overrideNotifyTo = false;
+			var filteredOnce = false;
 
 			return Promise.join(
 				helper.address.getArrayOfToAddress(r, accountId, myAddress, message.to),
@@ -100,12 +101,14 @@ r.connect(config.rethinkdb).then(function(conn) {
 						// Therefore, we will default it to SPAM, and override notification to doNotNotify
 						overrideNotify = true;
 						dstFolderName = 'Spam';
+						filteredOnce = true;
 					}
 					if (!helper.filter.isSPFAndDKIMValid(message)) {
 						// By default, Dermail spams emails without SPF or failing the SPF test;
 						// and spams emails with invalid DKIM signature
 						overrideNotify = true;
 						dstFolderName = 'Spam';
+						filteredOnce = true;
 					}
 					return helper.folder.getInternalFolder(r, accountId, dstFolderName)
 					.then(function(dstFolder) {
@@ -118,7 +121,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 				return helper.insert.saveMessage(r, accountId, p.dstFolder, p.arrayOfToAddress, p.arrayOfFromAddress, message, false)
 			})
 			.then(function(messageId) {
-				return filter(r, accountId, messageId)
+				return filter(r, accountId, messageId, filteredOnce)
 				.then(function(notify) {
 					if (overrideNotify) {
 						notify = overrideNotifyTo;
@@ -497,9 +500,12 @@ var deleteAttachmentFromDatabase = function(r, attachmentId) {
 	.run(r.conn)
 }
 
-var filter = function (r, accountId, messageId) {
+var filter = function (r, accountId, messageId, filteredOnce) {
 	var notify = true;
 	return new Promise(function(resolve, reject) {
+		if (filteredOnce === true) {
+			return resolve(false);
+		}
 		return helper.filter.getFilters(r, accountId, false)
 		.then(function(filters) {
 			if (filters.length === 0) return; // Early surrender if account has no filters
