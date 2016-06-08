@@ -100,10 +100,11 @@ router.post('/sendMail', auth, function(req, res, next) {
 				var email = obj.account + '@' + obj.domain;
 				var html;
 
-
 				//var body = original.html.match(/^\s*(?:<(?:!(?:(?:--(?:[^-]+|-[^-])*--)+|\[CDATA\[(?:[^\]]+|](?:[^\]]|][^>]))*\]\]|[^<>]+)|(?!body[\s>])[a-z]+(?:\s*(?:[^<>"']+|"[^"]*"|'[^']*'))*|\/[a-z]+)\s*>|[^<]+)*\s*<body(?:\s*(?:[^<>"']+|"[^"]*"|'[^']*'))*\s*>([\s\S]+)<\/body\s*>/i);
 				// Jesus... Regex from http://stackoverflow.com/questions/1207975/regex-to-match-contents-of-html-body
-				var body = /<body[^>]*>((.|[\n\r])*)<\/body>/im.exec(original.html);
+				
+				var body = /<body[^>]*>([^<]*(?:(?!<\/?body)<[^<]*)*)<\/body\s*>/i.exec(original.html);
+				// http://stackoverflow.com/questions/6609903/using-javascript-and-regular-expression-to-get-content-inside-the-html-body
 				if (body) {
 					html = body[1];
 				}else{
