@@ -10,7 +10,6 @@ var Queue = require('bull'),
 	s3 = knox.createClient(config.s3),
 	bunyan = require('bunyan'),
 	stream = require('gelf-stream'),
-	spam,
 	log;
 
 var messageQ = new Queue('dermail-api-worker', config.redisQ.port, config.redisQ.host);
@@ -27,12 +26,6 @@ if (!!config.graylog) {
 	log = bunyan.createLogger({
 		name: 'API-Worker'
 	});
-}
-
-if (!!config.spamc) {
-	spamc = new Spamc(config.spamc.host, config.spamc.port, 15);
-}else{
-	spamc = false;
 }
 
 r.connect(config.rethinkdb).then(function(conn) {
