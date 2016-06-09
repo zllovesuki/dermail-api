@@ -13,7 +13,6 @@ module.exports = {
 		}
 	},
 	graylog: require('./config.json').graylog || null,
-	spamc: require('./config.json').spamc || null,
 	cleanInterval: require('./config.json').cleanInterval || 10,
 	behindProxy: require('./config.json').behindProxy,
 	s3: require('./config.json').s3,
