@@ -3,6 +3,8 @@ var express = require('express'),
 	request = require('request')
 	http = require('http'),
 	util = require('util'),
+	helper = require('../lib/helper'),
+	crypto = require('crypto'),
 	emptyGif = new Buffer('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64'),
 	redirect = "<html><head></head><body><script type='text/javascript'>window.location.href='%s'</script></body></html>";
 
@@ -58,6 +60,36 @@ router.get('/image/*', function(req, res, next) {
 router.get('/href/*', function(req, res, next) {
 	var url = req.query.s || '';
 	res.send(util.format(redirect, url));
+});
+
+router.get('/raw/:accountId/:messageId', function(req, res, next) {
+	var r = req.r;
+	var config = req.config;
+	var accountId = req.params.accountId || '';
+	var messageId = req.params.messageId || '';
+	return helper.auth.messageAccountMapping(r, messageId, accountId)
+	.then(function(message) {
+		var tmpPath = message.connection.tmpPath;
+		var hash = crypto.createHash('md5')
+		hash.update(tmpPath);
+		var md5 = hash.digest('hex');
+		var url = 'https://' + config.s3.bucket + '.' + config.s3.endpoint + '/raw/' + md5;
+		request({
+			url: url,
+			// Some websites are really being a dick about user-agent.
+			headers: {
+				'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.94 Safari/537.36'
+			},
+			timeout: 3000,
+			maxRedirects: 2
+		})
+		.on('error', function(err) {
+			res.setHeader('content-type', 'image/gif');
+			res.end(emptyGif);
+		})
+		.pipe(res);
+	})
+	.catch(next);
 });
 
 module.exports = router;
