@@ -383,8 +383,10 @@ var filter = function (r, accountId, messageId) {
 			.run(r.conn)
 			.then(function(message) {
 				if (filters.length === 0) {
-					notify = false;
 					return applyDefaultFilter(r, accountId, messageId, message)
+					.then(function(doNotNotify) {
+						notify = !doNotNotify;
+					})
 				}else{
 					var results = [message];
 					var once = false;
@@ -409,6 +411,9 @@ var filter = function (r, accountId, messageId) {
 					.then(function() {
 						if (once) return;
 						return applyDefaultFilter(r, accountId, messageId, message)
+						.then(function(doNotNotify) {
+							notify = !doNotNotify;
+						})
 					})
 				}
 			})
@@ -424,15 +429,18 @@ var filter = function (r, accountId, messageId) {
 
 var applyDefaultFilter = Promise.method(function(r, accountId, messageId, message) {
 	var dstFolderName = null;
+	var doNotNotify = false;
 	if (helper.filter.isFalseReply(message)) {
 		// If the message has "Re:" in the subject, but has no inReplyTo, it is possibly a spam
 		// Therefore, we will default it to SPAM, and override notification to doNotNotify
 		dstFolderName = 'Spam';
+		doNotNotify = true;
 	}
 	if (!helper.filter.isSPFAndDKIMValid(message)) {
 		// By default, Dermail spams emails without SPF or failing the SPF test;
 		// and spams emails with invalid DKIM signature
 		dstFolderName = 'Spam';
+		doNotNotify = true;
 	}
 	if (dstFolderName !== null) {
 		return helper.folder.getInternalFolder(r, accountId, dstFolderName)
@@ -445,5 +453,10 @@ var applyDefaultFilter = Promise.method(function(r, accountId, messageId, messag
 			})
 			.run(r.conn)
 		})
+		.then(function() {
+			return doNotNotify;
+		})
+	}else{
+		return doNotNotify;
 	}
 })
