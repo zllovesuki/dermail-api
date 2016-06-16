@@ -384,29 +384,7 @@ var filter = function (r, accountId, messageId) {
 			.then(function(message) {
 				if (filters.length === 0) {
 					notify = false;
-					var dstFolderName = null;
-					if (helper.filter.isFalseReply(message)) {
-						// If the message has "Re:" in the subject, but has no inReplyTo, it is possibly a spam
-						// Therefore, we will default it to SPAM, and override notification to doNotNotify
-						dstFolderName = 'Spam';
-					}
-					if (!helper.filter.isSPFAndDKIMValid(message)) {
-						// By default, Dermail spams emails without SPF or failing the SPF test;
-						// and spams emails with invalid DKIM signature
-						dstFolderName = 'Spam';
-					}
-					if (dstFolderName !== null) {
-						return helper.folder.getInternalFolder(r, accountId, dstFolderName)
-						.then(function(dstFolder) {
-							return r
-							.table('messages', {readMode: 'majority'})
-							.get(messageId)
-							.update({
-								folderId: dstFolder
-							})
-							.run(r.conn)
-						})
-					}
+					return applyDefaultFilter(r, accountId, messageId, message)
 				}else{
 					var results = [message];
 					var once = false;
@@ -427,7 +405,11 @@ var filter = function (r, accountId, messageId) {
 								}, { concurrency: 3 });
 							}
 						})
-					});
+					})
+					.then(function() {
+						if (once) return;
+						return applyDefaultFilter(r, accountId, messageId, message)
+					})
 				}
 			})
 		})
@@ -439,3 +421,29 @@ var filter = function (r, accountId, messageId) {
 		})
 	});
 }
+
+var applyDefaultFilter = Promise.method(function(r, accountId, messageId, message) {
+	var dstFolderName = null;
+	if (helper.filter.isFalseReply(message)) {
+		// If the message has "Re:" in the subject, but has no inReplyTo, it is possibly a spam
+		// Therefore, we will default it to SPAM, and override notification to doNotNotify
+		dstFolderName = 'Spam';
+	}
+	if (!helper.filter.isSPFAndDKIMValid(message)) {
+		// By default, Dermail spams emails without SPF or failing the SPF test;
+		// and spams emails with invalid DKIM signature
+		dstFolderName = 'Spam';
+	}
+	if (dstFolderName !== null) {
+		return helper.folder.getInternalFolder(r, accountId, dstFolderName)
+		.then(function(dstFolder) {
+			return r
+			.table('messages', {readMode: 'majority'})
+			.get(messageId)
+			.update({
+				folderId: dstFolder
+			})
+			.run(r.conn)
+		})
+	}
+})
