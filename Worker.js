@@ -74,49 +74,19 @@ r.connect(config.rethinkdb).then(function(conn) {
 				jobId: job.jobId
 			};
 
-			var overrideNotify = false;
-			var overrideNotifyTo = false;
-			var filteredOnce = false;
-
 			return Promise.join(
 				helper.address.getArrayOfToAddress(r, accountId, myAddress, message.to),
 				helper.address.getArrayOfFromAddress(r, accountId, message.from),
 				function(arrayOfToAddress, arrayOfFromAddress) {
-					var p = {
-						arrayOfToAddress: arrayOfToAddress,
-						arrayOfFromAddress: arrayOfFromAddress
-					};
-					var dstFolderName = 'Inbox';
-					if (helper.filter.isFalseReply(message)) {
-						// If the message has "Re:" in the subject, but has no inReplyTo, it is possibly a spam
-						// Therefore, we will default it to SPAM, and override notification to doNotNotify
-						overrideNotify = true;
-						dstFolderName = 'Spam';
-						filteredOnce = true;
-					}
-					if (!helper.filter.isSPFAndDKIMValid(message)) {
-						// By default, Dermail spams emails without SPF or failing the SPF test;
-						// and spams emails with invalid DKIM signature
-						overrideNotify = true;
-						dstFolderName = 'Spam';
-						filteredOnce = true;
-					}
-					return helper.folder.getInternalFolder(r, accountId, dstFolderName)
-					.then(function(dstFolder) {
-						p.dstFolder = dstFolder;
-						return p;
+					return helper.folder.getInternalFolder(r, accountId, 'Inbox')
+					.then(function(inboxFolder) {
+						return helper.insert.saveMessage(r, accountId, inboxFolder, arrayOfToAddress, arrayOfFromAddress, message, false)
 					})
 				}
 			)
-			.then(function(p) {
-				return helper.insert.saveMessage(r, accountId, p.dstFolder, p.arrayOfToAddress, p.arrayOfFromAddress, message, false)
-			})
 			.then(function(messageId) {
-				return filter(r, accountId, messageId, filteredOnce)
+				return filter(r, accountId, messageId)
 				.then(function(notify) {
-					if (overrideNotify) {
-						notify = overrideNotifyTo;
-					}
 					if (!notify) return;
 					return helper.folder.getMessageFolder(r, messageId)
 					.then(function(folder) {
@@ -392,15 +362,11 @@ var deleteAttachmentFromDatabase = function(r, attachmentId) {
 	.run(r.conn)
 }
 
-var filter = function (r, accountId, messageId, filteredOnce) {
+var filter = function (r, accountId, messageId) {
 	var notify = true;
 	return new Promise(function(resolve, reject) {
-		if (filteredOnce === true) {
-			return resolve(false);
-		}
 		return helper.filter.getFilters(r, accountId, false)
 		.then(function(filters) {
-			if (filters.length === 0) return; // Early surrender if account has no filters
 			return r
 			.table('messages', {readMode: 'majority'})
 			.get(messageId)
@@ -414,29 +380,55 @@ var filter = function (r, accountId, messageId, filteredOnce) {
 					})
 				}
 			})
-			.pluck('from', 'to', 'subject', 'text', 'messageId', 'accountId')
 			.run(r.conn)
 			.then(function(message) {
-				var results = [message];
-				var once = false;
-				return Promise.mapSeries(filters, function(filter) {
-					if (once) return;
-					var criteria = filter.pre;
-					return helper.filter.applyFilters(results, criteria.from, criteria.to, criteria.subject, criteria.contain, criteria.exclude)
-					.then(function(filtered) {
-						// It will always be a length of 1
-						if (filtered.length === 1) {
-							once = true;
-							return Promise.map(Object.keys(filter.post), function(key) {
-								if (key === 'doNotNotify') {
-									notify = !filter.post.doNotNotify;
-								}else{
-									return helper.filter.applyAction(r, key, filter.post[key], message);
-								}
-							}, { concurrency: 3 });
-						}
-					})
-				});
+				if (filters.length === 0) {
+					notify = false;
+					var dstFolderName = null;
+					if (helper.filter.isFalseReply(message)) {
+						// If the message has "Re:" in the subject, but has no inReplyTo, it is possibly a spam
+						// Therefore, we will default it to SPAM, and override notification to doNotNotify
+						dstFolderName = 'Spam';
+					}
+					if (!helper.filter.isSPFAndDKIMValid(message)) {
+						// By default, Dermail spams emails without SPF or failing the SPF test;
+						// and spams emails with invalid DKIM signature
+						dstFolderName = 'Spam';
+					}
+					if (dstFolderName !== null) {
+						return helper.folder.getInternalFolder(r, accountId, dstFolderName)
+						.then(function(dstFolder) {
+							return r
+							.table('messages', {readMode: 'majority'})
+							.get(messageId)
+							.update({
+								folderId: dstFolder
+							})
+							.run(r.conn)
+						})
+					}
+				}else{
+					var results = [message];
+					var once = false;
+					return Promise.mapSeries(filters, function(filter) {
+						if (once) return;
+						var criteria = filter.pre;
+						return helper.filter.applyFilters(results, criteria.from, criteria.to, criteria.subject, criteria.contain, criteria.exclude)
+						.then(function(filtered) {
+							// It will always be a length of 1
+							if (filtered.length === 1) {
+								once = true;
+								return Promise.map(Object.keys(filter.post), function(key) {
+									if (key === 'doNotNotify') {
+										notify = !filter.post.doNotNotify;
+									}else{
+										return helper.filter.applyAction(r, key, filter.post[key], message);
+									}
+								}, { concurrency: 3 });
+							}
+						})
+					});
+				}
 			})
 		})
 		.then(function() {
