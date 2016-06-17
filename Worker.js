@@ -396,16 +396,15 @@ var filter = function (r, accountId, messageId) {
 						return helper.filter.applyFilters(results, criteria.from, criteria.to, criteria.subject, criteria.contain, criteria.exclude)
 						.then(function(filtered) {
 							// It will always be a length of 1
-							if (filtered.length === 1) {
-								once = true;
-								return Promise.map(Object.keys(filter.post), function(key) {
-									if (key === 'doNotNotify') {
-										notify = !filter.post.doNotNotify;
-									}else{
-										return helper.filter.applyAction(r, key, filter.post[key], message);
-									}
-								}, { concurrency: 3 });
-							}
+							if (filtered.length !== 1) return;
+							once = true;
+							return Promise.map(Object.keys(filter.post), function(key) {
+								if (key === 'doNotNotify') {
+									notify = !filter.post.doNotNotify;
+								}else{
+									return helper.filter.applyAction(r, key, filter.post[key], message);
+								}
+							}, { concurrency: 3 });
 						})
 					})
 					.then(function() {
