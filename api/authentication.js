@@ -34,6 +34,10 @@ router.post('/', function(req, res, next) {
 			}else{
 				return helper.auth.getUser(r, user[0].userId)
 				.then(function(user) {
+					var now = new Date();
+					user.iat = Math.round(now.getTime()/1000);
+					now.setDate(now.getDate() + 7);
+					user.exp = Math.round(now.getTime()/1000);
 					return res.status(200).send({token: jwt.encode(user, config.jwt.secret)});
 				})
 			}
