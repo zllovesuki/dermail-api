@@ -128,13 +128,6 @@ router.post('/store', auth, function(req, res, next) {
 		return res.send({ok: false, message: 'No envelopeTo.'});
 	}
 
-	// Delete ourselves
-	for (key in message.to) {
-		if (message.to[key].address == recipient) {
-			delete message.to[key];
-		}
-	}
-
 	var recipientAccount = recipient.substring(0, recipient.lastIndexOf("@")).toLowerCase();
 	var recipientDomain = recipient.substring(recipient.lastIndexOf("@") +1).toLowerCase();
 
@@ -146,7 +139,7 @@ router.post('/store', auth, function(req, res, next) {
 				payload: {
 					accountId: accountResult.accountId,
 					userId: accountResult.userId,
-					myAddress: accountResult.account + '@' + domainResult.domain,
+					myAddress: recipient,
 					message: message
 				}
 			}, config.Qconfig)

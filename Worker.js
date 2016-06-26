@@ -65,7 +65,6 @@ r.connect(config.rethinkdb).then(function(conn) {
 			// we need to normalize alias to "canonical" one
 			var myAddress = data.myAddress;
 			var message = data.message;
-			//var myAddress = recipient;
 
 			message.WorkerExtra = {
 				attemptsMade: job.attemptsMade,
@@ -75,7 +74,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 			};
 
 			return Promise.join(
-				helper.address.getArrayOfToAddress(r, accountId, myAddress, message.to),
+				helper.address.getArrayOfToAddress(r, accountId, message.to),
 				helper.address.getArrayOfFromAddress(r, accountId, message.from),
 				function(arrayOfToAddress, arrayOfFromAddress) {
 					return helper.folder.getInternalFolder(r, accountId, 'Inbox')
@@ -127,16 +126,14 @@ r.connect(config.rethinkdb).then(function(conn) {
 
 			var message = data.message;
 			var accountId = message.accountId;
-			var myAddress = message.myAddress;
 
 			delete message.accountId;
-			delete message.myAddress;
 
 			return Promise.join(
 				// Perspective is relative. "From" in the eyes of RX, "To" in the eyes of TX
 				helper.address.getArrayOfFromAddress(r, accountId, message.to),
 				// Perspective is relative. "To" in the eyes of RX, "From" in the eyes of TX
-				helper.address.getArrayOfToAddress(r, accountId, myAddress, message.from),
+				helper.address.getArrayOfToAddress(r, accountId, message.from),
 				function(arrayOfToAddress, arrayOfFromAddress) {
 					return helper.folder.getInternalFolder(r, accountId, 'Sent')
 					.then(function(sentFolder) {
