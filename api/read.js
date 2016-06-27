@@ -265,8 +265,13 @@ router.post('/getMail', auth, function(req, res, next) {
 		return r
 		.table('messages', {readMode: 'majority'})
 		.get(messageId)
-		.pluck('messageId', '_messageId', 'headers', 'date', 'to', 'from', 'replyTo', 'folderId', 'accountId', 'subject', 'html', 'attachments', 'isRead', 'isStar', 'references', 'authentication_results', 'dkim', 'spf')
+		.pluck('messageId', '_messageId', 'headers', 'date', 'to', 'from', 'cc', 'bcc', 'replyTo', 'folderId', 'accountId', 'subject', 'html', 'attachments', 'isRead', 'isStar', 'references', 'authentication_results', 'dkim', 'spf')
 		// Save some bandwidth and processsing
+		.merge(function(doc) {
+			return {
+				bcc: r.branch(doc.hasFields('bcc'), doc('bcc'), [])
+			}
+		})
 		.merge(function(doc) {
 			return {
 				'to': doc('to').concatMap(function(to) { // It's like a subquery
@@ -274,6 +279,12 @@ router.post('/getMail', auth, function(req, res, next) {
 				}),
 				'from': doc('from').concatMap(function(from) { // It's like a subquery
 					return [r.table('addresses', {readMode: 'majority'}).get(from).without('accountId', 'addressId', 'internalOwner')]
+				}),
+				'cc': doc('cc').concatMap(function(cc) { // It's like a subquery
+					return [r.table('addresses', {readMode: 'majority'}).get(cc).without('accountId', 'addressId', 'internalOwner')]
+				}),
+				'bcc': doc('bcc').concatMap(function(bcc) { // It's like a subquery
+					return [r.table('addresses', {readMode: 'majority'}).get(bcc).without('accountId', 'addressId', 'internalOwner')]
 				}),
 				'headers': r.table('messageHeaders', {readMode: 'majority'}).get(doc('headers')).without('accountId'),
 				'attachments': doc('attachments').concatMap(function(attachment) { // It's like a subquery

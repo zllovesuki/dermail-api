@@ -77,10 +77,11 @@ r.connect(config.rethinkdb).then(function(conn) {
 				helper.address.getArrayOfAddress(r, accountId, message.to),
 				helper.address.getArrayOfAddress(r, accountId, message.from),
 				helper.address.getArrayOfAddress(r, accountId, message.cc),
-				function(toAddr, fromAddr, ccAddr) {
+				helper.address.getArrayOfAddress(r, accountId, message.bcc),
+				function(toAddr, fromAddr, ccAddr, bccAddr) {
 					return helper.folder.getInternalFolder(r, accountId, 'Inbox')
 					.then(function(inboxFolder) {
-						return helper.insert.saveMessage(r, accountId, inboxFolder, toAddr, fromAddr, ccAddr, message, false)
+						return helper.insert.saveMessage(r, accountId, inboxFolder, toAddr, fromAddr, ccAddr, bccAddr, message, false)
 					})
 				}
 			)
@@ -137,7 +138,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 				function(toAddr, fromAddr, ccAddr) {
 					return helper.folder.getInternalFolder(r, accountId, 'Sent')
 					.then(function(sentFolder) {
-						return helper.insert.saveMessage(r, accountId, sentFolder, toAddr, fromAddr, ccAddr, message, true)
+						return helper.insert.saveMessage(r, accountId, sentFolder, toAddr, fromAddr, ccAddr, [], message, true)
 					})
 				}
 			)
