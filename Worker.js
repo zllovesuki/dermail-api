@@ -74,12 +74,13 @@ r.connect(config.rethinkdb).then(function(conn) {
 			};
 
 			return Promise.join(
-				helper.address.getArrayOfToAddress(r, accountId, message.to),
-				helper.address.getArrayOfFromAddress(r, accountId, message.from),
-				function(arrayOfToAddress, arrayOfFromAddress) {
+				helper.address.getArrayOfAddress(r, accountId, message.to),
+				helper.address.getArrayOfAddress(r, accountId, message.from),
+				helper.address.getArrayOfAddress(r, accountId, message.cc),
+				function(toAddr, fromAddr, ccAddr) {
 					return helper.folder.getInternalFolder(r, accountId, 'Inbox')
 					.then(function(inboxFolder) {
-						return helper.insert.saveMessage(r, accountId, inboxFolder, arrayOfToAddress, arrayOfFromAddress, message, false)
+						return helper.insert.saveMessage(r, accountId, inboxFolder, toAddr, fromAddr, ccAddr, message, false)
 					})
 				}
 			)
@@ -130,14 +131,13 @@ r.connect(config.rethinkdb).then(function(conn) {
 			delete message.accountId;
 
 			return Promise.join(
-				// Perspective is relative. "From" in the eyes of RX, "To" in the eyes of TX
-				helper.address.getArrayOfFromAddress(r, accountId, message.to),
-				// Perspective is relative. "To" in the eyes of RX, "From" in the eyes of TX
-				helper.address.getArrayOfToAddress(r, accountId, message.from),
-				function(arrayOfToAddress, arrayOfFromAddress) {
+				helper.address.getArrayOfAddress(r, accountId, message.to),
+				helper.address.getArrayOfAddress(r, accountId, message.from),
+				helper.address.getArrayOfAddress(r, accountId, message.cc),
+				function(toAddr, fromAddr, ccAddr) {
 					return helper.folder.getInternalFolder(r, accountId, 'Sent')
 					.then(function(sentFolder) {
-						return helper.insert.saveMessage(r, accountId, sentFolder, arrayOfToAddress, arrayOfFromAddress, message, true)
+						return helper.insert.saveMessage(r, accountId, sentFolder, toAddr, fromAddr, ccAddr, message, true)
 					})
 				}
 			)
