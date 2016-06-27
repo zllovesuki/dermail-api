@@ -332,7 +332,14 @@ router.post('/searchMailsInAccount', auth, function(req, res, next) {
 	.filter(function(doc){
 		return r.or(doc('text').match("(?i)" + searchString), doc('subject').match("(?i)" + searchString))
 	})
-	.pluck('subject', 'messageId', '_messageId', 'folderId')
+	.map(function(doc) {
+		return doc.merge(function() {
+			return {
+				'folder': r.table('folders', {readMode: 'majority'}).get(doc('folderId')).pluck('folderId', 'displayName')
+			}
+		})
+	})
+	.pluck('subject', 'messageId', '_messageId', 'folder')
 	.run(r.conn)
 	.then(function(cursor) {
 		return cursor.toArray();
@@ -417,7 +424,7 @@ router.post('/searchWithFilter', auth, function(req, res, next) {
 				'from': doc('from').concatMap(function(from) { // It's like a subquery
 					return [r.table('addresses', {readMode: 'majority'}).get(from).without('accountId', 'addressId', 'internalOwner')]
 				}),
-				'folder': r.table('folders', {readMode: 'majority'}).get(doc('folderId'))
+				'folder': r.table('folders', {readMode: 'majority'}).get(doc('folderId')).pluck('folderId', 'displayName')
 			}
 		})
 	})
