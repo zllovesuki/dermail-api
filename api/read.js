@@ -68,7 +68,16 @@ router.get('/getAccounts', auth, function(req, res, next) {
 	.getAll(userId, {index: 'userId'})
 	.eqJoin('domainId', r.table('domains', {readMode: 'majority'}))
 	.zip()
-	.pluck('accountId', 'domainId', 'account', 'domain', 'alias')
+	.map(function(doc) {
+		return {
+			accountId: doc('accountId'),
+			domainId: doc('domainId'),
+			domain: doc('domain'),
+			account: doc('account'),
+			alias: doc('alias'),
+			notify: r.branch(doc.hasFields('notify'), doc('notify'), true)
+		}
+	})
 	.run(r.conn)
 	.then(function(cursor) {
 		return cursor.toArray();

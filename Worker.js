@@ -417,7 +417,15 @@ var filter = function (r, accountId, messageId) {
 			})
 		})
 		.then(function() {
-			return resolve(notify);
+			return helper.notification.checkAccountNotify(r, accountId)
+			.then(function(accountSetting) {
+				if (accountSetting === true && notify === true) {
+					notify = true;
+				}else{
+					notify = false;
+				}
+				return resolve(notify);
+			})
 		})
 		.catch(function(e) {
 			return reject(e);

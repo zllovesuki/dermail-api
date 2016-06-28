@@ -379,6 +379,23 @@ router.post('/pushSubscriptions', auth, function(req, res, next) {
 			return res.status(200).send();
 		})
 		break;
+		case 'disableNotify':
+		case 'enableNotify':
+		var accountId = object.accountId;
+		if (req.user.accounts.indexOf(accountId) === -1) {
+			return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
+		}
+		return r
+		.table('accounts', {readMode: 'majority'})
+		.get(accountId)
+		.update({
+			notify: action === 'enableNotify'
+		})
+		.run(r.conn)
+		.then(function() {
+			return res.status(200).send();
+		})
+		break;
 		default:
 		return next(new Error('Not implemented.')); // Early surrender: account does not belong to user
 		break;
