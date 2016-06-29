@@ -39,21 +39,12 @@ r.db('dermail').tableCreate('payload', {
 })
 ```
 
-
-1. Add secondary index of "username" to table "users"
-2. Add secondary index of "userId" to table "accounts"
-3. Add secondary index of "accountId" to table "folders"
-4. Add secondary index of "accountId" to table "messages"
-5. Add secondary index of "userId" to table "queue"
-6. Add secondary index of "accountId" to table "filters"
-7. Add secondary index of "checksum" to table "attachments"
-8. Add secondary index of "contentId" to table "attachments"
-
 ```javascript
 r.db('dermail').table("users").indexCreate("username")
 r.db('dermail').table("accounts").indexCreate("userId")
 r.db('dermail').table("folders").indexCreate("accountId")
 r.db('dermail').table("messages").indexCreate("accountId")
+r.db('dermail').table("messages").indexCreate("_messageId")
 r.db('dermail').table("queue").indexCreate("userId")
 r.db('dermail').table("filters").indexCreate("accountId")
 r.db('dermail').table("attachments").indexCreate("checksum")
@@ -88,8 +79,15 @@ r.db('dermail').table('folders').indexCreate('accountFolderMapping', [ r.row('ac
 
 # TO DO for rx
 
-1. Add secondary index of "domain" to table "domains"
-2. Add secondary (multi) index of "alias" to table "domains" `.indexCreate("alias", {multi: true})`
+secondary index of "domain" to table "domains"
+```javascript
+r.db('dermail').table('domains').indexCreate("domain")
+```
+
+secondary (multi) index of "alias" to table "domains" `.indexCreate("alias", {multi: true})`
+```javascript
+r.db('dermail').table('domains').indexCreate("alias", {multi: true})
+```
 
 compound index of account + domainId in table "accounts"
 ```javascript
