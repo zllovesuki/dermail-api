@@ -3,8 +3,8 @@ var r = require('rethinkdb'),
 	knox = require('knox'),
 	async = require('async'),
 	crypto = require('crypto'),
-	dkim = require('./haraka/dkim'),
-	SPF = require('./haraka/spf').SPF,
+	dkim = require('../lib/haraka/dkim'),
+	SPF = require('../lib/haraka/spf').SPF,
 	s3 = knox.createClient(config.s3);
 
 var onS3 = {};

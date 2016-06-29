@@ -4,8 +4,8 @@ module.exports = {
 		basePort: 2000
 	},
 	rethinkdb: require('./config.json').rethinkdb,
-	'redisQ': require('./config.json').redisQ,
-	'Qconfig': {
+	redisQ: require('./config.json').redisQ,
+	Qconfig: {
 		attempts: 50,
 		backoff: {
 			type: 'exponential',
