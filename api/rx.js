@@ -106,7 +106,7 @@ router.post('/check-recipient', auth, function(req, res, next) {
 	})
 });
 
-router.post('/store', auth, function(req, res, next) {
+router.post('/process-from-raw', auth, function(req, res, next) {
 	res.setHeader('Content-Type', 'application/json');
 
 	var config = req.config;
@@ -114,9 +114,9 @@ router.post('/store', auth, function(req, res, next) {
 	var r = req.r;
 	var messageQ = req.Q;
 
-	var message = req.body;
+	var connection = req.body;
 
-	var envelopeTo = message.envelopeTo[0];
+	var envelopeTo = connection.envelope.rcptTo[0];
 	var recipient = null;
 	if (typeof envelopeTo !== 'undefined') {
 		if (envelopeTo.hasOwnProperty('address')) {
@@ -135,12 +135,12 @@ router.post('/store', auth, function(req, res, next) {
 		var domainId = domainResult.domainId;
 		return checkAccount(r, recipientAccount, domainId).then(function(accountResult) {
 			return messageQ.add({
-				type: 'saveRX',
+				type: 'processRaw',
 				payload: {
 					accountId: accountResult.accountId,
 					userId: accountResult.userId,
 					myAddress: recipient,
-					message: message
+					connection: connection
 				}
 			}, config.Qconfig)
 		})

@@ -4,9 +4,13 @@ var Queue = require('bull'),
 	knox = require('knox'),
 	request = require('superagent'),
 	helper = require('./lib/helper'),
+	MailParser = require('mailparser').MailParser,
 	r = require('rethinkdb'),
 	config = require('./config'),
 	_ = require('lodash'),
+	crypto = require('crypto'),
+	dkim = require('./lib/haraka/dkim'),
+	SPF = require('./lib/haraka/spf').SPF,
 	s3 = knox.createClient(config.s3),
 	bunyan = require('bunyan'),
 	stream = require('gelf-stream'),
@@ -26,6 +30,14 @@ if (!!config.graylog) {
 	log = bunyan.createLogger({
 		name: 'API-Worker'
 	});
+}
+
+var enqueue = function(type, payload) {
+	log.debug({ message: 'enqueue: ' + type, payload: payload });
+	return messageQ.add({
+		type: type,
+		payload: payload
+	}, config.Qconfig);
 }
 
 r.connect(config.rethinkdb).then(function(conn) {
@@ -48,6 +60,130 @@ r.connect(config.rethinkdb).then(function(conn) {
 		}
 
 		switch (type) {
+
+			case 'processRaw':
+
+			var connection = data.connection;
+			var mailPath = connection.tmpPath;
+			var mailParser = new MailParser({
+				streamAttachments: true
+			});
+			var authentication_results = [];
+
+			var auth_results = function (message) {
+			    if (message) {
+					authentication_results.push(message);
+				}
+			    var header = [ hostname ];
+			    header = header.concat(authentication_results);
+			    if (header.length === 1) return '';  // no results
+			    return header.join('; ');
+			};
+
+			var actual = function(mail) {
+				// dermail-smtp-inbound parseMailStream()
+
+				if (!mail.text && !mail.html) {
+					mail.text = '';
+					mail.html = '<div></div>';
+				} else if (!mail.html) {
+					mail.html = helper.parse.convertTextToHtml(mail.text);
+				} else if (!mail.text) {
+					mail.text = helper.parse.convertHtmlToText(mail.html);
+				}
+
+				// dermail-smtp-inbound processMail();
+
+				mail.connection = connection;
+				mail.cc = mail.cc || [];
+				mail.attachments = mail.attachments || [];
+				mail.envelopeFrom = connection.envelope.mailFrom;
+				mail.envelopeTo = connection.envelope.rcptTo;
+
+				return enqueue('saveRX', {
+					accountId: data.accountId,
+					userId: data.userId,
+					myAddress: data.myAddress,
+					message: mail
+				})
+				.then(function() {
+					return callback();
+				})
+				.catch(function(e) {
+					return callback(e);
+				})
+			}
+
+			mailParser.on('end', function (mail) {
+
+				mail._date = _.clone(mail.date);
+				mail.date = connection.date;
+
+				return actual(mail);
+/*
+				var dkimStream = fs.createReadStream(mailPath);
+
+				dkimStream.on('error', function(e) {
+					log.error({ message: 'Create dkimStream in parseMail throws an error', error: '[' + e.name + '] ' + e.message, stack: e.stack });
+					return callback(e);
+				})
+
+				var dkimCallback = function(err, result, dkimResults) {
+					var putInMail = null;
+
+					if (dkimResults) {
+						dkimResults.forEach(function (res) {
+							auth_results(
+								'dkim=' + res.result +
+								((res.error) ? ' (' + res.error + ')' : '') +
+								' header.i=' + res.identity
+							);
+						});
+						putInMail = auth_results();
+					}
+
+					dkimResults = dkimResults || [];
+					mail.dkim = dkimResults;
+
+					var mailFrom = connection.envelope.mailFrom.address;
+					var domain = mailFrom.substring(mailFrom.lastIndexOf("@") + 1).toLowerCase();
+
+					var spf = new SPF();
+
+					spf.check_host(connection.remoteAddress, domain, mailFrom, function(err, result) {
+
+						if (!err) {
+							auth_result = spf.result(result).toLowerCase();
+							auth_results( "spf="+auth_result+" smtp.mailfrom="+domain);
+							putInMail = auth_results();
+							mail.spf = auth_result;
+						}
+
+						mail.authentication_results = putInMail;
+
+						actual(mail);
+					})
+
+				}
+
+				var verifier = new dkim.DKIMVerifyStream(dkimCallback);
+
+				dkimStream.pipe(verifier, { line_endings: '\r\n' });
+*/
+			});
+			//var readStream = fs.createReadStream(mailPath);
+			var filename = crypto.createHash('md5').update(mailPath).digest("hex");
+			var url = 'https://' + config.s3.bucket + '.' + config.s3.endpoint + '/raw/' + filename;
+			var readStream = request.get(url);
+			readStream.on('error', function(e) {
+				log.error({ message: 'Create read stream in parseMail throws an error', error: '[' + e.name + '] ' + e.message, stack: e.stack });
+				return callback(e);
+			})
+
+			readStream.pipe(mailParser);
+
+			break;
+
 			case 'saveRX':
 
 			// Now account and domain are correct, let's:
@@ -223,10 +359,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 
 				var queueDeleteAttachment = function() {
 					return Promise.map(message.attachments, function(attachmentId) {
-						return messageQ.add({
-							type: 'checkUnique',
-							payload: attachmentId
-						}, config.Qconfig);
+						return enqueue('checkUnique', attachmentId)
 					}, { concurrency: 3 });
 				}
 
@@ -253,14 +386,11 @@ r.connect(config.rethinkdb).then(function(conn) {
 			deleteIfUnique(r, data)
 			.then(function(attachment) {
 				if (!attachment.hasOwnProperty('doNotDeleteS3')) {
-					return messageQ.add({
-						type: 'deleteAttachment',
-						payload: {
-							attachmentId: attachment.attachmentId,
-							checksum: attachment.checksum,
-							generatedFileName: attachment.generatedFileName
-						}
-					}, config.Qconfig);
+					return enqueue('deleteAttachment', {
+						attachmentId: attachment.attachmentId,
+						checksum: attachment.checksum,
+						generatedFileName: attachment.generatedFileName
+					});
 				}
 			})
 			.then(function() {
