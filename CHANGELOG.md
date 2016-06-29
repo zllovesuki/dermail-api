@@ -1,5 +1,8 @@
 ## Changelog
 
+06/28/2016: 2.x -> 3.0.0
+1. Mails are now processed at API instead of at MTA. Please make sure that S3 is setup correctly, and you are running dermail-mta version 4.0.0+
+
 06/07/2016: 1.x -> 2.0.0
 1. Dermail now supports per (main) domain DKIM signing outbound and verifying inbound.
 2. By default, Dermail checks for incoming emails for SPF. If SPF is not either "pass", "neutral", or "softfail", the emails will be moved to SPAM folder

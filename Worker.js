@@ -2,6 +2,7 @@ var Queue = require('bull'),
 	Promise = require('bluebird'),
 	config = require('./config'),
 	knox = require('knox'),
+	redis = require('redis'),
 	request = require('superagent'),
 	helper = require('./lib/helper'),
 	MailParser = require('mailparser').MailParser,
@@ -17,6 +18,7 @@ var Queue = require('bull'),
 	log;
 
 var messageQ = new Queue('dermail-api-worker', config.redisQ.port, config.redisQ.host);
+var redisStore = redis.createClient(config.redisQ);
 
 if (!!config.graylog) {
 	log = bunyan.createLogger({
@@ -70,11 +72,14 @@ r.connect(config.rethinkdb).then(function(conn) {
 			});
 			var authentication_results = [];
 
+			var filename = crypto.createHash('md5').update(mailPath).digest("hex");
+			var url = 'https://' + config.s3.bucket + '.' + config.s3.endpoint + '/raw/' + filename;
+
 			var auth_results = function (message) {
 			    if (message) {
 					authentication_results.push(message);
 				}
-			    var header = [ hostname ];
+			    var header = [ connection.receivedBy ];
 			    header = header.concat(authentication_results);
 			    if (header.length === 1) return '';  // no results
 			    return header.join('; ');
@@ -119,15 +124,6 @@ r.connect(config.rethinkdb).then(function(conn) {
 				mail._date = _.clone(mail.date);
 				mail.date = connection.date;
 
-				return actual(mail);
-/*
-				var dkimStream = fs.createReadStream(mailPath);
-
-				dkimStream.on('error', function(e) {
-					log.error({ message: 'Create dkimStream in parseMail throws an error', error: '[' + e.name + '] ' + e.message, stack: e.stack });
-					return callback(e);
-				})
-
 				var dkimCallback = function(err, result, dkimResults) {
 					var putInMail = null;
 
@@ -161,22 +157,24 @@ r.connect(config.rethinkdb).then(function(conn) {
 
 						mail.authentication_results = putInMail;
 
-						actual(mail);
+						return actual(mail);
 					})
 
 				}
 
 				var verifier = new dkim.DKIMVerifyStream(dkimCallback);
+				var readStream = request.get(url);
+				readStream.on('error', function(e) {
+					log.error({ message: 'Create read stream in processRaw (Auth) throws an error', error: '[' + e.name + '] ' + e.message, stack: e.stack });
+					return callback(e);
+				})
 
-				dkimStream.pipe(verifier, { line_endings: '\r\n' });
-*/
+				readStream.pipe(verifier, { line_endings: '\r\n' });
 			});
-			//var readStream = fs.createReadStream(mailPath);
-			var filename = crypto.createHash('md5').update(mailPath).digest("hex");
-			var url = 'https://' + config.s3.bucket + '.' + config.s3.endpoint + '/raw/' + filename;
+
 			var readStream = request.get(url);
 			readStream.on('error', function(e) {
-				log.error({ message: 'Create read stream in parseMail throws an error', error: '[' + e.name + '] ' + e.message, stack: e.stack });
+				log.error({ message: 'Create read stream in processRaw (mailParser) throws an error', error: '[' + e.name + '] ' + e.message, stack: e.stack });
 				return callback(e);
 			})
 
@@ -201,6 +199,8 @@ r.connect(config.rethinkdb).then(function(conn) {
 			// we need to normalize alias to "canonical" one
 			var myAddress = data.myAddress;
 			var message = data.message;
+
+			message.savedOn = new Date().toISOString();
 
 			message.WorkerExtra = {
 				attemptsMade: job.attemptsMade,
