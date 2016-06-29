@@ -70,62 +70,82 @@ r.connect(config.rethinkdb).then(function(conn) {
 			var mailParser = new MailParser({
 				streamAttachments: true
 			});
-			var authentication_results = [];
 
 			var filename = crypto.createHash('md5').update(mailPath).digest("hex");
 			var url = 'https://' + config.s3.bucket + '.' + config.s3.endpoint + '/raw/' + filename;
-
-			var auth_results = function (message) {
-			    if (message) {
-					authentication_results.push(message);
-				}
-			    var header = [ connection.receivedBy ];
-			    header = header.concat(authentication_results);
-			    if (header.length === 1) return '';  // no results
-			    return header.join('; ');
-			};
-
-			var actual = function(mail) {
-				// dermail-smtp-inbound parseMailStream()
-
-				if (!mail.text && !mail.html) {
-					mail.text = '';
-					mail.html = '<div></div>';
-				} else if (!mail.html) {
-					mail.html = helper.parse.convertTextToHtml(mail.text);
-				} else if (!mail.text) {
-					mail.text = helper.parse.convertHtmlToText(mail.html);
-				}
-
-				// dermail-smtp-inbound processMail();
-
-				mail.connection = connection;
-				mail.cc = mail.cc || [];
-				mail.attachments = mail.attachments || [];
-				mail.envelopeFrom = connection.envelope.mailFrom;
-				mail.envelopeTo = connection.envelope.rcptTo;
-
-				return enqueue('saveRX', {
-					accountId: data.accountId,
-					userId: data.userId,
-					myAddress: data.myAddress,
-					message: mail
-				})
-				.then(function() {
-					return callback();
-				})
-				.catch(function(e) {
-					return callback(e);
-				})
-			}
 
 			mailParser.on('end', function (mail) {
 
 				mail._date = _.clone(mail.date);
 				mail.date = connection.date;
 
+				var spf = new SPF();
+
+				var putInMail = null;
+				var authentication_results = [];
+
+				var mailFrom = connection.envelope.mailFrom.address;
+				var domain = mailFrom.substring(mailFrom.lastIndexOf("@") + 1).toLowerCase();
+
+				var auth_results = function (message) {
+				    if (message) {
+						authentication_results.push(message);
+					}
+				    var header = [ connection.receivedBy ];
+				    header = header.concat(authentication_results);
+				    if (header.length === 1) return '';  // no results
+				    return header.join('; ');
+				};
+
+				var actual = function(mail) {
+					// dermail-smtp-inbound parseMailStream()
+
+					if (!mail.text && !mail.html) {
+						mail.text = '';
+						mail.html = '<div></div>';
+					} else if (!mail.html) {
+						mail.html = helper.parse.convertTextToHtml(mail.text);
+					} else if (!mail.text) {
+						mail.text = helper.parse.convertHtmlToText(mail.html);
+					}
+
+					// dermail-smtp-inbound processMail();
+
+					mail.connection = connection;
+					mail.cc = mail.cc || [];
+					mail.attachments = mail.attachments || [];
+					mail.envelopeFrom = connection.envelope.mailFrom;
+					mail.envelopeTo = connection.envelope.rcptTo;
+
+					return enqueue('saveRX', {
+						accountId: data.accountId,
+						userId: data.userId,
+						myAddress: data.myAddress,
+						message: mail
+					})
+					.then(function() {
+						return callback();
+					})
+					.catch(function(e) {
+						return callback(e);
+					})
+				}
+
+				var spfCallback = function(err, result) {
+
+					if (!err) {
+						auth_result = spf.result(result).toLowerCase();
+						auth_results( "spf="+auth_result+" smtp.mailfrom="+mailFrom);
+						putInMail = auth_results();
+						mail.spf = auth_result;
+					}
+
+					mail.authentication_results = putInMail;
+
+					return actual(mail);
+				}
+
 				var dkimCallback = function(err, result, dkimResults) {
-					var putInMail = null;
 
 					if (dkimResults) {
 						dkimResults.forEach(function (res) {
@@ -141,24 +161,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 					dkimResults = dkimResults || [];
 					mail.dkim = dkimResults;
 
-					var mailFrom = connection.envelope.mailFrom.address;
-					var domain = mailFrom.substring(mailFrom.lastIndexOf("@") + 1).toLowerCase();
-
-					var spf = new SPF();
-
-					spf.check_host(connection.remoteAddress, domain, mailFrom, function(err, result) {
-
-						if (!err) {
-							auth_result = spf.result(result).toLowerCase();
-							auth_results( "spf="+auth_result+" smtp.mailfrom="+domain);
-							putInMail = auth_results();
-							mail.spf = auth_result;
-						}
-
-						mail.authentication_results = putInMail;
-
-						return actual(mail);
-					})
+					return spf.check_host(connection.remoteAddress, domain, mailFrom, spfCallback)
 
 				}
 
