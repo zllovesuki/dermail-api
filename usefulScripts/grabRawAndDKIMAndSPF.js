@@ -119,7 +119,7 @@ s3.list({ prefix: 'raw/'}, function(err, data){
 
 								if (!err) {
 									spfResult = spf.result(result).toLowerCase();
-									auth_results( "spf="+spfResult+" smtp.mailfrom="+domain);
+									auth_results( "spf="+spfResult+" smtp.mailfrom="+mailFrom);
 									putInMail = auth_results();
 								}
 
