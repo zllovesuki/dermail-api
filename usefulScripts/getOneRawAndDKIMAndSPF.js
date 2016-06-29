@@ -103,8 +103,6 @@ s3.list({ prefix: 'raw/'}, function(err, data){
 
 							var spf = new SPF();
 
-							spf.helo = connection.remoteAddress;
-
 							var spfResult = '';
 
 							spf.check_host(connection.remoteAddress, domain, mailFrom, function(err, result) {
