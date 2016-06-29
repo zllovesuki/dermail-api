@@ -69,7 +69,9 @@ s3.list({ prefix: 'raw/'}, function(err, data){
 				if (typeof inDB[hash] !== 'undefined') {
 					raw[hash] = inDB[hash];
 				}
-				cb();
+				async.setImmediate(function () {
+					cb();
+				})
 			}, function(err) {
 				async.each(Object.keys(raw), function(file, _cb) {
 					s3.get('/raw/' + file)
