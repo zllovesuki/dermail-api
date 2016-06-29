@@ -20,7 +20,9 @@ s3.list({ prefix: 'raw' }, function(err, data){
 					var key = file.Key;
 					var checksum = key.substring(key.indexOf("/") + 1).toLowerCase();
 					onS3[checksum] = key;
-					cb();
+					async.setImmediate(function () {
+						cb();
+					})
 				}, function(err) {
 					done();
 				});
@@ -53,7 +55,9 @@ s3.list({ prefix: 'raw' }, function(err, data){
 					console.log(file + ' exists on S3 but DB has no record:', onS3[file]);
 					pendingDelete.push(onS3[file]);
 				}
-				cb();
+				async.setImmediate(function () {
+					cb();
+				})
 			}, function(err) {
 				s3.deleteMultiple(pendingDelete, function(err, res){
 					if (err)
