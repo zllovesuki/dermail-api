@@ -127,7 +127,7 @@ router.post('/sendMail', auth, function(req, res, next) {
 					case 'forward':
 					// Forward specificed
 
-					var originalRecipient = original.envelopeTo[0].address;
+					var originalRecipient = original.to[0].address;
 
 					compose.addHTML = '<div class="dermail_extra"><br>' +
 						'<div class="dermail_quote">---------- Forwarded message ----------<br>' +
