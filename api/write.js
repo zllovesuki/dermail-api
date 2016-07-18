@@ -839,6 +839,35 @@ router.post('/updateDomain', auth, function(req, res, next) {
 
 });
 
+router.post('/updateAddress', auth, function(req, res, next) {
+
+	var r = req.r;
+
+	var userId = req.user.userId;
+	var address = req.body;
+
+	return r
+	.table('addresses', { readMode: 'majority' })
+	.get(address.addressId)
+	.run(r.conn)
+	.then(function(result) {
+		if (req.user.accounts.indexOf(result.accountId) === -1) {
+			return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
+		}
+		return r
+		.table('addresses')
+		.get(address.addressId)
+		.update({
+			hold: address.hold,
+			friendlyName: address.friendlyName
+		})
+		.run(r.conn)
+		.then(function() {
+			return res.status(200).send({});
+		})
+	})
+});
+
 var batchMoveToTrashAndRemoveFolder = Promise.method(function(r, fromFolder, trashFolder) {
 	return r
 	.table('messages', {readMode: 'majority'})

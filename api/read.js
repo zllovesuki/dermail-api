@@ -465,6 +465,47 @@ router.post('/searchWithFilter', auth, function(req, res, next) {
 	})
 });
 
+router.post('/getAddresses', auth, function(req, res, next) {
+
+	var r = req.r;
+
+	var userId = req.user.userId;
+	var accountId = req.body.accountId;
+
+	if (!accountId) {
+		return next(new Error('Account ID Required.'));
+	}
+
+	if (req.user.accounts.indexOf(accountId) === -1) {
+		return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
+	}
+
+	return r
+	.table('addresses', { readMode: 'outdated' })
+	.eqJoin('accountId', r.table('accounts', { readMode: 'majority' })).without({
+		right: ['account', 'domainId', 'notify']
+	})
+	.zip()
+	.filter(function(d) {
+		return d('accountId').eq(accountId).and(r.not(d.hasFields('aliasOf'))).and(d('internalOwner').eq(null))
+	})
+	.map(function(c) {
+		return c.merge(function(e) {
+			return {
+				hold: r.branch(e.hasFields('hold'), e('hold'), false)
+			}
+		})
+	})
+	.run(r.conn)
+	.then(function(cursor) {
+		return cursor.toArray();
+	})
+	.then(function(results) {
+		return res.status(200).send(results);
+	})
+
+});
+
 router.get('/getPayload', function(req, res, next) {
 
 	var r = req.r;

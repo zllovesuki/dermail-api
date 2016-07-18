@@ -1,5 +1,8 @@
 ## Changelog
 
+07/17/2016: 3.1.0
+1. Address book: edit friendlyName and/or fold the address friendlyName
+
 06/28/2016: 2.x -> 3.0.0
 1. Mails are now processed at API instead of at MTA. Please make sure that S3 is setup correctly, and you are running dermail-mta version 4.0.0+
 
