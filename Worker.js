@@ -312,6 +312,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 				request
 				.post(hook)
 				.timeout(10000)
+				.set('X-remoteSecret', config.remoteSecret)
 				.send(data)
 				.set('Accept', 'application/json')
 				.end(function(err, res){
@@ -333,8 +334,6 @@ r.connect(config.rethinkdb).then(function(conn) {
 					});
 				});
 			}
-
-			data.remoteSecret = config.remoteSecret;
 
 			send(servers, data);
 
