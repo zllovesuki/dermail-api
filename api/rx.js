@@ -89,6 +89,12 @@ router.post('/check-recipient', auth, function(req, res, next) {
 	var account = email.substring(0, email.lastIndexOf("@")).toLowerCase();
 	var domain = email.substring(email.lastIndexOf("@") +1).toLowerCase();
 
+	// We want to strip out the "alias"
+	var plusSign = account.indexOf('+');
+	if (plusSign !== -1) {
+		account = account.substring(0, plusSign);
+	}
+
 	return checkDomain(r, domain).then(function(domainResult) {
 		return checkAccount(r, account, domainResult.domainId).then(function(accountResult) {
 			return res.status(200).send({ok: true});
@@ -131,6 +137,12 @@ router.post('/process-from-raw', auth, function(req, res, next) {
 	var recipientAccount = recipient.substring(0, recipient.lastIndexOf("@")).toLowerCase();
 	var recipientDomain = recipient.substring(recipient.lastIndexOf("@") +1).toLowerCase();
 
+	// We want to strip out the "alias"
+	var plusSign = recipientAccount.indexOf('+');
+	if (plusSign !== -1) {
+		recipientAccount = recipientAccount.substring(0, plusSign);
+	}
+
 	return checkDomain(r, recipientDomain).then(function(domainResult) {
 		var domainId = domainResult.domainId;
 		return checkAccount(r, recipientAccount, domainId).then(function(accountResult) {
@@ -140,7 +152,8 @@ router.post('/process-from-raw', auth, function(req, res, next) {
 					accountId: accountResult.accountId,
 					userId: accountResult.userId,
 					myAddress: recipient,
-					connection: connection
+					connection: connection,
+					recipientIsAnAlias: (plusSign !== -1)
 				}
 			}, config.Qconfig)
 		})
