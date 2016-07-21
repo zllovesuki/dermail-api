@@ -204,7 +204,7 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 	return helper.auth.accountFolderMapping(r, accountId, folderId)
 	.then(function(folder) {
 		return r
-		.table('messages', {readMode: 'outdated'})
+		.table('messages', {readMode: 'majority'})
 		.between([folderId, r.minval], [folderId, lastDate], {index: 'folderDate'})
 		.orderBy({index: r.desc('folderDate')})
 	})
