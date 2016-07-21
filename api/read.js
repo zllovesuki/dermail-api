@@ -427,12 +427,12 @@ router.post('/searchWithFilter', auth, function(req, res, next) {
 		return doc.merge(function() {
 			return {
 				'to': doc('to').concatMap(function(to) { // It's like a subquery
-					return [r.table('addresses', {readMode: 'majority'}).get(to).without('accountId', 'addressId', 'internalOwner')]
+					return [r.table('addresses', {readMode: 'outdated'}).get(to).without('accountId', 'addressId', 'internalOwner')]
 				}),
 				'from': doc('from').concatMap(function(from) { // It's like a subquery
-					return [r.table('addresses', {readMode: 'majority'}).get(from).without('accountId', 'addressId', 'internalOwner')]
+					return [r.table('addresses', {readMode: 'outdated'}).get(from).without('accountId', 'addressId', 'internalOwner')]
 				}),
-				'folder': r.table('folders', {readMode: 'majority'}).get(doc('folderId')).pluck('folderId', 'displayName')
+				'folder': r.table('folders', {readMode: 'outdated'}).get(doc('folderId')).pluck('folderId', 'displayName')
 			}
 		})
 	})
