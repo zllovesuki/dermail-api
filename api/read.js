@@ -101,6 +101,10 @@ router.post('/getAccount', auth, function(req, res, next) {
 		return next(new Exception.BadRequest('Account ID Required'));
 	}
 
+	if (req.user.accounts.indexOf(accountId) === -1) {
+		return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
+	}
+
 	return helper.auth.userAccountMapping(r, userId, accountId)
 	.then(function(account) {
 		return res.status(200).send(account);
