@@ -243,9 +243,8 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 			return res.status(200).send(messages);
 		})
 		.error(function(e) {
-			console.log(e);
+			req.log.error(e);
 			return res.status(200).send([]);
-			//return next(e);
 		})
 	})
 	.catch(function(e) {
@@ -336,7 +335,7 @@ router.post('/searchMailsInAccount', auth, function(req, res, next) {
 	*/
 
 	return r
-	.table('messages', {readMode: 'majority'})
+	.table('messages', {readMode: 'outdated'})
 	.getAll(accountId, {index: 'accountId'})
 	.filter(function(doc){
 		return r.or(doc('text').match("(?i)" + searchString), doc('subject').match("(?i)" + searchString))
@@ -422,7 +421,7 @@ router.post('/searchWithFilter', auth, function(req, res, next) {
 	}
 
 	return r
-	.table('messages', {readMode: 'majority'})
+	.table('messages', {readMode: 'outdated'})
 	.getAll(accountId, {index: 'accountId'})
 	.map(function(doc) {
 		return doc.merge(function() {
