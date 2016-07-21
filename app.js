@@ -78,7 +78,9 @@ module.exports = function(r) {
 
 	// catch 404 and forward to error handler
 	app.use(function(req, res, next) {
-		res.status(200).send({ok: true, message: 'Dermail API v2'});
+		var err = new Error('Not Found');
+		err.status = 404;
+		next(err);
 	});
 
 	// production error handler
