@@ -1,7 +1,8 @@
 var express = require('express'),
 	router = express.Router(),
 	helper = require('../lib/helper'),
-	crypto = require('crypto');
+	crypto = require('crypto'),
+	Exception = require('../lib/error');
 
 var auth = helper.auth.middleware;
 
@@ -97,7 +98,7 @@ router.post('/getAccount', auth, function(req, res, next) {
 	var accountId = req.body.accountId;
 
 	if (!accountId) {
-		return next(new Error('Account ID Required'));
+		return next(new Exception.BadRequest('Account ID Required'));
 	}
 
 	return helper.auth.userAccountMapping(r, userId, accountId)
@@ -117,11 +118,11 @@ router.post('/getFoldersInAccount', auth, function(req, res, next) {
 	var accountId = req.body.accountId;
 
 	if (!accountId) {
-		return next(new Error('Account ID Required'));
+		return next(new Exception.BadRequest('Account ID Required'));
 	}
 
 	if (req.user.accounts.indexOf(accountId) === -1) {
-		return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
+		return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
 	}
 
 	return r
@@ -141,7 +142,7 @@ router.post('/getFoldersInAccount', auth, function(req, res, next) {
 	.then(function(folders) {
 		if (folders.length === 0) {
 			// WTF? IT SHOULD HAVE FUCKING FOLDERS
-			return next(new Error('No folders found'));
+			return next(new Exception.NotFound('No folders found'));
 		}
 		res.status(200).send(folders);
 	}).error(function(e) {
@@ -158,15 +159,15 @@ router.post('/getFolder', auth, function(req, res, next) {
 	var folderId = req.body.folderId;
 
 	if (!folderId) {
-		return next(new Error('Folder ID Required.'));
+		return next(new Exception.BadRequest('Folder ID Required.'));
 	}
 
 	if (!accountId) {
-		return next(new Error('Account ID Required'));
+		return next(new Exception.BadRequest('Account ID Required'));
 	}
 
 	if (req.user.accounts.indexOf(accountId) === -1) {
-		return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
+		return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
 	}
 
 	return helper.auth.accountFolderMapping(r, accountId, folderId)
@@ -194,11 +195,11 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 	var starOnly = !!slice.starOnly;
 
 	if (!folderId) {
-		return next(new Error('Folder ID Required.'));
+		return next(new Exception.Unauthorized('Folder ID Required.'));
 	}
 
 	if (req.user.accounts.indexOf(accountId) === -1) {
-		return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
+		return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
 	}
 
 	return helper.auth.accountFolderMapping(r, accountId, folderId)
@@ -261,11 +262,11 @@ router.post('/getMail', auth, function(req, res, next) {
 	var messageId = req.body.messageId;
 
 	if (!messageId) {
-		return next(new Error('Message ID Required.'));
+		return next(new Exception.Unauthorized('Message ID Required.'));
 	}
 
 	if (req.user.accounts.indexOf(accountId) === -1) {
-		return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
+		return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
 	}
 
 	return helper.auth.messageAccountMapping(r, messageId, accountId)
@@ -413,7 +414,7 @@ router.post('/searchWithFilter', auth, function(req, res, next) {
 	var criteria = req.body.criteria || null;
 
 	if (criteria === null) {
-		return next(new Error('No criteria was defined.'));
+		return next(new Exception.NotFound('No criteria was defined.'));
 	}
 
 	if (req.user.accounts.indexOf(accountId) === -1) {
@@ -472,11 +473,11 @@ router.post('/getAddresses', auth, function(req, res, next) {
 	var accountId = req.body.accountId;
 
 	if (!accountId) {
-		return next(new Error('Account ID Required.'));
+		return next(new Exception.NotFound('Account ID Required.'));
 	}
 
 	if (req.user.accounts.indexOf(accountId) === -1) {
-		return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
+		return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
 	}
 
 	return r

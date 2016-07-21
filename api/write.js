@@ -21,7 +21,8 @@ var express = require('express'),
 	dns = Promise.promisifyAll(require('dns')),
 	crypto = require('crypto'),
 	forge = require('node-forge'),
-	rsa = forge.pki.rsa;
+	rsa = forge.pki.rsa,
+	Exception = require('../lib/error');
 
 shortid.worker(process.pid % 16);
 
@@ -40,11 +41,11 @@ router.post('/updateMail', auth, function(req, res, next) {
 	var data = {};
 
 	if (!messageId) {
-		return next(new Error('Message ID Required.'));
+		return next(new Exception.BadRequest('Message ID Required.'));
 	}
 
 	if (req.user.accounts.indexOf(accountId) === -1) {
-		return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
+		return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
 	}
 
 	switch (action.toLowerCase()) {
@@ -63,7 +64,7 @@ router.post('/updateMail', auth, function(req, res, next) {
 		case 'folder':
 			var folderId = req.body.folderId;
 			if (!folderId) {
-				return next(new Error('Folder ID Required'));
+				return next(new Exception.BadRequest('Folder ID Required'));
 			}
 			return helper.auth.accountFolderMapping(r, accountId, folderId)
 			.then(function(folder) {
@@ -162,15 +163,15 @@ router.post('/updateFolder', auth, function(req, res, next) {
 	data.mutable = true;
 
 	if (req.user.accounts.indexOf(accountId) === -1) {
-		return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
+		return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
 	}
 
 	if (action !== 'truncateFolder' && reservedFolderNames.indexOf(data.displayName.toLowerCase().trim()) !== -1) { // Some display names are reserved
-		return next(new Error('Cannot use reserved folder names.'));
+		return next(new Exception.BadRequest('Cannot use reserved folder names.'));
 	}
 
 	if (data.displayName === '' || data.description === '') {
-		return next(new Error('Name and description cannot be empty.'));
+		return next(new Exception.BadRequest('Name and description cannot be empty.'));
 	}
 
 	switch (action) {
@@ -179,7 +180,7 @@ router.post('/updateFolder', auth, function(req, res, next) {
 			return helper.auth.accountFolderMapping(r, accountId, folderId)
 			.then(function(folder) {
 				if (allowTruncate.indexOf(folder.displayName.toLowerCase().trim()) === -1) {
-					throw new Error('Only "SPAM" and "Trash" folders can be truncated.');
+					throw new Exception.BadRequest('Only "SPAM" and "Trash" folders can be truncated.');
 				}
 				return r
 				.table('messages', {readMode: 'majority'})
@@ -222,7 +223,7 @@ router.post('/updateFolder', auth, function(req, res, next) {
 			})
 			.then(function(childrenCount) {
 				if (childrenCount !== 0) {
-					throw new Error('Folder contains children.');
+					throw new Exception.BadRequest('Folder contains children.');
 				}
 				return helper.folder.getInternalFolder(r, accountId, 'Trash')
 			})
@@ -239,14 +240,14 @@ router.post('/updateFolder', auth, function(req, res, next) {
 		case 'updateFolder':
 			var folderId = req.body.folderId;
 			if (!folderId) {
-				return next(new Error('Folder ID Required'));
+				return next(new Exception.BadRequest('Folder ID Required'));
 			}
 
 			return helper.auth.accountFolderMapping(r, accountId, folderId)
 			.then(function(folder) {
 				// Sanity check
 				if (folder.mutable === false) {
-					throw new Error('Folder not mutable.');
+					throw new Exception.BadRequest('Folder not mutable.');
 				}
 				if (parent === null) {
 					return doUpdateFolder(r, folderId, data)
@@ -383,7 +384,7 @@ router.post('/pushSubscriptions', auth, function(req, res, next) {
 		case 'enableNotify':
 		var accountId = object.accountId;
 		if (req.user.accounts.indexOf(accountId) === -1) {
-			return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
+			return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
 		}
 		return r
 		.table('accounts', {readMode: 'majority'})
@@ -413,7 +414,7 @@ router.post('/modifyFilter', auth, function(req, res, next) {
 	var op = req.body.op;
 
 	if (req.user.accounts.indexOf(accountId) === -1) {
-		return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
+		return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
 	}
 
 	switch (op) {
@@ -496,7 +497,7 @@ router.post('/modifyFilter', auth, function(req, res, next) {
 					return doAddFilter();
 				})
 				.catch(function(e) {
-					return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
+					return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
 				})
 			}else{
 				return helper.folder.getInternalFolder(r, accountId, 'Inbox')
@@ -516,10 +517,10 @@ router.post('/modifyFilter', auth, function(req, res, next) {
 			.run(r.conn)
 			.then(function(filter) {
 				if (filter === null) {
-					return next(new Error('Filter does not exist.'));
+					return next(new Exception.NotFound('Filter does not exist.'));
 				}
 				if (filter.accountId !== accountId) {
-					return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
+					return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
 				}
 				return r
 				.table('filters', {readMode: 'majority'})
@@ -548,7 +549,7 @@ router.post('/updateDomain', auth, function(req, res, next) {
 	var domainId = req.body.domainId;
 
 	if (!!!domainId) {
-		return next(new Error('Domain ID Required'));
+		return next(new Exception.BadRequest('Domain ID Required'));
 	}
 
 	var action = req.body.action;
@@ -559,10 +560,10 @@ router.post('/updateDomain', auth, function(req, res, next) {
 	.run(r.conn)
 	.then(function(domain) {
 		if (domain === null) {
-			throw new Error('Domain does not exist.');
+			throw new Exception.NotFound('Domain does not exist.');
 		}
 		if (domain.domainAdmin !== userId) {
-			throw new Error('Only the domain admin can modify the domain.');
+			throw new Exception.Forbidden('Only the domain admin can modify the domain.');
 		}
 		return domain;
 	})
@@ -720,7 +721,7 @@ router.post('/updateDomain', auth, function(req, res, next) {
 			case 'generateKeyPair':
 
 			if (typeof domain.dkim === 'object') {
-				throw new Error('Please delete the old keypair before generating a new pair.');
+				throw new Exception.BadRequest('Please delete the old keypair before generating a new pair.');
 			}
 
 			var keyPair = rsa.generateKeyPair({bits: 2048, e: 0x10001});
@@ -762,7 +763,7 @@ router.post('/updateDomain', auth, function(req, res, next) {
 			case 'verifyKeyPair':
 
 			if (typeof domain.dkim !== 'object') {
-				throw new Error('No keypair found.');
+				throw new Exception.BadRequest('No keypair found.');
 			}
 
 			var query = [domain.dkim.selector, '_domainkey', domain.domain].join('.');
@@ -770,7 +771,7 @@ router.post('/updateDomain', auth, function(req, res, next) {
 			return dns.resolveTxtAsync(query)
 			.then(function(result) {
 				if (!result || !result.length) {
-	            	throw new Error('Selector not found (%s)', query);
+	            	throw new Exception.NotFound('Selector not found (%s)', query);
 	        	}
 				var data = {};
 	        	[].concat(result[0] || []).join('').split(/;/).forEach(function(row) {
@@ -782,7 +783,7 @@ router.post('/updateDomain', auth, function(req, res, next) {
 	        	});
 
 	        	if (!data.p) {
-	            	throw new Error('DNS TXT record does not seem to be a DKIM value', query);
+	            	throw new Exception.NotFound('DNS TXT record does not seem to be a DKIM value', query);
 	        	}
 
 				var pubKey = '-----BEGIN PUBLIC KEY-----\r\n' + data.p.replace(/.{78}/g, '$&\r\n') + '\r\n-----END PUBLIC KEY-----';
@@ -797,7 +798,7 @@ router.post('/updateDomain', auth, function(req, res, next) {
 				if (verifier.verify(pubKey, signature, 'hex')) {
 					return res.status(200).send({});
 				}else{
-					throw new Error('Verification failed: keys not match');
+					throw new Exception.BadRequest('Verification failed: keys not match');
 				}
 			})
 			.catch(function(e) {
@@ -805,7 +806,7 @@ router.post('/updateDomain', auth, function(req, res, next) {
 					case dns.NOTFOUND:
 					case dns.NODATA:
 					case dns.NXDOMAIN:
-						throw new Error('No key was found.');
+						throw new Exception.NotFound('No key was found.');
 						break;
 					default:
 						throw new Error('DNS lookup error.');
@@ -852,10 +853,10 @@ router.post('/updateAddress', auth, function(req, res, next) {
 	.run(r.conn)
 	.then(function(result) {
 		if (req.user.accounts.indexOf(result.accountId) === -1) {
-			return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
+			return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
 		}
 		if (result.internalOwner !== null || typeof result.aliasOf !== 'undefined') {
-			return next(new Error('Cannot modify system-defined address.'));
+			return next(new Exception.BadRequest('Cannot modify system-defined address.'));
 		}
 		return r
 		.table('addresses')
@@ -930,7 +931,7 @@ var doUpdateMail = Promise.method(function(r, messageId, accountId, data) {
 
 var parentTest = Promise.method(function(parent) {
 	if (noChildrenAllowed.indexOf(parent.displayName.toLowerCase().trim()) !== -1) { // Some folders do not allow children
-		throw new Error('Cannot nest under this folder.');
+		throw new Exception.BadRequest('Cannot nest under this folder.');
 	}else{
 		return true;
 	}

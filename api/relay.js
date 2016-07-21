@@ -11,7 +11,8 @@ var express = require('express'),
 		'toBox',
 		'recipients',
 		'type'
-	];
+	],
+	Exception = require('../lib/error');
 
 var auth = helper.auth.middleware;
 
@@ -26,11 +27,11 @@ router.post('/sendMail', auth, function(req, res, next) {
 	var accountId = req.body.accountId;
 
 	if (req.user.accounts.indexOf(compose.accountId) === -1) {
-		return next(new Error('Unspeakable horror.')); // Early surrender: account does not belong to user
+		return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
 	}
 
 	if (compose.recipients.to.length === 0) {
-		return next(new Error('At least one "to" recipient is required.'));
+		return next(new Exception.BadRequest('At least one "to" recipient is required.'));
 	}
 
 	delete compose.to;
@@ -41,7 +42,7 @@ router.post('/sendMail', auth, function(req, res, next) {
 
 	// Reply speicifc
 	if ( (compose.type === 'reply' || compose.type === 'forward') && !!!compose.inReplyTo) {
-		return next(new Error('"inReplyTo" field is required for replying/forwarding.'))
+		return next(new Exception.BadRequest('"inReplyTo" field is required for replying/forwarding.'))
 	}
 
 	var constructor = Promise.method(function() {
@@ -52,7 +53,7 @@ router.post('/sendMail', auth, function(req, res, next) {
 		return Promise.map(Object.keys(compose.recipients), function(each) {
 			return Promise.map(compose.recipients[each], function(recipient) {
 				if (!validator.isEmail(recipient.address)) {
-					throw new Error('Invalid email: ' + recipient.address);
+					throw new Exception.BadRequest('Invalid email: ' + recipient.address);
 				}
 			}, { concurrency: 3 })
 		}, { concurrency: 3 })
@@ -83,7 +84,7 @@ router.post('/sendMail', auth, function(req, res, next) {
 			return checkForInReplyTo(r, compose.inReplyTo)
 			.then(function(results) {
 				if (results.length === 0) {
-					throw new Error('"inReplyTo" points to a non-existent message.');
+					throw new Exception.BadRequest('"inReplyTo" points to a non-existent message.');
 				}
 				var original = results[0];
 				var obj;
@@ -130,7 +131,7 @@ router.post('/sendMail', auth, function(req, res, next) {
 					var obj;
 
 					obj = original.to[0];
-					
+
 					var name = obj.friendlyName;
 					var email = obj.account + '@' + obj.domain;
 
@@ -160,8 +161,8 @@ router.post('/sendMail', auth, function(req, res, next) {
 		return res.status(200).send({});
 	})
 	.catch(function(err) {
-		console.log(err);
-		return next(new Error(err));
+		req.log.error(err);
+		return next(err);
 	})
 });
 

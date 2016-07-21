@@ -6,7 +6,8 @@ var express = require('express'),
 	helper = require('../lib/helper'),
 	crypto = require('crypto'),
 	emptyGif = new Buffer('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64'),
-	redirect = "<html><head></head><body><script type='text/javascript'>window.location.href='%s'</script></body></html>";
+	redirect = "<html><head></head><body><script type='text/javascript'>window.location.href='%s'</script></body></html>",
+	Exception = require('../lib/error');
 
 router.get('/inline/*', function(req, res, next) {
 
@@ -19,7 +20,7 @@ router.get('/inline/*', function(req, res, next) {
 	var contentId = cid.substring(4);
 
 	r
-	.table('attachments', {readMode: 'majority'})
+	.table('attachments', {readMode: 'outdated'})
 	.getAll(contentId, { index: 'contentId' })
 	.run(r.conn)
 	.then(function(cursor) {
@@ -69,6 +70,7 @@ router.get('/raw/:accountId/:messageId', function(req, res, next) {
 	var messageId = req.params.messageId || '';
 	return helper.auth.messageAccountMapping(r, messageId, accountId)
 	.then(function(message) {
+		if (typeof message.connection === 'undefined') return next(new Exception.NotFound('Sent mails do not have raw available.'));
 		var tmpPath = message.connection.tmpPath;
 		var hash = crypto.createHash('md5')
 		hash.update(tmpPath);

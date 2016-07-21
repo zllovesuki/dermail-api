@@ -2,7 +2,8 @@ var express = require('express'),
 	router = express.Router(),
 	jwt = require('jwt-simple'),
 	bcrypt = require("bcrypt"),
-	helper = require('../lib/helper');
+	helper = require('../lib/helper'),
+	Exception = require('../lib/error');
 
 router.post('/', function(req, res, next) {
 
@@ -26,11 +27,11 @@ router.post('/', function(req, res, next) {
 	})
 	.then(function(user) {
 		if (user.length === 0) {
-			return next(new Error('Username or Password incorrect'));
+			return next(new Exception.Unauthorized('Username or Password incorrect'));
 		}
 		bcrypt.compare(password, user[0].password, function(err, result) {
 			if (err || !result) {
-				return next(new Error('Username or Password incorrect'));
+				return next(new Exception.Unauthorized('Username or Password incorrect'));
 			}else{
 				return helper.auth.getUser(r, user[0].userId)
 				.then(function(user) {
