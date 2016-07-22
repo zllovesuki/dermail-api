@@ -55,6 +55,11 @@ router.get('/image/*', function(req, res, next) {
 		res.setHeader('content-type', 'image/gif');
 		res.end(emptyGif);
 	})
+	.on('response', function(res) {
+		delete res.headers['set-cookie'];
+		delete res.headers['cache-control'];
+		delete res.headers['expires'];
+	})
 	.pipe(res);
 });
 
