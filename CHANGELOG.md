@@ -1,5 +1,8 @@
 ## Changelog
 
+07/23/2016: 3.1.0 > 3.2.0
+1. Supprts active push to Webmail
+
 07/17/2016: 3.1.0
 1. Address book: edit friendlyName and/or fold the address friendlyName
 

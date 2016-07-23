@@ -227,12 +227,12 @@ r.connect(config.rethinkdb).then(function(conn) {
 			.then(function(messageId) {
 				return filter(r, accountId, messageId)
 				.then(function(notify) {
-					if (!notify) return;
 					return helper.folder.getMessageFolder(r, messageId)
 					.then(function(folder) {
 						var payload;
 						if (folder !== null) {
 							payload = {
+								push: notify,
 								userId: userId,
 								accountId: accountId,
 								folder: folder,
@@ -243,6 +243,7 @@ r.connect(config.rethinkdb).then(function(conn) {
 							};
 						}else{
 							payload = {
+								push: notify,
 								userId: userId,
 								accountId: accountId,
 								header: folder.displayName + ' at: ' + myAddress,
