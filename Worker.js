@@ -74,6 +74,12 @@ r.connect(config.rethinkdb).then(function(conn) {
 			var filename = crypto.createHash('md5').update(mailPath).digest("hex");
 			var url = 'https://' + config.s3.bucket + '.' + config.s3.endpoint + '/raw/' + filename;
 
+            mailParser.on('error', function(e) {
+                // Probably errors related to "Error: Encoding not recognized"
+                log.error({ message: 'MailParser stream throws an error', error: '[' + e.name + '] ' + e.message, stack: e.stack });
+                return callback(e);
+            });
+
 			mailParser.on('end', function (mail) {
 
 				mail._date = _.clone(mail.date);
