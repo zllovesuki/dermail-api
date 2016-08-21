@@ -28,6 +28,7 @@
     "gelf-stream": "git+https://github.com/zllovesuki/gelf-stream.git",
     "glob-to-regexp": "^0.1.0",
     "html-to-text": "^2.1.3",
+    "iconv": "^2.2.1",
     "ipaddr.js": "^1.2.0",
     "jsonwebtoken": "^7.1.9",
     "jwt-simple": "^0.5.0",
