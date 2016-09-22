@@ -46,6 +46,9 @@ router.get('/security', auth, function(req, res, next) {
 			dkim: results
 		});
 	})
+    .error(function(e) {
+		return next(e);
+	})
 })
 
 router.get('/s3', auth, function(req, res, next) {
@@ -85,7 +88,8 @@ router.get('/getAccounts', auth, function(req, res, next) {
 	})
 	.then(function(accounts) {
 		return res.status(200).send(accounts);
-	}).error(function(e) {
+	})
+    .error(function(e) {
 		return next(e);
 	})
 });
@@ -149,7 +153,8 @@ router.post('/getFoldersInAccount', auth, function(req, res, next) {
 			return next(new Exception.NotFound('No folders found'));
 		}
 		res.status(200).send(folders);
-	}).error(function(e) {
+	})
+    .error(function(e) {
 		return next(e);
 	})
 });
