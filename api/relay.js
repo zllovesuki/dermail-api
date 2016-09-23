@@ -62,19 +62,26 @@ router.post('/sendMail', auth, function(req, res, next) {
 		})
 		.then(function(account) {
 			var sender = {};
-			sender.name = req.user.firstName + ' ' + req.user.lastName;
-			sender.address = account['account'] + '@' + account['domain'];
-			return helper.dkim.getDKIMGivenAccountId(r, userId, accountId)
-			.then(function(dkim) {
-				if (typeof dkim[0].dkim !== 'object') {
-					// DKIM is not setup
-					compose.dkim = false;
-				}else{
-					compose.dkim = dkim[0].dkim;
-					compose.dkim.domain = dkim[0].domain;
-				}
-				return queueToTX(r, config, sender, account.accountId, userId, compose, messageQ)
-			})
+            sender.address = account['account'] + '@' + account['domain'];
+            return helper.address.getAddress(r, sender.address, accountId, {empty: true})
+            .then(function(_sender) {
+                if (_sender.hasOwnProperty('empty'))
+                    sender.name = req.user.firstName + ' ' + req.user.lastName;
+                else
+                    sender.name = _sender.friendlyName;
+
+    			return helper.dkim.getDKIMGivenAccountId(r, userId, accountId)
+    			.then(function(dkim) {
+    				if (typeof dkim[0].dkim !== 'object') {
+    					// DKIM is not setup
+    					compose.dkim = false;
+    				}else{
+    					compose.dkim = dkim[0].dkim;
+    					compose.dkim.domain = dkim[0].domain;
+    				}
+    				return queueToTX(r, config, sender, account.accountId, userId, compose, messageQ)
+    			})
+            })
 		})
 	}
 
