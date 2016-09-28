@@ -855,9 +855,9 @@ router.post('/updateAddress', auth, function(req, res, next) {
 		if (req.user.accounts.indexOf(result.accountId) === -1) {
 			return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
 		}
-		if (result.internalOwner !== null || typeof result.aliasOf !== 'undefined') {
+		/*if (result.internalOwner !== null || typeof result.aliasOf !== 'undefined') {
 			return next(new Exception.BadRequest('Cannot modify system-defined address.'));
-		}
+		}*/
 		return r
 		.table('addresses')
 		.get(address.addressId)

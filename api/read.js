@@ -515,6 +515,40 @@ router.post('/getAddresses', auth, function(req, res, next) {
 
 });
 
+router.post('/getMyOwnAddress', auth, function(req, res, next) {
+
+	var r = req.r;
+
+	var userId = req.user.userId;
+	var accountId = req.body.accountId;
+
+	if (!accountId) {
+		return next(new Exception.NotFound('Account ID Required.'));
+	}
+
+	if (req.user.accounts.indexOf(accountId) === -1) {
+		return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
+	}
+
+	return r
+	.table('addresses', { readMode: 'outdated' })
+	.eqJoin('accountId', r.table('accounts', { readMode: 'majority' })).without({
+		right: ['account', 'domainId', 'notify']
+	})
+	.zip()
+	.filter(function(d) {
+		return d('accountId').eq(accountId).and(r.not(d('internalOwner').eq(null)))
+	})
+	.run(r.conn)
+	.then(function(cursor) {
+		return cursor.toArray();
+	})
+	.then(function(results) {
+		return res.status(200).send(results);
+	})
+
+});
+
 router.get('/getPayload', function(req, res, next) {
 
 	var r = req.r;
