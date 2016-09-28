@@ -62,6 +62,7 @@ router.post('/sendMail', auth, function(req, res, next) {
 		})
 		.then(function(account) {
 			var sender = {};
+            // TODO: allow the use of alias instead of hard coding from main address
             sender.address = account['account'] + '@' + account['domain'];
             return helper.address.getAddress(r, sender.address, accountId, {empty: true})
             .then(function(_sender) {
