@@ -136,13 +136,6 @@ router.post('/getFoldersInAccount', auth, function(req, res, next) {
 	return r
 	.table('folders', {readMode: 'majority'})
 	.getAll(accountId, {index: 'accountId'})
-	.map(function(doc) {
-		return doc.merge(function(z) {
-			return {
-				count: r.table('messages', {readMode: 'outdated'}).getAll([doc('folderId'), false], {index: "unreadCount"}).count()
-			}
-		})
-	})
 	.run(r.conn)
 	.then(function(cursor) {
 		return cursor.toArray();
@@ -153,6 +146,47 @@ router.post('/getFoldersInAccount', auth, function(req, res, next) {
 			return next(new Exception.NotFound('No folders found'));
 		}
 		res.status(200).send(folders);
+	})
+    .error(function(e) {
+		return next(e);
+	})
+});
+
+router.post('/getUnreadCountInAccount', auth, function(req, res, next) {
+
+    var r = req.r;
+
+	var userId = req.user.userId;
+	var accountId = req.body.accountId;
+
+	if (!accountId) {
+		return next(new Exception.BadRequest('Account ID Required'));
+	}
+
+	if (req.user.accounts.indexOf(accountId) === -1) {
+		return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
+	}
+
+    return r
+    .table('folders', {readMode: 'majority'})
+    .getAll(accountId, {index: 'accountId'})
+    .pluck('folderId')
+    .map(function(doc) {
+        return {
+            folderId: doc('folderId'),
+            count: r.db('dermail').table('messages', {readMode: 'majority'}).getAll([doc('folderId'), false], {index: "unreadCount"}).count()
+        }
+    })
+    .run(r.conn)
+	.then(function(cursor) {
+		return cursor.toArray();
+	})
+	.then(function(result) {
+        var counts = {};
+        for (var i = 0, length = result.length; i < length; i++) {
+            counts[result[i].folderId] = result[i].count;
+        }
+		res.status(200).send(counts);
 	})
     .error(function(e) {
 		return next(e);
