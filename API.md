@@ -41,6 +41,7 @@ Sometimes "Complete Account" and "Account" are *synonymous*.
 - POST /__VERSION__/read/getFoldersInAccount (Returns a list of folders in an Account)
 - POST /__VERSION__/read/getFolder (Returns a Folder)
 - POST /__VERSION__/read/getMailsInFolder (Returns a list of emails in a Folder)
+- POST /__VERSION__/read/getUnreadCountInAccount (Returns unread counts of all folders in an account)
 - POST /__VERSION__/read/getMail (Returns a Message)
 - POST /__VERSION__/read/getAddress (Returns friendlyName of an email address)
 - POST /__VERSION__/read/getFilters (Returns a list of Filters of an Account)
@@ -135,7 +136,6 @@ Sometimes "Complete Account" and "Account" are *synonymous*.
 ```JSON
 [{
 	"accountId": "UNIQUE_ID",
-	"count": 0,
 	"description": "Main Inbox",
 	"displayName": "Inbox",
 	"folderId": "UNIQUE_ID",
@@ -167,6 +167,25 @@ function buildTree(list) {
 	});
 	return root;
 }
+```
+---
+
+`POST /__VERSION__/read/getUnreadCountInAccount`
+- pre:
+
+```JSON
+{
+    "accountId": "UNIQUE_ID"
+}
+```
+
+- post: The unreadCount of all folders in the account is returned
+
+```JSON
+[{
+	"count": 0,
+	"folderId": "UNIQUE_ID"
+}]
 ```
 ---
 
