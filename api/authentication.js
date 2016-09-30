@@ -5,6 +5,8 @@ var express = require('express'),
 	helper = require('../lib/helper'),
 	Exception = require('../lib/error');
 
+var auth = helper.auth.middleware;
+
 router.post('/', function(req, res, next) {
 
 	var config = req.config;
@@ -35,11 +37,7 @@ router.post('/', function(req, res, next) {
 			}else{
 				return helper.auth.getUser(r, user[0].userId)
 				.then(function(user) {
-					var now = new Date();
-					user.iat = Math.round(now.getTime()/1000);
-					now.setDate(now.getDate() + 7);
-					user.exp = Math.round(now.getTime()/1000);
-					return res.status(200).send({token: jwt.encode(user, config.jwt.secret)});
+                    return res.status(200).send({token: generateJWT(user, config)});
 				})
 			}
 		})
@@ -48,5 +46,26 @@ router.post('/', function(req, res, next) {
 		return next(e);
 	})
 });
+
+router.post('/renew', auth, function(req, res, next) {
+
+    var config = req.config;
+	var r = req.r;
+
+	var userId = req.user.userId;
+
+    return helper.auth.getUser(r, userId)
+    .then(function(user) {
+        return res.status(200).send({token: generateJWT(user, config)});
+    })
+})
+
+var generateJWT = function(user, config) {
+    var now = new Date();
+    user.iat = Math.round(now.getTime()/1000);
+    now.setDate(now.getDate() + 7);
+    user.exp = Math.round(now.getTime()/1000);
+    return jwt.encode(user, config.jwt.secret)
+}
 
 module.exports = router;

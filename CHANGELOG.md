@@ -1,5 +1,9 @@
 ## Changelog
 
+09/30/2016: 3.3.0 -> 3.3.1
+1. new API (/updateAccount)
+2. Initially it only has *newAccount* operation
+
 09/30/2016: 3.2.0 -> 3.3.0
 1. Folder unreadCount is now a separate API call (/getUnreadCountInAccount)
 2. Please uses Webmail >= 4.1.0 with this new change.

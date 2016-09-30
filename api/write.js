@@ -840,6 +840,110 @@ router.post('/updateDomain', auth, function(req, res, next) {
 
 });
 
+router.post('/updateAccount', auth, function(req, res, next) {
+
+	var r = req.r;
+
+	var userId = req.user.userId;
+
+	var action = req.body.action;
+
+    switch (action) {
+        case 'newAccount':
+
+        var domainId = req.body.domainId;
+
+    	if (!!!domainId) {
+    		return next(new Exception.BadRequest('Domain ID Required'));
+    	}
+
+        return r
+    	.table('domains', {readMode: 'majority'})
+    	.get(domainId)
+    	.run(r.conn)
+    	.then(function(domain) {
+    		if (domain === null) {
+    			throw new Exception.NotFound('Domain does not exist.');
+    		}
+    		if (domain.domainAdmin !== userId) {
+    			throw new Exception.Forbidden('Only the domain admin can modify the domain.');
+    		}
+    		return domain;
+    	})
+    	.then(function(domain) {
+            var account = req.body.account || '';
+            if (account.length < 1) {
+                return next(new Exception.BadRequest('Account Required'));
+            }
+            return r
+            .table('accounts', {readMode: 'majority'})
+            .getAll([account, domainId], {index: 'accountDomainId'})
+            .count()
+            .run(r.conn)
+            .then(function(existingAccount) {
+                if (existingAccount > 0) {
+                    return next(new Exception.BadRequest('Account already existed.'));
+                }
+            })
+            .then(function() {
+                // steps here are basically from usefulScripts/firstUser.js
+                var accountId = shortid.generate();
+                var folderId = shortid.generate();
+                var addressId = shortid.generate();
+
+                return r
+        		.table('accounts')
+        		.insert({
+        			accountId: accountId,
+        			userId: userId,
+        			domainId: domainId,
+        			account: account
+        		})
+        		.run(r.conn)
+                .then(function() {
+                    return r
+                    .table('folders')
+            		.insert({
+            			folderId: folderId,
+            			accountId: accountId,
+            			parent: null,
+            			displayName: 'Inbox',
+            			description: 'Main Inbox',
+            			mutable: false
+            		})
+                    .run(r.conn)
+                })
+                .then(function() {
+                    return r
+            		.table('addresses')
+            		.insert({
+            			addressId: addressId,
+                        accountId: accountId,
+            			account: account,
+            			domain: domain.domain,
+            			friendlyName: req.user.firstName + ' ' + req.user.lastName,
+            			internalOwner: userId
+            		})
+            		.run(r.conn)
+                })
+                .then(function() {
+                    return res.status(200).send(accountId);
+                })
+            })
+        })
+        .catch(function(e) {
+            return next(e);
+        })
+
+        break;
+
+        default:
+        throw new Error('Not implemented.');
+        break;
+    }
+
+})
+
 router.post('/updateAddress', auth, function(req, res, next) {
 
 	var r = req.r;
