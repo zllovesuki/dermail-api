@@ -74,6 +74,7 @@ function actual(conn) {
 		.table('addresses')
 		.insert({
 			addressId: addressId,
+            accountId: accountId,
 			account: account,
 			domain: domain,
 			friendlyName: fN + ' ' + lN,
