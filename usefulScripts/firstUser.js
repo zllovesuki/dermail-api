@@ -40,6 +40,7 @@ function actual(conn) {
 			domainId: domainId,
 			userId: userId,
 			domain: domain,
+            domainAdmin: userId,
 			alias: []
 		})
 		.run(conn)
