@@ -34,9 +34,6 @@ r.db('dermail').tableCreate('users', {
 r.db('dermail').tableCreate('filters', {
   primaryKey: 'filterId'
 })
-r.db('dermail').tableCreate('payload', {
-  primaryKey: 'endpoint'
-})
 ```
 
 ```javascript

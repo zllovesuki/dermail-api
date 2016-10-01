@@ -1,5 +1,8 @@
 ## Changelog
 
+10/01/2016: 3.3.1 -> 3.3.2
+1. Deprecating the use of unencrypted push notification as required by web-push@3.0.0
+
 09/30/2016: 3.3.0 -> 3.3.1
 1. new API (/updateAccount)
 2. Initially it only has *newAccount* operation

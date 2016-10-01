@@ -583,31 +583,6 @@ router.post('/getMyOwnAddress', auth, function(req, res, next) {
 
 });
 
-router.get('/getPayload', function(req, res, next) {
-
-	var r = req.r;
-
-	var hash = crypto.createHash('sha1').update(req.query.endpoint).digest("hex");
-
-	return r
-	.table('payload', {readMode: 'majority'})
-	.get(hash)
-	.run(r.conn)
-	.then(function(result) {
-		if (result !== null) {
-			return snapchat(r, hash)
-			.then(function() {
-				return res.status(200).send(result.payload);
-			})
-		}else{
-			return res.status(200).send({});
-		}
-	})
-	.catch(function(e) {
-		return res.status(200).send({});
-	})
-});
-
 function snapchat(r, hash) {
 	return r
 	.table('payload', {readMode: 'majority'})
