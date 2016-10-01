@@ -583,12 +583,4 @@ router.post('/getMyOwnAddress', auth, function(req, res, next) {
 
 });
 
-function snapchat(r, hash) {
-	return r
-	.table('payload', {readMode: 'majority'})
-	.get(hash)
-	.delete()
-	.run(r.conn)
-}
-
 module.exports = router;
