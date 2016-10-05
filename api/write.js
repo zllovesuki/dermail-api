@@ -546,19 +546,31 @@ router.post('/updateDomain', auth, function(req, res, next) {
 	var r = req.r;
 
 	var userId = req.user.userId;
-	var domainId = req.body.domainId;
+    var action = req.body.action;
+    var domainId
+
+    if (action === 'newDomain') {
+        domainId = 'of course it does not exist';
+    }else{
+        domainId = req.body.domainId;
+    }
 
 	if (!!!domainId) {
 		return next(new Exception.BadRequest('Domain ID Required'));
 	}
-
-	var action = req.body.action;
 
 	return r
 	.table('domains', {readMode: 'majority'})
 	.get(domainId)
 	.run(r.conn)
 	.then(function(domain) {
+        if (action == 'newDomain') {
+            domain = req.body.domain;
+            if (!!!domain) {
+        		return next(new Exception.BadRequest('Domain Required'));
+        	}
+            return domain;
+        }
 		if (domain === null) {
 			throw new Exception.NotFound('Domain does not exist.');
 		}
@@ -828,6 +840,36 @@ router.post('/updateDomain', auth, function(req, res, next) {
 			})
 
 			break;
+
+            case 'newDomain':
+
+            return r
+        	.table('domains', {readMode: 'majority'})
+        	.getAll(domain, {index: 'domain'})
+            .count()
+        	.run(r.conn)
+            .then(function(count) {
+                if (count > 0) {
+                    throw new Exception.BadRequest('Domain already existed.')
+                }
+            })
+            .then(function() {
+                var newDomainId = shortid.generate();
+                return r
+                .table('domains')
+                .insert({
+                    domainId: newDomainId,
+                    alias: [],
+                    domainAdmin: userId,
+                    domain: domain
+                })
+                .run(r.conn)
+                .then(function() {
+                    return res.status(200).send(newDomainId);
+                })
+            })
+
+            break;
 
 			default:
 			throw new Error('Not implemented.');

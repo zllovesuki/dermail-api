@@ -1,5 +1,9 @@
 ## Changelog
 
+10/04/2015: 3.3.x -> 3.4.0
+1. new action on API (/updateDomain, newDomain)
+2. Please uses Webmail >= 4.2.0 with this new change
+
 10/01/2016: 3.3.1 -> 3.3.2
 1. Deprecating the use of unencrypted push notification as required by web-push@3.0.0
 
