@@ -249,7 +249,7 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 	.then(function(folder) {
 		return r
 		.table('messages', {readMode: 'majority'})
-		.between([folderId, r.minval], [folderId, lastDate], {index: 'folderDate'})
+		.between([folderId, r.minval], [folderId, lastDate], {index: 'folderDate', rightBound: 'closed'})
 		.orderBy({index: r.desc('folderDate')})
 	})
 	.then(function(p) {
