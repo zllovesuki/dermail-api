@@ -231,7 +231,7 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 	var accountId = req.body.accountId;
 	var folderId = req.body.folderId;
 	var slice = (typeof req.body.slice === 'object' ? req.body.slice : {} );
-	var lastDate = slice.date || r.maxval;
+	var lastDate = slice.savedOn || r.maxval;
 	var start = 0;
 	var end = slice.perPage || 5;
 	end = parseInt(end);
@@ -249,8 +249,8 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 	.then(function(folder) {
 		return r
 		.table('messages', {readMode: 'majority'})
-		.between([folderId, r.minval], [folderId, lastDate], {index: 'folderDate', rightBound: 'closed'})
-		.orderBy({index: r.desc('folderDate')})
+		.between([folderId, r.minval], [folderId, lastDate], {index: 'folderSaved'})
+		.orderBy({index: r.desc('folderSaved')})
 	})
 	.then(function(p) {
 		if (starOnly) {
@@ -264,7 +264,7 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 	.then(function(p) {
 		p
 		.slice(start, end)
-		.pluck('messageId', '_messageId', 'date', 'to', 'from', 'folderId', 'accountId', 'subject', 'text', 'isRead', 'isStar', 'authentication_results', 'dkim', 'spf')
+		.pluck('messageId', '_messageId', 'date', 'savedOn', 'to', 'from', 'folderId', 'accountId', 'subject', 'text', 'isRead', 'isStar', 'authentication_results', 'dkim', 'spf')
 		// Save some bandwidth and processsing
 		.map(function(doc) {
 			return doc.merge(function() {

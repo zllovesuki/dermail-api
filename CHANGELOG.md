@@ -1,6 +1,23 @@
 ## Changelog
 
-10/04/2015: 3.3.x -> 3.4.0
+11/16/2016: 3.4.x -> 3.5.0
+1. Use a different index "savedOn" for folder indexing
+2. Use the following for migration:
+```javascript
+r.db('dermail').table('messages').indexDrop('folderDate')
+
+r.db('dermail').table('messages').filter(function(doc) {
+  return r.not(doc.hasFields('savedOn'))
+}).update(function(doc) {
+  return {
+    savedOn: doc('date')
+  }
+})
+
+r.db('dermail').table('messages').indexCreate('folderSaved', [ r.row('folderId'),  r.row('savedOn')])
+```
+
+10/04/2016: 3.3.x -> 3.4.0
 1. new action on API (/updateDomain, newDomain)
 2. Please uses Webmail >= 4.2.0 with this new change
 

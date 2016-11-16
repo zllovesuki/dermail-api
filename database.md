@@ -49,9 +49,9 @@ r.db('dermail').table("attachments").indexCreate("contentId")
 ```
 
 
-compound index of folderId + date in table "messages"
+compound index of folderId + date (savedOn) in table "messages"
 ```javascript
-r.db('dermail').table('messages').indexCreate('folderDate', [ r.row('folderId'),  r.row('date')])
+r.db('dermail').table('messages').indexCreate('folderSaved', [ r.row('folderId'),  r.row('savedOn')])
 ```
 
 Add secondary index of "folderId" and "isRead" to table "messages" as "unreadCount"
