@@ -277,6 +277,8 @@ r.connect(config.rethinkdb).then(function(conn) {
 
 			delete message.accountId;
 
+            message.savedOn = new Date().toISOString();
+
 			return Promise.join(
 				helper.address.getArrayOfAddress(r, accountId, message.to),
 				helper.address.getArrayOfAddress(r, accountId, message.from),
