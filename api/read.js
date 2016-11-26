@@ -321,6 +321,7 @@ router.post('/getMail', auth, function(req, res, next) {
 		// Save some bandwidth and processsing
 		.merge(function(doc) {
 			return {
+                cc: r.branch(doc.hasFields('cc'), doc('cc'), []),
 				bcc: r.branch(doc.hasFields('bcc'), doc('bcc'), [])
 			}
 		})

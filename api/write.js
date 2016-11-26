@@ -694,9 +694,20 @@ router.post('/updateDomain', auth, function(req, res, next) {
 
 										return r
 										.table('messages', {readMode: 'majority'})
-										.pluck('to', 'from')
+										.pluck('to', 'from', 'cc', 'bcc')
+                                        .map(function(row) {
+                                            return row.merge(function(doc) {
+                                    			return {
+                                                    cc: r.branch(doc.hasFields('cc'), doc('cc'), []),
+                                    				bcc: r.branch(doc.hasFields('bcc'), doc('bcc'), [])
+                                    			}
+                                    		})
+                                        })
 										.filter(function(doc) {
-											return doc('from').contains(addressId).or(doc('to').contains(addressId))
+											return doc('from').contains(addressId)
+                                                .or(doc('to').contains(addressId))
+                                                .or(doc('cc').contains(addressId))
+                                                .or(doc('bcc').contains(addressId))
 										})
 										.count()
 										.run(r.conn)

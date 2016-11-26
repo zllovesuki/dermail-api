@@ -16,9 +16,20 @@ r.connect(config.rethinkdb).then(function(conn) {
 			alias: r.branch(doc.hasFields('aliasOf'), true, false),
 			count: r
 			.table('messages')
-			.pluck('to', 'from')
+			.pluck('to', 'from', 'cc', 'bcc')
+            .map(function(row) {
+                return row.merge(function(doc) {
+        			return {
+                        cc: r.branch(doc.hasFields('cc'), doc('cc'), []),
+        				bcc: r.branch(doc.hasFields('bcc'), doc('bcc'), [])
+        			}
+        		})
+            })
 			.filter(function(_doc) {
-				return _doc('from').contains(doc('addressId')).or(_doc('to').contains(doc('addressId')))
+				return _doc('from').contains(doc('addressId'))
+                    .or(_doc('to').contains(doc('addressId')))
+                    .or(_doc('cc').contains(doc('addressId')))
+                    .or(_doc('bcc').contains(doc('addressId')))
 			})
 			.count()
 		}
