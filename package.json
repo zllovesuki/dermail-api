@@ -1,6 +1,6 @@
 {
   "name": "dermail-api",
-  "version": "3.5.1",
+  "version": "3.6.0",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -21,6 +21,7 @@
     "bull": "^1.1.2",
     "bunyan": "^1.8.5",
     "cors": "^2.8.1",
+    "dermail-spam": "git+https://git.fm/zllovesuki/dermail-spam",
     "express": "^4.14.0",
     "express-bunyan-logger": "^1.3.1",
     "express-rate-limit": "^2.5.0",
