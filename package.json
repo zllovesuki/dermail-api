@@ -18,7 +18,7 @@
     "bcrypt": "^0.8.7",
     "bluebird": "^3.4.6",
     "body-parser": "^1.15.2",
-    "bull": "^1.1.2",
+    "bull": "^2.0.0",
     "bunyan": "^1.8.5",
     "cors": "^2.8.1",
     "dermail-spam": "git+https://git.fm/zllovesuki/dermail-spam",
@@ -46,7 +46,7 @@
     "shortid": "^2.2.6",
     "socket.io": "^1.5.1",
     "socketio-jwt": "^4.5.0",
-    "superagent": "^2.3.0",
+    "superagent": "^3.0.0",
     "url": "^0.11.0",
     "validator": "^6.1.0",
     "web-push": "^3.2.0"
