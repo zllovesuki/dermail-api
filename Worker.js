@@ -585,7 +585,7 @@ var applyDefaultFilter = Promise.method(function(r, accountId, messageId, messag
 	var doNotNotify = false;
     return classifier.categorize(message, true).then(function(probs) {
         var cat = (probs === null) ? null : probs[0].cat;
-        log.debug({ message: 'Bayesian filter result: ' + cat, payload: {
+        log.info({ message: 'Bayesian filter result: ' + cat, payload: {
             messageId: messageId,
             probs: probs
         } });
