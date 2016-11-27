@@ -9,7 +9,7 @@
 			"watch": true,
 			"restart_delay": 5000,
 			"exec_mode": "cluster",
-			"instances": 4
+			"instances": 2
 		},
 		{
 			"name": "API-Worker",
@@ -20,7 +20,7 @@
 			"watch": true,
 			"restart_delay": 5000,
 			"exec_mode": "cluster",
-			"instances": 4
+			"instances": 2
 		},
 		{
 			"name": "API-GC",
