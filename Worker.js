@@ -614,6 +614,136 @@ var startProcessing = function() {
             })
 
             break;
+
+            case 'trainBayes':
+
+            var userId = data.userId;
+
+            var dne = function() {
+                return helper.notification.sendAlert(r, userId, 'error', 'Filter needs to be trained initially.')
+                .then(function() {
+                    return callback();
+                })
+            }
+
+            var acquireLock = function() {
+                return r.table('bayesStore')
+                .insert({
+                    key: 'trainLock',
+                    value: true
+                }, {
+                    conflict: 'error'
+                })
+                .run(r.conn)
+                .then(function(result) {
+                    if (result.errors > 0) return false;
+                    return true;
+                })
+                .catch(function(e) {
+                    return false;
+                })
+            }
+
+            var releaseLock = function() {
+                return r.table('bayesStore')
+                .get('trainLock')
+                .delete()
+                .run(r.conn)
+                .then(function(result) {
+                    if (result.errors > 0) return false;
+                    return true;
+                })
+                .catch(function(e) {
+                    return false;
+                })
+            }
+
+            return r.table('bayesStore')
+            .get('lastTrainedMailWasSavedOn')
+            .run(r.conn)
+            .then(function(last) {
+                if (last === null) {
+                    return dne();
+                }
+                return acquireLock().then(function(isLocked) {
+                    if (!isLocked) {
+                        return helper.notification.sendAlert(r, userId, 'error', 'Cannot acquire lock.')
+                    }
+                    var lastTrainedMailWasSavedOn = last.value;
+
+                    return r.table('messages', {
+                        readMode: 'majority'
+                    })
+                    .eqJoin('folderId', r.table('folders', {
+                        readMode: 'majority'
+                    }))
+                    .pluck({
+                        left: ['replyTo', 'subject', 'text', 'attachments', 'spf', 'dkim', 'savedOn'],
+                        right: 'displayName'
+                    })
+                    .zip()
+                    .map(function(doc) {
+                        return doc.merge(function() {
+                            return {
+                                'attachments': doc('attachments').concatMap(function(attachment) { // It's like a subquery
+                                    return [r.table('attachments', {
+                                        readMode: 'majority'
+                                    }).get(attachment)]
+                                }),
+                                'savedOn': r.ISO8601(doc('savedOn')),
+                                'savedOnRaw': doc('savedOn')
+                            }
+                        })
+                    })
+                    .filter(function(doc) {
+                        return doc('savedOnRaw').gt(lastTrainedMailWasSavedOn)
+                    })
+                    .orderBy(r.desc('savedOn'))
+                    .run(r.conn)
+                    .then(function(cursor) {
+                        return cursor.toArray()
+                    })
+                    .then(function(results) {
+                        results = results.filter(function(doc) {
+                            return doc.displayName !== 'Sent'
+                        })
+                        if (results.length === 0) {
+                            return helper.notification.sendAlert(r, userId, 'success', 'No new mails to be trained.')
+                        }
+                        var newlastTrainedSavedOn = results[0].savedOnRaw;
+                        return classifier.initCatMulti(['Spam', 'Ham'])
+                        .then(function() {
+                            return Promise.mapSeries(results, function(mail) {
+                                return classifier.learn(mail, mail.displayName === 'Spam' ? 'Spam' : 'Ham')
+                            })
+                        })
+                        .then(function() {
+                            return classifier.saveLastTrained(newlastTrainedSavedOn)
+                        })
+                        .then(function() {
+                            return helper.notification.sendAlert(r, userId, 'success', 'Bayesian filter trained with additional ' + results.length + ' mails.')
+                        })
+                    })
+                    .then(releaseLock)
+                    .then(function(isRelease) {
+                        if (!isRelease) {
+                            return helper.notification.sendAlert(r, userId, 'error', 'Cannot release lock.')
+                        }
+                    })
+                })
+                .then(function() {
+                    return callback();
+                })
+            })
+            .catch(function(e) {
+                if (e.msg && e.msg.indexOf('does not exist') !== -1) {
+                    return dne();
+                }else{
+                    return callback(e);
+                }
+            })
+
+            break;
         }
     });
 }

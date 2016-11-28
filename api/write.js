@@ -120,18 +120,6 @@ router.post('/updateMail', auth, function(req, res, next) {
 				return next(e);
 			})
 			break;
-		case 'spamc':
-			return messageQ.add({
-				type: 'getRawEmail',
-				payload: {
-					userId: userId,
-					messageId: messageId
-				}
-			}, config.Qconfig)
-			.then(function() {
-				res.status(200).send();
-			})
-			break;
 		default:
 			return next(new Error('Not implemented.'));
 			break;
@@ -145,6 +133,25 @@ router.post('/updateMail', auth, function(req, res, next) {
 		return next(e);
 	})
 });
+
+router.post('/trainBayes', auth, function(req, res, next) {
+
+	var messageQ = req.Q;
+    var config = req.config;
+
+	var userId = req.user.userId;
+
+    return messageQ.add({
+        type: 'trainBayes',
+        payload: {
+            userId: userId
+        }
+    }, config.Qconfig)
+    .then(function() {
+        res.status(200).send();
+    })
+
+})
 
 router.post('/updateFolder', auth, function(req, res, next) {
 
