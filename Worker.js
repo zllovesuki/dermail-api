@@ -729,11 +729,6 @@ var startProcessing = function() {
                     .map(function(doc) {
                         return doc.merge(function() {
                             return {
-                                'attachments': doc('attachments').concatMap(function(attachment) { // It's like a subquery
-                                    return [r.table('attachments', {
-                                        readMode: 'majority'
-                                    }).get(attachment)]
-                                }),
                                 'savedOn': r.ISO8601(doc('savedOn')),
                                 'savedOnRaw': doc('savedOn')
                             }
@@ -741,6 +736,17 @@ var startProcessing = function() {
                     })
                     .filter(function(doc) {
                         return doc('savedOnRaw').gt(lastTrainedMailWasSavedOn)
+                    })
+                    .map(function(doc) {
+                        return doc.merge(function() {
+                            return {
+                                'attachments': doc('attachments').concatMap(function(attachment) { // It's like a subquery
+                                    return [r.table('attachments', {
+                                        readMode: 'majority'
+                                    }).get(attachment)]
+                                })
+                            }
+                        })
                     })
                     .orderBy(r.desc('savedOn'))
                     .run(r.conn)
