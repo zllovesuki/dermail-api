@@ -660,14 +660,14 @@ var startProcessing = function() {
                             case 'Spam':
                             return classifier.unlearn(mail, 'Ham')
                             .then(function() {
-                                classifier.learn(mail, 'Spam')
+                                return classifier.learn(mail, 'Spam')
                             })
                             break;
 
                             case 'Ham':
                             return classifier.unlearn(mail, 'Spam')
                             .then(function() {
-                                classifier.learn(mail, 'Ham')
+                                return classifier.learn(mail, 'Ham')
                             })
                             break;
 
