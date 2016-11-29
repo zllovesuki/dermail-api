@@ -711,7 +711,7 @@ var startProcessing = function() {
                             return helper.notification.sendAlert(r, userId, 'success', 'No new mails to be trained.')
                         }
                         var newlastTrainedSavedOn = results[0].savedOnRaw;
-                        return classifier.initCatMulti(['Spam', 'Ham'])
+                        return classifier.initCat()
                         .then(function() {
                             return Promise.mapSeries(results, function(mail) {
                                 return classifier.learn(mail, mail.displayName === 'Spam' ? 'Spam' : 'Ham')
