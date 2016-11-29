@@ -169,14 +169,15 @@ var filter = function (r, accountId, messageId) {
 var applyDefaultFilter = Promise.method(function(r, accountId, messageId, message) {
 	var dstFolderName = null;
 	var doNotNotify = false;
-    return classifier.categorize(message, true).then(function(probs) {
+    return Promise.all([
+        classifier.categorize(message, true),
+        helper.classifier.getLastTrainedMailWasSavedOn(r)
+    ])
+    .spread(function(probs, lastTrainedMailWasSavedOn) {
         var cat = (probs === null) ? null : probs[0].cat;
-        log.info({ message: 'Bayesian filter result: ' + cat, payload: {
-            messageId: messageId,
-            probs: probs
-        } });
-        if (cat === null) {
-            // Fall back in case of a new installation
+        if (cat === null || lastTrainedMailWasSavedOn === null) {
+            log.info({ message: 'Bayesian filter not yet trained, falling back.' });
+            // fallback in case the filter is not yet trained
             if (helper.filter.isFalseReply(message) || !helper.filter.isSPFAndDKIMValid(message)) {
         		// If the message has "Re:" in the subject, but has no inReplyTo, it is possibly a spam
         		// Therefore, we will default it to SPAM, and override notification to doNotNotify
@@ -186,24 +187,30 @@ var applyDefaultFilter = Promise.method(function(r, accountId, messageId, messag
         		dstFolderName = 'Spam';
         		doNotNotify = true;
         	}
-        }else if (cat === 'Spam') {
-            // We will put our full faith into the Bayes classifier
-            dstFolderName = 'Spam';
-            doNotNotify = true;
         }else{
-            return;
+            log.info({ message: 'Bayesian filter result: ' + cat, payload: {
+                messageId: messageId,
+                probs: probs
+            } });
+            // We will put our full faith into the Bayes classifier
+            if (cat === 'Spam') {
+                dstFolderName = 'Spam';
+                doNotNotify = true;
+            }
         }
 
-        return helper.folder.getInternalFolder(r, accountId, dstFolderName)
-        .then(function(dstFolder) {
-            return r
-            .table('messages', {readMode: 'majority'})
-            .get(messageId)
-            .update({
-                folderId: dstFolder
+        if (dstFolderName !== null) {
+            return helper.folder.getInternalFolder(r, accountId, dstFolderName)
+            .then(function(dstFolder) {
+                return r
+                .table('messages', {readMode: 'majority'})
+                .get(messageId)
+                .update({
+                    folderId: dstFolder
+                })
+                .run(r.conn)
             })
-            .run(r.conn)
-        })
+        }
     })
     .then(function() {
         return doNotNotify;
@@ -623,14 +630,10 @@ var startProcessing = function() {
             var messageId = data.messageId;
             var changeTo = data.changeTo;
 
-            return r.table('bayesStore')
-            .get('lastTrainedMailWasSavedOn')
-            .run(r.conn)
-            .then(function(last) {
-                if (last === null) {
+            return helper.classifier.getLastTrainedMailWasSavedOn(r).then(function(lastTrainedMailWasSavedOn) {
+                if (lastTrainedMailWasSavedOn === null) {
                     return helper.classifier.dne(r, userId)
                 }
-                var lastTrainedMailWasSavedOn = last.value;
                 return helper.classifier.acquireLock(r).then(function(isLocked) {
                     if (!isLocked) {
                         return helper.notification.sendAlert(r, userId, 'error', 'Cannot acquire lock.')
@@ -689,19 +692,12 @@ var startProcessing = function() {
                     })
                 })
             })
-            .then(function() {
-                return callback();
-            })
             .catch(function(e) {
                 log.error({ message: 'modifyBayes returns error, manual intervention may be required.', payload: payload })
-                if (e.msg && e.msg.indexOf('does not exist') !== -1) {
-                    return helper.classifier.dne(r, userId)
-                    .then(function() {
-                        return callback();
-                    })
-                }else{
-                    return callback(e);
-                }
+                return helper.notification.sendAlert(r, userId, 'error', 'modifyBayes returns error, manual intervention may be required.')
+            })
+            .then(function() {
+                return callback();
             })
 
             break;
@@ -710,18 +706,14 @@ var startProcessing = function() {
 
             var userId = data.userId;
 
-            return r.table('bayesStore')
-            .get('lastTrainedMailWasSavedOn')
-            .run(r.conn)
-            .then(function(last) {
-                if (last === null) {
-                    return dne(r, userId);
+            return helper.classifier.getLastTrainedMailWasSavedOn(r).then(function(lastTrainedMailWasSavedOn) {
+                if (lastTrainedMailWasSavedOn === null) {
+                    return helper.classifier.dne(r, userId)
                 }
                 return helper.classifier.acquireLock(r).then(function(isLocked) {
                     if (!isLocked) {
                         return helper.notification.sendAlert(r, userId, 'error', 'Cannot acquire lock.')
                     }
-                    var lastTrainedMailWasSavedOn = last.value;
 
                     return r.table('messages', {
                         readMode: 'majority'
@@ -785,16 +777,13 @@ var startProcessing = function() {
                         }
                     })
                 })
-                .then(function() {
-                    return callback();
-                })
             })
             .catch(function(e) {
-                if (e.msg && e.msg.indexOf('does not exist') !== -1) {
-                    return dne(r, userId);
-                }else{
-                    return callback(e);
-                }
+                log.error({ message: 'trainBayes returns error, manual intervention may be required.', payload: payload })
+                return helper.notification.sendAlert(r, userId, 'error', 'trainBayes returns error, manual intervention may be required.')
+            })
+            .then(function() {
+                return callback();
             })
 
             break;
