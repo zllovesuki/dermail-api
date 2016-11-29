@@ -615,57 +615,109 @@ var startProcessing = function() {
 
             break;
 
-            case 'trainBayes':
+            case 'modifyBayes':
+
+            // This requires more testing
 
             var userId = data.userId;
-
-            var dne = function() {
-                return helper.notification.sendAlert(r, userId, 'error', 'Filter needs to be trained initially.')
-                .then(function() {
-                    return callback();
-                })
-            }
-
-            var acquireLock = function() {
-                return r.table('bayesStore')
-                .insert({
-                    key: 'trainLock',
-                    value: true
-                }, {
-                    conflict: 'error'
-                })
-                .run(r.conn)
-                .then(function(result) {
-                    if (result.errors > 0) return false;
-                    return true;
-                })
-                .catch(function(e) {
-                    return false;
-                })
-            }
-
-            var releaseLock = function() {
-                return r.table('bayesStore')
-                .get('trainLock')
-                .delete()
-                .run(r.conn)
-                .then(function(result) {
-                    if (result.errors > 0) return false;
-                    return true;
-                })
-                .catch(function(e) {
-                    return false;
-                })
-            }
+            var messageId = data.messageId;
+            var changeTo = data.changeTo;
 
             return r.table('bayesStore')
             .get('lastTrainedMailWasSavedOn')
             .run(r.conn)
             .then(function(last) {
                 if (last === null) {
-                    return dne();
+                    return helper.classifier.dne(r, userId)
                 }
-                return acquireLock().then(function(isLocked) {
+                var lastTrainedMailWasSavedOn = last.value;
+                return helper.classifier.acquireLock(r).then(function(isLocked) {
+                    if (!isLocked) {
+                        return helper.notification.sendAlert(r, userId, 'error', 'Cannot acquire lock.')
+                    }
+                    return r.table('messages', {
+                        readMode: 'majority'
+                    })
+                    .get(messageId)
+                    .merge(function(doc) {
+                        return {
+                            'attachments': doc('attachments').concatMap(function(attachment) {
+                                return [r.table('attachments', {
+                                    readMode: 'majority'
+                                }).get(attachment)]
+                            }),
+                            'displayName': r.table('folders', {
+                                readMode: 'majority'
+                            }).get(doc('folderId'))('displayName')
+                        }
+                    })
+                    .pluck('inReplyTo', 'subject', 'text', 'attachments', 'spf', 'dkim', 'savedOn')
+                    .run(r.conn)
+                    .then(function(mail) {
+                        // newer emails will be trained with manual trigger
+                        if ( (new Date(mail.savedOn)) > (new Date(lastTrainedMailWasSavedOn)) ) return;
+                        switch (changeTo) {
+                            case 'Spam':
+                            return classifier.unlearn(mail, 'Ham')
+                            .then(function() {
+                                classifier.learn(mail, 'Spam')
+                            })
+                            break;
+
+                            case 'Ham':
+                            return classifier.unlearn(mail, 'Spam')
+                            .then(function() {
+                                classifier.learn(mail, 'Ham')
+                            })
+                            break;
+
+                            default:
+
+                            break;
+                        }
+                    })
+                    .then(function() {
+                        return helper.notification.sendAlert(r, userId, 'success', 'Bayesian filter retrained.')
+                    })
+                    .then(function() {
+                        return helper.classifier.releaseLock(r);
+                    })
+                    .then(function(isRelease) {
+                        if (!isRelease) {
+                            return helper.notification.sendAlert(r, userId, 'error', 'Cannot release lock.')
+                        }
+                    })
+                })
+            })
+            .then(function() {
+                return callback();
+            })
+            .catch(function(e) {
+                log.error({ message: 'modifyBayes returns error, manual intervention may be required.', payload: payload })
+                if (e.msg && e.msg.indexOf('does not exist') !== -1) {
+                    return helper.classifier.dne(r, userId)
+                    .then(function() {
+                        return callback();
+                    })
+                }else{
+                    return callback(e);
+                }
+            })
+
+            break;
+
+            case 'trainBayes':
+
+            var userId = data.userId;
+
+            return r.table('bayesStore')
+            .get('lastTrainedMailWasSavedOn')
+            .run(r.conn)
+            .then(function(last) {
+                if (last === null) {
+                    return dne(r, userId);
+                }
+                return helper.classifier.acquireLock(r).then(function(isLocked) {
                     if (!isLocked) {
                         return helper.notification.sendAlert(r, userId, 'error', 'Cannot acquire lock.')
                     }
@@ -724,7 +776,9 @@ var startProcessing = function() {
                             return helper.notification.sendAlert(r, userId, 'success', 'Bayesian filter trained with additional ' + results.length + ' mails.')
                         })
                     })
-                    .then(releaseLock)
+                    .then(function() {
+                        return helper.classifier.releaseLock(r);
+                    })
                     .then(function(isRelease) {
                         if (!isRelease) {
                             return helper.notification.sendAlert(r, userId, 'error', 'Cannot release lock.')
@@ -737,7 +791,7 @@ var startProcessing = function() {
             })
             .catch(function(e) {
                 if (e.msg && e.msg.indexOf('does not exist') !== -1) {
-                    return dne();
+                    return dne(r, userId);
                 }else{
                     return callback(e);
                 }

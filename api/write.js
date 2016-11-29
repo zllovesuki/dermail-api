@@ -99,9 +99,18 @@ router.post('/updateMail', auth, function(req, res, next) {
 				return doUpdateMail(r, messageId, accountId, data)
 			})
 			.then(function(result) {
-				// TO-DO: Train the SPAM filter
-				res.status(200).send(result);
-			})
+                return messageQ.add({
+                    type: 'modifyBayes',
+                    payload: {
+                        changeTo: 'Spam',
+                        userId: userId,
+                        messageId: messageId
+                    }
+                }, config.Qconfig)
+                .then(function() {
+    				res.status(200).send(result);
+    			})
+            })
 			.catch(function(e) {
 				return next(e);
 			})
@@ -112,7 +121,16 @@ router.post('/updateMail', auth, function(req, res, next) {
 				data.folderId = inboxFolder;
 				return doUpdateMail(r, messageId, accountId, data)
 				.then(function(result) {
-					// TO-DO: Tell the SPAM filter that this is not a spam
+                    return messageQ.add({
+                        type: 'modifyBayes',
+                        payload: {
+                            changeTo: 'Ham',
+                            userId: userId,
+                            messageId: messageId
+                        }
+                    }, config.Qconfig)
+                })
+                .then(function() {
 					res.status(200).send(inboxFolder);
 				})
 			})
