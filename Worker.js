@@ -678,7 +678,7 @@ var startProcessing = function() {
                         readMode: 'majority'
                     }))
                     .pluck({
-                        left: ['replyTo', 'subject', 'text', 'attachments', 'spf', 'dkim', 'savedOn'],
+                        left: ['inReplyTo', 'subject', 'text', 'attachments', 'spf', 'dkim', 'savedOn'],
                         right: 'displayName'
                     })
                     .zip()
