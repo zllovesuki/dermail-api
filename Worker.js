@@ -170,14 +170,15 @@ var applyDefaultFilter = Promise.method(function(r, accountId, messageId, messag
 	var dstFolderName = null;
 	var doNotNotify = false;
     return Promise.all([
-        classifier.categorize(message, true),
+        helper.classifier.getOwnAddresses(r),
         helper.classifier.getLastTrainedMailWasSavedOn(r)
-    ])
-    .spread(function(probs, lastTrainedMailWasSavedOn) {
-        var cat = (probs === null) ? null : probs[0].cat;
-        if (cat === null || lastTrainedMailWasSavedOn === null) {
+    ]).spread(function(ownAddresses, lastTrainedMailWasSavedOn) {
+        if (lastTrainedMailWasSavedOn === null) return null;
+        
+        return classifier.categorize(message, ownAddresses, true)
+    }).then(function(probs) {
+        if (probs === null) {
             log.info({ message: 'Bayesian filter not yet trained, falling back.' });
-            // fallback in case the filter is not yet trained
             if (helper.filter.isFalseReply(message) || !helper.filter.isSPFAndDKIMValid(message)) {
         		// If the message has "Re:" in the subject, but has no inReplyTo, it is possibly a spam
         		// Therefore, we will default it to SPAM, and override notification to doNotNotify
@@ -188,6 +189,7 @@ var applyDefaultFilter = Promise.method(function(r, accountId, messageId, messag
         		doNotNotify = true;
         	}
         }else{
+            var cat = probs[0].cat;
             log.info({ message: 'Bayesian filter result: ' + cat, payload: {
                 messageId: messageId,
                 probs: probs
@@ -198,7 +200,7 @@ var applyDefaultFilter = Promise.method(function(r, accountId, messageId, messag
                 doNotNotify = true;
             }
         }
-
+    }).then(function() {
         if (dstFolderName !== null) {
             return helper.folder.getInternalFolder(r, accountId, dstFolderName)
             .then(function(dstFolder) {
