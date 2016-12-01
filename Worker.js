@@ -97,7 +97,7 @@ var filter = function (r, accountId, messageId) {
 		return helper.filter.getFilters(r, accountId, false)
 		.then(function(filters) {
 			return r
-			.table('messages', {readMode: 'majority'})
+			.table('messages')
             .get(messageId)
             .pluck('connection', 'replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'text', 'attachments', 'spf', 'dkim', 'savedOn')
             .merge(function(doc) {
@@ -127,7 +127,9 @@ var filter = function (r, accountId, messageId) {
                     })
 				}
 			})
-			.run(r.conn)
+			.run(r.conn, {
+                readMode: 'majority'
+            })
 			.then(function(message) {
 				if (filters.length === 0) {
 					return applyDefaultFilter(r, accountId, messageId, message)
@@ -220,12 +222,14 @@ var applyDefaultFilter = Promise.method(function(r, accountId, messageId, messag
             return helper.folder.getInternalFolder(r, accountId, dstFolderName)
             .then(function(dstFolder) {
                 return r
-                .table('messages', {readMode: 'majority'})
+                .table('messages')
                 .get(messageId)
                 .update({
                     folderId: dstFolder
                 })
-                .run(r.conn)
+                .run(r.conn, {
+                    readMode: 'majority'
+                })
             })
         }
     })
@@ -658,9 +662,7 @@ var startProcessing = function() {
                     if (lastTrainedMailWasSavedOn === null) {
                         return helper.classifier.dne(r, userId)
                     }
-                    return r.table('messages', {
-                        readMode: 'majority'
-                    })
+                    return r.table('messages')
                     .get(messageId)
                     .pluck('connection', 'replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'text', 'attachments', 'spf', 'dkim', 'savedOn')
                     .merge(function(doc) {
@@ -690,6 +692,9 @@ var startProcessing = function() {
                             })
         				}
         			})
+                    .run(r.conn, {
+                        readMode: 'majority'
+                    })
                     .then(function(mail) {
                         // newer emails will be trained with manual trigger
                         if ( (new Date(mail.savedOn)) > (new Date(lastTrainedMailWasSavedOn)) ) return;
@@ -753,9 +758,7 @@ var startProcessing = function() {
                     if (lastTrainedMailWasSavedOn === null) {
                         return helper.classifier.dne(r, userId)
                     }
-                    return r.table('messages', {
-                        readMode: 'majority'
-                    })
+                    return r.table('messages')
                     .map(function(doc) {
                         return doc.merge(function() {
                             return {
@@ -800,7 +803,9 @@ var startProcessing = function() {
                         })
                     })
                     .orderBy(r.desc('savedOn'))
-                    .run(r.conn)
+                    .run(r.conn, {
+                        readMode: 'majority'
+                    })
                     .then(function(cursor) {
                         return cursor.toArray()
                     })
