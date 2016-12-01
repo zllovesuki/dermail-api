@@ -630,35 +630,67 @@ var startProcessing = function() {
             var messageId = data.messageId;
             var changeTo = data.changeTo;
 
-            return Promise.all([
-                helper.classifier.getLastTrainedMailWasSavedOn(r),
-                helper.classifier.getOwnAddresses(r)
-            ]).spread(function(lastTrainedMailWasSavedOn, ownAddresses) {
-                if (lastTrainedMailWasSavedOn === null) {
-                    return helper.classifier.dne(r, userId)
+            return helper.classifier.acquireLock(r).then(function(isLocked) {
+                if (!isLocked) {
+                    return helper.notification.sendAlert(r, userId, 'error', 'Cannot acquire lock.')
                 }
-                return helper.classifier.acquireLock(r).then(function(isLocked) {
-                    if (!isLocked) {
-                        return helper.notification.sendAlert(r, userId, 'error', 'Cannot acquire lock.')
+                return Promise.all([
+                    helper.classifier.getLastTrainedMailWasSavedOn(r),
+                    helper.classifier.getOwnAddresses(r)
+                ]).spread(function(lastTrainedMailWasSavedOn, ownAddresses) {
+                    if (lastTrainedMailWasSavedOn === null) {
+                        return helper.classifier.dne(r, userId)
                     }
                     return r.table('messages', {
                         readMode: 'majority'
                     })
-                    .get(messageId)
-                    .merge(function(doc) {
-                        return {
-                            'attachments': doc('attachments').concatMap(function(attachment) {
-                                return [r.table('attachments', {
-                                    readMode: 'majority'
-                                }).get(attachment)]
-                            }),
-                            'displayName': r.table('folders', {
-                                readMode: 'majority'
-                            }).get(doc('folderId'))('displayName')
-                        }
+                    .getAll(messageId)
+                    .eqJoin('folderId', r.table('folders', {
+                        readMode: 'majority'
+                    }))
+                    .pluck({
+                        left: ['replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'text', 'attachments', 'spf', 'dkim', 'savedOn'],
+                        right: 'displayName'
                     })
-                    .pluck('inReplyTo', 'subject', 'text', 'attachments', 'spf', 'dkim', 'savedOn')
+                    .zip()
+                    .map(function(doc) {
+                        return doc.merge(function() {
+                            return {
+                                cc: r.branch(doc.hasFields('cc'), doc('cc'), []),
+                                bcc: r.branch(doc.hasFields('bcc'), doc('bcc'), []),
+                                replyTo: r.branch(doc.hasFields('replyTo'), doc('replyTo'), [])
+                            }
+                        })
+                    })
+                    .map(function(doc) {
+                        return doc.merge(function() {
+                            return {
+                                'to': doc('to').concatMap(function(to) {
+                                    return [r.table('addresses').get(to).without('accountId', 'addressId', 'internalOwner')]
+                                }),
+                                'from': doc('from').concatMap(function(from) {
+                                    return [r.table('addresses').get(from).without('accountId', 'addressId', 'internalOwner')]
+                                }),
+                                'cc': doc('cc').concatMap(function(cc) {
+                                    return [r.table('addresses').get(cc).without('accountId', 'addressId', 'internalOwner')]
+                                }),
+                                'bcc': doc('bcc').concatMap(function(bcc) {
+                                    return [r.table('addresses').get(bcc).without('accountId', 'addressId', 'internalOwner')]
+                                }),
+                                'headers': r.table('messageHeaders').get(doc('headers')).pluck('sender', 'x-beenthere', 'x-mailinglist'),
+                                'attachments': doc('attachments').concatMap(function(attachment) {
+                                    return [r.table('attachments').get(attachment)]
+                                })
+                            }
+                        })
+                    })
                     .run(r.conn)
+                    .then(function(cursor) {
+                        return cursor.toArray();
+                    })
+                    .then(function(results) {
+                        return results[0];
+                    })
                     .then(function(mail) {
                         // newer emails will be trained with manual trigger
                         if ( (new Date(mail.savedOn)) > (new Date(lastTrainedMailWasSavedOn)) ) return;
@@ -696,7 +728,7 @@ var startProcessing = function() {
                 })
             })
             .catch(function(e) {
-                log.error({ message: 'modifyBayes returns error, manual intervention may be required.', payload: payload })
+                log.error({ message: 'modifyBayes returns error, manual intervention may be required.', payload: data })
                 return helper.notification.sendAlert(r, userId, 'error', 'modifyBayes returns error, manual intervention may be required.')
             })
             .then(function() {
@@ -709,18 +741,17 @@ var startProcessing = function() {
 
             var userId = data.userId;
 
-            return Promise.all([
-                helper.classifier.getLastTrainedMailWasSavedOn(r),
-                helper.classifier.getOwnAddresses(r)
-            ]).spread(function(lastTrainedMailWasSavedOn, ownAddresses) {
-                if (lastTrainedMailWasSavedOn === null) {
-                    return helper.classifier.dne(r, userId)
+            return helper.classifier.acquireLock(r).then(function(isLocked) {
+                if (!isLocked) {
+                    return helper.notification.sendAlert(r, userId, 'error', 'Cannot acquire lock.')
                 }
-                return helper.classifier.acquireLock(r).then(function(isLocked) {
-                    if (!isLocked) {
-                        return helper.notification.sendAlert(r, userId, 'error', 'Cannot acquire lock.')
+                return Promise.all([
+                    helper.classifier.getLastTrainedMailWasSavedOn(r),
+                    helper.classifier.getOwnAddresses(r)
+                ]).spread(function(lastTrainedMailWasSavedOn, ownAddresses) {
+                    if (lastTrainedMailWasSavedOn === null) {
+                        return helper.classifier.dne(r, userId)
                     }
-
                     return r.table('messages', {
                         readMode: 'majority'
                     })
@@ -739,10 +770,19 @@ var startProcessing = function() {
                         readMode: 'majority'
                     }))
                     .pluck({
-                        left: ['replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'text', 'attachments', 'spf', 'dkim', 'savedOn'],
+                        left: ['replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'text', 'attachments', 'spf', 'dkim', 'savedOn', 'savedOnRaw'],
                         right: 'displayName'
                     })
                     .zip()
+                    .map(function(doc) {
+                        return doc.merge(function() {
+                            return {
+                                cc: r.branch(doc.hasFields('cc'), doc('cc'), []),
+                                bcc: r.branch(doc.hasFields('bcc'), doc('bcc'), []),
+                                replyTo: r.branch(doc.hasFields('replyTo'), doc('replyTo'), [])
+                            }
+                        })
+                    })
                     .map(function(doc) {
                         return doc.merge(function() {
                             return {
@@ -775,6 +815,7 @@ var startProcessing = function() {
                             return doc.displayName !== 'Sent'
                         })
                         if (results.length === 0) {
+                            log.info({ message: 'No new mails to be trained.' })
                             return helper.notification.sendAlert(r, userId, 'success', 'No new mails to be trained.')
                         }
                         var newlastTrainedSavedOn = results[0].savedOnRaw;
@@ -788,6 +829,7 @@ var startProcessing = function() {
                             return classifier.saveLastTrained(newlastTrainedSavedOn)
                         })
                         .then(function() {
+                            log.info({ message: 'Bayesian filter trained with additional ' + results.length + ' mails.' })
                             return helper.notification.sendAlert(r, userId, 'success', 'Bayesian filter trained with additional ' + results.length + ' mails.')
                         })
                     })
@@ -802,7 +844,7 @@ var startProcessing = function() {
                 })
             })
             .catch(function(e) {
-                log.error({ message: 'trainBayes returns error, manual intervention may be required.', payload: payload })
+                log.error({ message: 'trainBayes returns error, manual intervention may be required.', payload: data })
                 return helper.notification.sendAlert(r, userId, 'error', 'trainBayes returns error, manual intervention may be required.')
             })
             .then(function() {
