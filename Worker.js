@@ -649,7 +649,7 @@ var startProcessing = function() {
                         readMode: 'majority'
                     }))
                     .pluck({
-                        left: ['replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'text', 'attachments', 'spf', 'dkim', 'savedOn'],
+                        left: ['connection', 'replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'text', 'attachments', 'spf', 'dkim', 'savedOn'],
                         right: 'displayName'
                     })
                     .zip()
@@ -772,7 +772,7 @@ var startProcessing = function() {
                         readMode: 'majority'
                     }))
                     .pluck({
-                        left: ['replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'text', 'attachments', 'spf', 'dkim', 'savedOn', 'savedOnRaw'],
+                        left: ['connection', 'replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'text', 'attachments', 'spf', 'dkim', 'savedOn', 'savedOnRaw'],
                         right: 'displayName'
                     })
                     .zip()
