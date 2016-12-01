@@ -99,7 +99,6 @@ var filter = function (r, accountId, messageId) {
 			return r
 			.table('messages')
             .get(messageId)
-            .pluck('connection', 'replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'text', 'attachments', 'spf', 'dkim', 'savedOn')
             .merge(function(doc) {
                 return {
                     cc: r.branch(doc.hasFields('cc'), doc('cc'), []),
