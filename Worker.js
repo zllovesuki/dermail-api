@@ -630,7 +630,10 @@ var startProcessing = function() {
             var messageId = data.messageId;
             var changeTo = data.changeTo;
 
-            return helper.classifier.getLastTrainedMailWasSavedOn(r).then(function(lastTrainedMailWasSavedOn) {
+            return Promise.all([
+                helper.classifier.getLastTrainedMailWasSavedOn(r),
+                helper.classifier.getOwnAddresses(r)
+            ]).spread(function(lastTrainedMailWasSavedOn, ownAddresses) {
                 if (lastTrainedMailWasSavedOn === null) {
                     return helper.classifier.dne(r, userId)
                 }
@@ -661,16 +664,16 @@ var startProcessing = function() {
                         if ( (new Date(mail.savedOn)) > (new Date(lastTrainedMailWasSavedOn)) ) return;
                         switch (changeTo) {
                             case 'Spam':
-                            return classifier.unlearn(mail, 'Ham')
+                            return classifier.unlearn(mail, ownAddresses, 'Ham')
                             .then(function() {
-                                return classifier.learn(mail, 'Spam')
+                                return classifier.learn(mail, ownAddresses, 'Spam')
                             })
                             break;
 
                             case 'Ham':
-                            return classifier.unlearn(mail, 'Spam')
+                            return classifier.unlearn(mail, ownAddresses, 'Spam')
                             .then(function() {
-                                return classifier.learn(mail, 'Ham')
+                                return classifier.learn(mail, ownAddresses, 'Ham')
                             })
                             break;
 
@@ -706,7 +709,10 @@ var startProcessing = function() {
 
             var userId = data.userId;
 
-            return helper.classifier.getLastTrainedMailWasSavedOn(r).then(function(lastTrainedMailWasSavedOn) {
+            return Promise.all([
+                helper.classifier.getLastTrainedMailWasSavedOn(r),
+                helper.classifier.getOwnAddresses(r)
+            ]).spread(function(lastTrainedMailWasSavedOn, ownAddresses) {
                 if (lastTrainedMailWasSavedOn === null) {
                     return helper.classifier.dne(r, userId)
                 }
@@ -718,14 +724,6 @@ var startProcessing = function() {
                     return r.table('messages', {
                         readMode: 'majority'
                     })
-                    .eqJoin('folderId', r.table('folders', {
-                        readMode: 'majority'
-                    }))
-                    .pluck({
-                        left: ['inReplyTo', 'subject', 'text', 'attachments', 'spf', 'dkim', 'savedOn'],
-                        right: 'displayName'
-                    })
-                    .zip()
                     .map(function(doc) {
                         return doc.merge(function() {
                             return {
@@ -737,6 +735,14 @@ var startProcessing = function() {
                     .filter(function(doc) {
                         return doc('savedOnRaw').gt(lastTrainedMailWasSavedOn)
                     })
+                    .eqJoin('folderId', r.table('folders', {
+                        readMode: 'majority'
+                    }))
+                    .pluck({
+                        left: ['inReplyTo', 'subject', 'text', 'attachments', 'spf', 'dkim', 'savedOn'],
+                        right: 'displayName'
+                    })
+                    .zip()
                     .map(function(doc) {
                         return doc.merge(function() {
                             return {
@@ -764,7 +770,7 @@ var startProcessing = function() {
                         return classifier.initCat()
                         .then(function() {
                             return Promise.mapSeries(results, function(mail) {
-                                return classifier.learn(mail, mail.displayName === 'Spam' ? 'Spam' : 'Ham')
+                                return classifier.learn(mail, ownAddresses, mail.displayName === 'Spam' ? 'Spam' : 'Ham')
                             })
                         })
                         .then(function() {
