@@ -98,18 +98,33 @@ var filter = function (r, accountId, messageId) {
 		.then(function(filters) {
 			return r
 			.table('messages', {readMode: 'majority'})
-			.get(messageId)
+            .get(messageId)
+            .pluck('connection', 'replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'text', 'attachments', 'spf', 'dkim', 'savedOn')
+            .merge(function(doc) {
+                return {
+                    cc: r.branch(doc.hasFields('cc'), doc('cc'), []),
+                    bcc: r.branch(doc.hasFields('bcc'), doc('bcc'), []),
+                    replyTo: r.branch(doc.hasFields('replyTo'), doc('replyTo'), [])
+                }
+            })
 			.merge(function(doc) {
 				return {
-                    'attachments': doc('attachments').concatMap(function(attachment) { // It's like a subquery
-                        return [r.table('attachments', {readMode: 'majority'}).get(attachment)]
+                    'to': doc('to').concatMap(function(to) {
+                        return [r.table('addresses').get(to).without('accountId', 'addressId', 'internalOwner')]
                     }),
-					'to': doc('to').concatMap(function(to) { // It's like a subquery
-						return [r.table('addresses', {readMode: 'majority'}).get(to).without('accountId', 'addressId', 'internalOwner')]
-					}),
-					'from': doc('from').concatMap(function(from) { // It's like a subquery
-						return [r.table('addresses', {readMode: 'majority'}).get(from).without('accountId', 'addressId', 'internalOwner')]
-					})
+                    'from': doc('from').concatMap(function(from) {
+                        return [r.table('addresses').get(from).without('accountId', 'addressId', 'internalOwner')]
+                    }),
+                    'cc': doc('cc').concatMap(function(cc) {
+                        return [r.table('addresses').get(cc).without('accountId', 'addressId', 'internalOwner')]
+                    }),
+                    'bcc': doc('bcc').concatMap(function(bcc) {
+                        return [r.table('addresses').get(bcc).without('accountId', 'addressId', 'internalOwner')]
+                    }),
+                    'headers': r.table('messageHeaders').get(doc('headers')).pluck('sender', 'x-beenthere', 'x-mailinglist'),
+                    'attachments': doc('attachments').concatMap(function(attachment) {
+                        return [r.table('attachments').get(attachment)]
+                    })
 				}
 			})
 			.run(r.conn)
@@ -174,7 +189,7 @@ var applyDefaultFilter = Promise.method(function(r, accountId, messageId, messag
         helper.classifier.getLastTrainedMailWasSavedOn(r)
     ]).spread(function(ownAddresses, lastTrainedMailWasSavedOn) {
         if (lastTrainedMailWasSavedOn === null) return null;
-        
+
         return classifier.categorize(message, ownAddresses, true)
     }).then(function(probs) {
         if (probs === null) {
@@ -646,53 +661,35 @@ var startProcessing = function() {
                     return r.table('messages', {
                         readMode: 'majority'
                     })
-                    .getAll(messageId)
-                    .eqJoin('folderId', r.table('folders', {
-                        readMode: 'majority'
-                    }))
-                    .pluck({
-                        left: ['connection', 'replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'text', 'attachments', 'spf', 'dkim', 'savedOn'],
-                        right: 'displayName'
+                    .get(messageId)
+                    .pluck('connection', 'replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'text', 'attachments', 'spf', 'dkim', 'savedOn')
+                    .merge(function(doc) {
+                        return {
+                            cc: r.branch(doc.hasFields('cc'), doc('cc'), []),
+                            bcc: r.branch(doc.hasFields('bcc'), doc('bcc'), []),
+                            replyTo: r.branch(doc.hasFields('replyTo'), doc('replyTo'), [])
+                        }
                     })
-                    .zip()
-                    .map(function(doc) {
-                        return doc.merge(function() {
-                            return {
-                                cc: r.branch(doc.hasFields('cc'), doc('cc'), []),
-                                bcc: r.branch(doc.hasFields('bcc'), doc('bcc'), []),
-                                replyTo: r.branch(doc.hasFields('replyTo'), doc('replyTo'), [])
-                            }
-                        })
-                    })
-                    .map(function(doc) {
-                        return doc.merge(function() {
-                            return {
-                                'to': doc('to').concatMap(function(to) {
-                                    return [r.table('addresses').get(to).without('accountId', 'addressId', 'internalOwner')]
-                                }),
-                                'from': doc('from').concatMap(function(from) {
-                                    return [r.table('addresses').get(from).without('accountId', 'addressId', 'internalOwner')]
-                                }),
-                                'cc': doc('cc').concatMap(function(cc) {
-                                    return [r.table('addresses').get(cc).without('accountId', 'addressId', 'internalOwner')]
-                                }),
-                                'bcc': doc('bcc').concatMap(function(bcc) {
-                                    return [r.table('addresses').get(bcc).without('accountId', 'addressId', 'internalOwner')]
-                                }),
-                                'headers': r.table('messageHeaders').get(doc('headers')).pluck('sender', 'x-beenthere', 'x-mailinglist'),
-                                'attachments': doc('attachments').concatMap(function(attachment) {
-                                    return [r.table('attachments').get(attachment)]
-                                })
-                            }
-                        })
-                    })
-                    .run(r.conn)
-                    .then(function(cursor) {
-                        return cursor.toArray();
-                    })
-                    .then(function(results) {
-                        return results[0];
-                    })
+        			.merge(function(doc) {
+        				return {
+                            'to': doc('to').concatMap(function(to) {
+                                return [r.table('addresses').get(to).without('accountId', 'addressId', 'internalOwner')]
+                            }),
+                            'from': doc('from').concatMap(function(from) {
+                                return [r.table('addresses').get(from).without('accountId', 'addressId', 'internalOwner')]
+                            }),
+                            'cc': doc('cc').concatMap(function(cc) {
+                                return [r.table('addresses').get(cc).without('accountId', 'addressId', 'internalOwner')]
+                            }),
+                            'bcc': doc('bcc').concatMap(function(bcc) {
+                                return [r.table('addresses').get(bcc).without('accountId', 'addressId', 'internalOwner')]
+                            }),
+                            'headers': r.table('messageHeaders').get(doc('headers')).pluck('sender', 'x-beenthere', 'x-mailinglist'),
+                            'attachments': doc('attachments').concatMap(function(attachment) {
+                                return [r.table('attachments').get(attachment)]
+                            })
+        				}
+        			})
                     .then(function(mail) {
                         // newer emails will be trained with manual trigger
                         if ( (new Date(mail.savedOn)) > (new Date(lastTrainedMailWasSavedOn)) ) return;
@@ -770,14 +767,7 @@ var startProcessing = function() {
                     .filter(function(doc) {
                         return doc('savedOn').gt(r.ISO8601(lastTrainedMailWasSavedOn))
                     })
-                    .eqJoin('folderId', r.table('folders', {
-                        readMode: 'majority'
-                    }))
-                    .pluck({
-                        left: ['connection', 'replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'text', 'attachments', 'spf', 'dkim', 'savedOn', 'savedOnRaw'],
-                        right: 'displayName'
-                    })
-                    .zip()
+                    .pluck('connection', 'replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'text', 'attachments', 'spf', 'dkim', 'savedOn', 'savedOnRaw')
                     .map(function(doc) {
                         return doc.merge(function() {
                             return {
