@@ -696,6 +696,7 @@ var startProcessing = function() {
                         if ( (new Date(mail.savedOn)) > (new Date(lastTrainedMailWasSavedOn)) ) return;
                         switch (changeTo) {
                             case 'Spam':
+                            log.info({ message: messageId + ' will be trained as Spam instead' })
                             return classifier.unlearn(mail, ownAddresses, 'Ham')
                             .then(function() {
                                 return classifier.learn(mail, ownAddresses, 'Spam')
@@ -703,6 +704,7 @@ var startProcessing = function() {
                             break;
 
                             case 'Ham':
+                            log.info({ message: messageId + ' will be trained as Ham instead' })
                             return classifier.unlearn(mail, ownAddresses, 'Spam')
                             .then(function() {
                                 return classifier.learn(mail, ownAddresses, 'Ham')
