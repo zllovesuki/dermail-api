@@ -223,6 +223,55 @@ router.post('/getFolder', auth, function(req, res, next) {
 
 });
 
+router.post('/unifiedInbox', auth, function(req, res, next) {
+
+	var r = req.r;
+
+	var userId = req.user.userId;
+	var slice = (typeof req.body.slice === 'object' ? req.body.slice : {} );
+    var displayName = req.body.displayName || 'Inbox';
+	var lastDate = slice.savedOn || r.maxval;
+	var start = 0;
+	var end = slice.perPage || 5;
+	end = parseInt(end);
+
+    return r.table('folders')
+    .between([displayName, r.minval], [displayName, r.maxval], {index: 'inboxAccountId'})
+    .eqJoin('accountId', r.table('accounts'))
+    .pluck({
+        left: ['folderId', 'displayName'],
+        right: ['userId', 'accountId']
+    })
+    .zip()
+    .filter(function(doc) {
+        return doc('userId').eq(userId);
+    })
+    .eqJoin('folderId', r.table('messages'), {index: 'folderId'})
+    .pluck({
+        left: ['folderId', 'displayName'],
+        right: ['messageId', '_messageId', 'date', 'savedOn', 'to', 'from', 'accountId', 'subject', 'text', 'isRead', 'isStar', 'authentication_results', 'dkim', 'spf']
+    })
+    .zip()
+    .orderBy(r.desc('savedOn'))
+    .filter(function(doc) {
+        return doc('savedOn').lt(lastDate)
+    })
+    .slice(start, end)
+    .run(r.conn, {
+        readMode: 'majority'
+    })
+    .then(function(cursor) {
+        return cursor.toArray();
+    })
+    .then(function(messages) {
+        return res.status(200).send(messages);
+    })
+    .error(function(e) {
+        req.log.error(e);
+        return res.status(200).send([]);
+    })
+});
+
 router.post('/getMailsInFolder', auth, function(req, res, next) {
 
 	var r = req.r;

@@ -1,5 +1,11 @@
 ## Changelog
 
+12/03/2016: 4.2.0 -> 4.2.1
+1. Despite best effort, there is still another index to be added to support unified inbox:
+```javascript
+r.db('dermail').table("messages").indexCreate("folderId")
+```
+
 12/02/2016: 4.1.0 -> 4.2.0
 1. An index was renamed, use the following for migration:
 ```javascript
