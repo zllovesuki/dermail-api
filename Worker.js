@@ -650,7 +650,7 @@ var startProcessing = function() {
             var messageId = data.messageId;
             var changeTo = data.changeTo;
 
-            return helper.classifier.acquireLock(r).then(function(isLocked) {
+            return helper.classifier.acquireLock(r, (new Date().toISOString())).then(function(isLocked) {
                 if (!isLocked) {
                     return helper.notification.sendAlert(r, userId, 'error', 'Cannot acquire lock.')
                 }
@@ -746,7 +746,7 @@ var startProcessing = function() {
 
             var userId = data.userId;
 
-            return helper.classifier.acquireLock(r).then(function(isLocked) {
+            return helper.classifier.acquireLock(r, (new Date().toISOString())).then(function(isLocked) {
                 if (!isLocked) {
                     return helper.notification.sendAlert(r, userId, 'error', 'Cannot acquire lock.')
                 }
