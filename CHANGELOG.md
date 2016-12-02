@@ -1,5 +1,13 @@
 ## Changelog
 
+12/01/2016: 3.x.x - > 4.0.0
+1. Change the job queue to RethinkDB backing (because less moving parts)
+2. Bayesian filter is now considered stable (powered by dermail-spam)
+3. A new table is needed:
+```javascript
+r.db('dermail').tableCreate('jobQueue')
+```
+
 11/16/2016: 3.4.x -> 3.5.0
 1. Use a different index "savedOn" for folder indexing
 2. Use the following for migration:

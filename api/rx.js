@@ -60,12 +60,13 @@ router.post('/store-tx', auth, function(req, res, next) {
 
 	var message = req.body;
 
-	return messageQ.add({
+    var job = messageQ.createJob({
 		type: 'saveTX',
 		payload: {
 			message: message
 		}
-	}, config.Qconfig)
+	}).setRetryMax(50).setRetryDelay(2 * 1000)
+	return messageQ.addJob(job)
 	.then(function() {
 		return res.status(200).send({ok: true});
 	})
@@ -146,7 +147,7 @@ router.post('/process-from-raw', auth, function(req, res, next) {
 	return checkDomain(r, recipientDomain).then(function(domainResult) {
 		var domainId = domainResult.domainId;
 		return checkAccount(r, recipientAccount, domainId).then(function(accountResult) {
-			return messageQ.add({
+            var job = messageQ.createJob({
 				type: 'processRaw',
 				payload: {
 					accountId: accountResult.accountId,
@@ -155,7 +156,8 @@ router.post('/process-from-raw', auth, function(req, res, next) {
 					connection: connection,
 					recipientIsAnAlias: (plusSign !== -1)
 				}
-			}, config.Qconfig)
+			}).setRetryMax(50).setRetryDelay(1 * 2000)
+			return messageQ.addJob(job)
 		})
 	})
 	.then(function() {

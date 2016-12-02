@@ -213,10 +213,11 @@ var queueToTX = Promise.method(function(r, config, sender, accountId, userId, co
 		delete compose[field];
 	})
 	_.merge(compose, recipients);
-	return messageQ.add({
+    var job = messageQ.createJob({
 		type: 'queueTX',
 		payload: compose
-	}, config.Qconfig)
+	}).setRetryMax(50).setRetryDelay(2 * 1000)
+	return messageQ.addJob(job);
 })
 
 module.exports = router;

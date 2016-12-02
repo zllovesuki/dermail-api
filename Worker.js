@@ -1,8 +1,7 @@
-var Queue = require('bull'),
+var Queue = require('rethinkdb-job-queue'),
 	Promise = require('bluebird'),
 	config = require('./config'),
 	knox = require('knox'),
-	redis = require('redis'),
 	request = require('superagent'),
 	helper = require('./lib/helper'),
 	MailParser = require('mailparser').MailParser,
@@ -18,8 +17,17 @@ var Queue = require('bull'),
     classifier = require('dermail-spam'),
 	log;
 
-var messageQ = new Queue('dermail-api-worker', config.redisQ.port, config.redisQ.host);
-var redisStore = redis.createClient(config.redisQ);
+var messageQ = new Queue(config.rethinkdb, {
+    name: 'jobQueue',
+    // Default with concurrency of 2
+    concurrency: 2,
+    // This is not a master queue
+    masterInterval: false
+});
+
+var createJobWrapper = function(data) {
+    return messageQ.createJob(data).setRetryMax(50).setRetryDelay(2 * 1000);
+}
 
 if (!!config.graylog) {
 	log = bunyan.createLogger({
@@ -37,10 +45,11 @@ if (!!config.graylog) {
 
 var enqueue = function(type, payload) {
 	log.debug({ message: 'enqueue: ' + type, payload: payload });
-	return messageQ.add({
+    var job = createJobWrapper({
 		type: type,
 		payload: payload
-	}, config.Qconfig);
+	})
+    return messageQ.addJob(job);
 }
 
 var deleteIfUnique = Promise.method(function(r, attachmentId) {
@@ -238,10 +247,9 @@ var applyDefaultFilter = Promise.method(function(r, accountId, messageId, messag
 })
 
 var startProcessing = function() {
-    messageQ.process(2, function(job, done) {
-        var data = job.data;
-        var type = data.type;
-        data = data.payload;
+    messageQ.process(function(job, done) {
+        var type = job.type;
+        var data = job.payload;
 
         log.info({ message: 'Received Job: ' + type, payload: data });
 
@@ -403,10 +411,10 @@ var startProcessing = function() {
             message.savedOn = new Date().toISOString();
 
             message.WorkerExtra = {
-                attemptsMade: job.attemptsMade,
-                maxAttempts: job.attempts,
-                delay: job.delay,
-                jobId: job.jobId
+                attemptsMade: job.retryCount,
+                maxAttempts: job.retryMax,
+                delay: job.retryDelay,
+                jobId: job.id
             };
 
             return Promise.join(

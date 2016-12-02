@@ -7,7 +7,7 @@ module.exports = function(r) {
 		config = require('./config'),
 		cors = require('cors'),
 		jwt = require('jwt-simple'),
-		Queue = require('bull'),
+        Queue = require('rethinkdb-job-queue'),
 		app = express(),
 		RateLimit = require('express-rate-limit'),
 		rx = require('./api/rx'),
@@ -47,7 +47,19 @@ module.exports = function(r) {
 		maxAge: 86400
 	}));
 
-	var messageQ = new Queue('dermail-api-worker', config.redisQ.port, config.redisQ.host);
+    var messageQ = new Queue(config.rethinkdb, {
+        name: 'jobQueue',
+        // Default with concurrency of 2
+        concurrency: 2,
+        // This is not a master queue
+        masterInterval: false
+    });
+
+    messageQ.jobOptions = {
+        retryMax: 50,
+        retryDelay: 2 * 1000,
+        timeout: 5 * 60 * 1000
+    }
 
 	app.use(function(req, res, next){
 		req.r = r;

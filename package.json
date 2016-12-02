@@ -1,6 +1,6 @@
 {
   "name": "dermail-api",
-  "version": "3.9.0",
+  "version": "4.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -18,7 +18,6 @@
     "bcrypt": "^0.8.7",
     "bluebird": "^3.4.6",
     "body-parser": "^1.15.2",
-    "bull": "^2.0.0",
     "bunyan": "^1.8.5",
     "cors": "^2.8.1",
     "dermail-spam": "git+https://git.fm/zllovesuki/dermail-spam",
@@ -40,9 +39,9 @@
     "node-forge": "^0.6.45",
     "passport": "^0.3.2",
     "passport-jwt": "^2.2.1",
-    "redis": "^2.6.3",
     "request": "^2.78.0",
     "rethinkdb": "^2.3.3",
+    "rethinkdb-job-queue": "^2.0.2",
     "shortid": "^2.2.6",
     "socket.io": "^1.5.1",
     "socketio-jwt": "^4.5.0",

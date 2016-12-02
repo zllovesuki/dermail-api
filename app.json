@@ -1,5 +1,12 @@
 {
 	"apps": [
+        {
+			"name": "API-Queue-Master",
+			"script": "qMaster.js",
+			"watch": true,
+			"restart_delay": 5000,
+			"exec_mode": "fork"
+		},
 		{
 			"name": "API",
 			"script": "API.js",
@@ -21,13 +28,6 @@
 			"restart_delay": 5000,
 			"exec_mode": "cluster",
 			"instances": 2
-		},
-		{
-			"name": "API-GC",
-			"script": "GC.js",
-			"watch": true,
-			"restart_delay": 5000,
-			"exec_mode": "fork"
 		}
 	]
 }

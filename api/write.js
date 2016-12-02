@@ -99,14 +99,15 @@ router.post('/updateMail', auth, function(req, res, next) {
 				return doUpdateMail(r, messageId, accountId, data)
 			})
 			.then(function(result) {
-                return messageQ.add({
+                var job = messageQ.createJob({
                     type: 'modifyBayes',
                     payload: {
                         changeTo: 'Spam',
                         userId: userId,
                         messageId: messageId
                     }
-                }, config.Qconfig)
+                }).setRetryMax(50).setRetryDelay(2 * 1000)
+                return messageQ.addJob(job)
                 .then(function() {
     				res.status(200).send(result);
     			})
@@ -121,14 +122,15 @@ router.post('/updateMail', auth, function(req, res, next) {
 				data.folderId = inboxFolder;
 				return doUpdateMail(r, messageId, accountId, data)
 				.then(function(result) {
-                    return messageQ.add({
+                    var job = messageQ.createJob({
                         type: 'modifyBayes',
                         payload: {
                             changeTo: 'Ham',
                             userId: userId,
                             messageId: messageId
                         }
-                    }, config.Qconfig)
+                    }).setRetryMax(50).setRetryDelay(2 * 1000)
+                    return messageQ.addJob(job)
                 })
                 .then(function() {
 					res.status(200).send(inboxFolder);
@@ -159,12 +161,13 @@ router.post('/trainBayes', auth, function(req, res, next) {
 
 	var userId = req.user.userId;
 
-    return messageQ.add({
+    var job = messageQ.createJob({
         type: 'trainBayes',
         payload: {
             userId: userId
         }
-    }, config.Qconfig)
+    }).setRetryMax(50).setRetryDelay(2 * 1000)
+    return messageQ.addJob(job)
     .then(function() {
         res.status(200).send();
     })
@@ -217,13 +220,14 @@ router.post('/updateFolder', auth, function(req, res, next) {
 				})
 			})
 			.then(function(messages) {
-				return messageQ.add({
+                var job = messageQ.createJob({
 					type: 'truncateFolder',
 					payload: {
 						userId: userId,
 						messages: messages
 					}
-				}, config.Qconfig);
+				}).setRetryMax(50).setRetryDelay(2 * 1000)
+				return messageQ.addJob(job);
 			})
 			.then(function() {
 				return res.status(200).send({});
