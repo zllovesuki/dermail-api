@@ -9,7 +9,7 @@ var messageQ = new Queue(config.rethinkdb, {
     // For the sake of review, we will remove finished jobs after 24 hours
     removeFinishedJobs: 24 * 60 * 60 * 1000,
     // This is a master queue
-    masterInterval: (5 * 60 * 1000) + (10 * 1000)
+    masterInterval: (config.qMaster === true ? (5 * 60 * 1000) + (10 * 1000) : false)
 });
 
 if (!!config.graylog) {

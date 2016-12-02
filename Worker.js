@@ -22,7 +22,7 @@ var messageQ = new Queue(config.rethinkdb, {
     // Default with concurrency of 2
     concurrency: 2,
     // This is not a master queue
-    masterInterval: false
+    masterInterval: (config.qMaster === true ? (5 * 60 * 1000) + (10 * 1000) : false)
 });
 
 var createJobWrapper = function(data) {
