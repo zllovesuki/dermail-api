@@ -3,7 +3,7 @@
         {
 			"name": "API-Queue-Master",
 			"script": "qMaster.js",
-			"watch": true,
+			"watch": false,
 			"restart_delay": 5000,
 			"exec_mode": "fork"
 		},
