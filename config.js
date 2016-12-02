@@ -5,7 +5,6 @@ module.exports = {
 	},
 	rethinkdb: require('./config.json').rethinkdb,
 	graylog: require('./config.json').graylog || null,
-    qMaster: require('./config.json').qMaster === true,
 	behindProxy: require('./config.json').behindProxy,
 	s3: require('./config.json').s3,
 	remoteSecret: require('./config.json').remoteSecret,
