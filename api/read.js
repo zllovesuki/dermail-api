@@ -18,9 +18,9 @@ router.get('/security', auth, function(req, res, next) {
 	var userId = req.user.userId;
 
 	return r
-	.table('accounts', {readMode: 'majority'})
+	.table('accounts')
 	.getAll(userId, {index: 'userId'})
-	.eqJoin('domainId', r.table('domains', {readMode: 'majority'}))
+	.eqJoin('domainId', r.table('domains'))
 	.zip()
 	.pluck('domainId')
 	.concatMap(function(doc) {
@@ -36,7 +36,9 @@ router.get('/security', auth, function(req, res, next) {
 			dkim: r.branch(doc.hasFields('dkim'), doc('dkim').without('privateKey'), false)
 		}
 	})
-	.run(r.conn)
+	.run(r.conn, {
+        readMode: 'majority'
+    })
 	.then(function(cursor) {
 		return cursor.toArray();
 	})
@@ -68,9 +70,9 @@ router.get('/getAccounts', auth, function(req, res, next) {
 	var userId = req.user.userId;
 
 	return r
-	.table('accounts', {readMode: 'majority'})
+	.table('accounts')
 	.getAll(userId, {index: 'userId'})
-	.eqJoin('domainId', r.table('domains', {readMode: 'majority'}))
+	.eqJoin('domainId', r.table('domains'))
 	.zip()
 	.map(function(doc) {
 		return {
@@ -82,7 +84,9 @@ router.get('/getAccounts', auth, function(req, res, next) {
 			notify: r.branch(doc.hasFields('notify'), doc('notify'), true)
 		}
 	})
-	.run(r.conn)
+	.run(r.conn, {
+        readMode: 'majority'
+    })
 	.then(function(cursor) {
 		return cursor.toArray();
 	})
@@ -134,9 +138,11 @@ router.post('/getFoldersInAccount', auth, function(req, res, next) {
 	}
 
 	return r
-	.table('folders', {readMode: 'majority'})
+	.table('folders')
 	.getAll(accountId, {index: 'accountId'})
-	.run(r.conn)
+	.run(r.conn, {
+        readMode: 'majority'
+    })
 	.then(function(cursor) {
 		return cursor.toArray();
 	})
@@ -168,7 +174,7 @@ router.post('/getUnreadCountInAccount', auth, function(req, res, next) {
 	}
 
     return r
-    .table('folders', {readMode: 'majority'})
+    .table('folders')
     .getAll(accountId, {index: 'accountId'})
     .pluck('folderId')
     .map(function(doc) {
@@ -177,7 +183,9 @@ router.post('/getUnreadCountInAccount', auth, function(req, res, next) {
             count: r.db('dermail').table('messages', {readMode: 'majority'}).getAll([doc('folderId'), false], {index: "unreadCount"}).count()
         }
     })
-    .run(r.conn)
+    .run(r.conn, {
+        readMode: 'majority'
+    })
 	.then(function(cursor) {
 		return cursor.toArray();
 	})
@@ -249,7 +257,7 @@ router.post('/unifiedInbox', auth, function(req, res, next) {
     .eqJoin('folderId', r.table('messages'), {index: 'folderId'})
     .pluck({
         left: ['folderId', 'displayName'],
-        right: ['messageId', '_messageId', 'date', 'savedOn', 'to', 'from', 'accountId', 'subject', 'text', 'isRead', 'isStar', 'authentication_results', 'dkim', 'spf']
+        right: ['messageId', '_messageId', 'date', 'savedOn', 'to', 'from', 'accountId', 'subject', 'text', 'isRead', 'isStar']
     })
     .zip()
     .orderBy(r.desc('savedOn'))
@@ -257,6 +265,19 @@ router.post('/unifiedInbox', auth, function(req, res, next) {
         return doc('savedOn').lt(lastDate)
     })
     .slice(start, end)
+    .map(function(doc) {
+        return doc.merge(function() {
+            return {
+                'to': doc('to').concatMap(function(to) { // It's like a subquery
+                    return [r.table('addresses').get(to).without('accountId', 'addressId', 'internalOwner')]
+                }),
+                'from': doc('from').concatMap(function(from) { // It's like a subquery
+                    return [r.table('addresses').get(from).without('accountId', 'addressId', 'internalOwner')]
+                }),
+                'text': doc('text').slice(0, 100)
+            }
+        })
+    })
     .run(r.conn, {
         readMode: 'majority'
     })
@@ -297,7 +318,7 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 	return helper.auth.accountFolderMapping(r, accountId, folderId)
 	.then(function(folder) {
 		return r
-		.table('messages', {readMode: 'majority'})
+		.table('messages')
 		.between([folderId, r.minval], [folderId, lastDate], {index: 'folderSaved'})
 		.orderBy({index: r.desc('folderSaved')})
 	})
@@ -313,22 +334,24 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 	.then(function(p) {
 		p
 		.slice(start, end)
-		.pluck('messageId', '_messageId', 'date', 'savedOn', 'to', 'from', 'folderId', 'accountId', 'subject', 'text', 'isRead', 'isStar', 'authentication_results', 'dkim', 'spf')
+		.pluck('messageId', '_messageId', 'date', 'savedOn', 'to', 'from', 'folderId', 'accountId', 'subject', 'text', 'isRead', 'isStar')
 		// Save some bandwidth and processsing
 		.map(function(doc) {
 			return doc.merge(function() {
 				return {
 					'to': doc('to').concatMap(function(to) { // It's like a subquery
-						return [r.table('addresses', {readMode: 'majority'}).get(to).without('accountId', 'addressId', 'internalOwner')]
+						return [r.table('addresses').get(to).without('accountId', 'addressId', 'internalOwner')]
 					}),
 					'from': doc('from').concatMap(function(from) { // It's like a subquery
-						return [r.table('addresses', {readMode: 'majority'}).get(from).without('accountId', 'addressId', 'internalOwner')]
+						return [r.table('addresses').get(from).without('accountId', 'addressId', 'internalOwner')]
 					}),
 					'text': doc('text').slice(0, 100)
 				}
 			})
 		})
-		.run(r.conn)
+		.run(r.conn, {
+            readMode: 'majority'
+        })
 		.then(function(cursor) {
 			return cursor.toArray();
 		})
@@ -364,7 +387,7 @@ router.post('/getMail', auth, function(req, res, next) {
 	return helper.auth.messageAccountMapping(r, messageId, accountId)
 	.then(function() {
 		return r
-		.table('messages', {readMode: 'majority'})
+		.table('messages')
 		.get(messageId)
 		.pluck('messageId', '_messageId', 'headers', 'date', 'to', 'from', 'cc', 'bcc', 'replyTo', 'folderId', 'accountId', 'subject', 'html', 'attachments', 'isRead', 'isStar', 'references', 'authentication_results', 'dkim', 'spf')
 		// Save some bandwidth and processsing
@@ -377,24 +400,26 @@ router.post('/getMail', auth, function(req, res, next) {
 		.merge(function(doc) {
 			return {
 				'to': doc('to').concatMap(function(to) { // It's like a subquery
-					return [r.table('addresses', {readMode: 'majority'}).get(to).without('accountId', 'addressId', 'internalOwner')]
+					return [r.table('addresses').get(to).without('accountId', 'addressId', 'internalOwner')]
 				}),
 				'from': doc('from').concatMap(function(from) { // It's like a subquery
-					return [r.table('addresses', {readMode: 'majority'}).get(from).without('accountId', 'addressId', 'internalOwner')]
+					return [r.table('addresses').get(from).without('accountId', 'addressId', 'internalOwner')]
 				}),
 				'cc': doc('cc').concatMap(function(cc) { // It's like a subquery
-					return [r.table('addresses', {readMode: 'majority'}).get(cc).without('accountId', 'addressId', 'internalOwner')]
+					return [r.table('addresses').get(cc).without('accountId', 'addressId', 'internalOwner')]
 				}),
 				'bcc': doc('bcc').concatMap(function(bcc) { // It's like a subquery
-					return [r.table('addresses', {readMode: 'majority'}).get(bcc).without('accountId', 'addressId', 'internalOwner')]
+					return [r.table('addresses').get(bcc).without('accountId', 'addressId', 'internalOwner')]
 				}),
-				'headers': r.table('messageHeaders', {readMode: 'majority'}).get(doc('headers')).without('accountId'),
+				'headers': r.table('messageHeaders').get(doc('headers')).without('accountId'),
 				'attachments': doc('attachments').concatMap(function(attachment) { // It's like a subquery
-					return [r.table('attachments', {readMode: 'majority'}).get(attachment)]
+					return [r.table('attachments').get(attachment)]
 				})
 			}
 		})
-		.run(r.conn)
+		.run(r.conn, {
+            readMode: 'majority'
+        })
 		.then(function(message) {
 			return res.status(200).send(message);
 		})
