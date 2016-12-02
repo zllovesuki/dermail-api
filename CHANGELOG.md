@@ -1,5 +1,12 @@
 ## Changelog
 
+12/02/2016: 4.1.0 -> 4.2.0
+1. An index was renamed, use the following for migration:
+```javascript
+r.db('dermail').table('folders').indexCreate('inboxAccountId', [ r.row('displayName'), r.row('accountId') ])
+r.db('dermail').table('folders').indexDrop('accountIdInbox')
+```
+
 12/02/2016: 4.0.x -> 4.1.0
 1. You should assign a node to run Queue Master. Say you have two API nodes running, assign one with:
 ```json

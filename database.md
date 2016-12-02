@@ -103,5 +103,5 @@ r.db('dermail').table('addresses').indexCreate('accountDomainAccountId', [ r.row
 
 compound index of accountId + 'Index' in table "addresses"
 ```javascript
-r.db('dermail').table('folders').indexCreate('accountIdInbox', [ r.row('accountId'),  r.row('displayName')])
+r.db('dermail').table('folders').indexCreate('inboxAccountId', [ r.row('displayName'),  r.row('accountId') ])
 ```
