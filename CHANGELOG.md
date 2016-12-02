@@ -1,5 +1,12 @@
 ## Changelog
 
+12/02/2016: 4.0.x -> 4.1.0
+1. You should assign a node to run Queue Master. Say you have two API nodes running, assign one with:
+```json
+"qMaster": true
+```
+in your `config.json`
+
 12/01/2016: 3.x.x - > 4.0.0
 1. Change the job queue to RethinkDB backing (because less moving parts)
 2. Bayesian filter is now considered stable (powered by dermail-spam)
