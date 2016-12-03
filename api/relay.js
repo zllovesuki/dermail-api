@@ -216,7 +216,7 @@ var queueToTX = Promise.method(function(r, config, sender, accountId, userId, co
     var job = messageQ.createJob({
 		type: 'queueTX',
 		payload: compose
-	}).setRetryMax(50).setRetryDelay(2 * 1000)
+	}).setTimeout(15 * 60 * 1000).setRetryMax(50).setRetryDelay(2 * 1000)
 	return messageQ.addJob(job);
 })
 

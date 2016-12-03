@@ -65,7 +65,7 @@ router.post('/store-tx', auth, function(req, res, next) {
 		payload: {
 			message: message
 		}
-	}).setRetryMax(50).setRetryDelay(2 * 1000)
+	}).setTimeout(15 * 60 * 1000).setRetryMax(50).setRetryDelay(2 * 1000)
 	return messageQ.addJob(job)
 	.then(function() {
 		return res.status(200).send({ok: true});
@@ -156,7 +156,7 @@ router.post('/process-from-raw', auth, function(req, res, next) {
 					connection: connection,
 					recipientIsAnAlias: (plusSign !== -1)
 				}
-			}).setRetryMax(50).setRetryDelay(1 * 2000)
+			}).setTimeout(15 * 60 * 1000).setRetryMax(50).setRetryDelay(1 * 2000)
 			return messageQ.addJob(job)
 		})
 	})

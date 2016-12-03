@@ -24,7 +24,7 @@ var messageQ = new Queue(config.rethinkdb, {
 });
 
 var createJobWrapper = function(data) {
-    return messageQ.createJob(data).setRetryMax(50).setRetryDelay(2 * 1000);
+    return messageQ.createJob(data).setTimeout(15 * 60 * 1000).setRetryMax(50).setRetryDelay(2 * 1000);
 }
 
 if (!!config.graylog) {

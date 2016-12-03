@@ -106,7 +106,7 @@ router.post('/updateMail', auth, function(req, res, next) {
                         userId: userId,
                         messageId: messageId
                     }
-                }).setRetryMax(50).setRetryDelay(2 * 1000)
+                }).setTimeout(15 * 60 * 1000).setRetryMax(50).setRetryDelay(2 * 1000)
                 return messageQ.addJob(job)
                 .then(function() {
     				res.status(200).send(result);
@@ -129,7 +129,7 @@ router.post('/updateMail', auth, function(req, res, next) {
                             userId: userId,
                             messageId: messageId
                         }
-                    }).setRetryMax(50).setRetryDelay(2 * 1000)
+                    }).setTimeout(15 * 60 * 1000).setRetryMax(50).setRetryDelay(2 * 1000)
                     return messageQ.addJob(job)
                 })
                 .then(function() {
@@ -166,7 +166,7 @@ router.post('/trainBayes', auth, function(req, res, next) {
         payload: {
             userId: userId
         }
-    }).setRetryMax(50).setRetryDelay(2 * 1000)
+    }).setTimeout(15 * 60 * 1000).setRetryMax(50).setRetryDelay(2 * 1000)
     return messageQ.addJob(job)
     .then(function() {
         res.status(200).send();
@@ -226,7 +226,7 @@ router.post('/updateFolder', auth, function(req, res, next) {
 						userId: userId,
 						messages: messages
 					}
-				}).setRetryMax(50).setRetryDelay(2 * 1000)
+				}).setTimeout(15 * 60 * 1000).setRetryMax(50).setRetryDelay(2 * 1000)
 				return messageQ.addJob(job);
 			})
 			.then(function() {
