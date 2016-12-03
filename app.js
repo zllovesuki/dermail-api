@@ -49,8 +49,6 @@ module.exports = function(r) {
 
     var messageQ = new Queue(config.rethinkdb, {
         name: 'jobQueue',
-        // Default with concurrency of 2
-        concurrency: 2,
         // This is not a master queue
         masterInterval: false
     });
