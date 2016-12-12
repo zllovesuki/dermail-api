@@ -50,14 +50,9 @@ module.exports = function(r) {
     var messageQ = new Queue(config.rethinkdb, {
         name: 'jobQueue',
         // This is not a master queue
-        masterInterval: false
+        masterInterval: false,
+        changeFeed: false
     });
-
-    messageQ.jobOptions = {
-        retryMax: 50,
-        retryDelay: 2 * 1000,
-        timeout: 5 * 60 * 1000
-    }
 
 	app.use(function(req, res, next){
 		req.r = r;

@@ -17,15 +17,19 @@ var Queue = require('rethinkdb-job-queue'),
     classifier = require('dermail-spam'),
 	log;
 
-var messageQ = new Queue(config.rethinkdb, {
+var subMessageQ = new Queue(config.rethinkdb, {
     name: 'jobQueue',
     // This is not a master queue
-    masterInterval: false
+    masterInterval: false,
+    changeFeed: true
 });
 
-var createJobWrapper = function(data) {
-    return messageQ.createJob(data).setTimeout(15 * 60 * 1000).setRetryMax(50).setRetryDelay(2 * 1000);
-}
+var pubMessageQ = new Queue(config.rethinkdb, {
+    name: 'jobQueue',
+    // This is not a master queue
+    masterInterval: false,
+    changeFeed: false
+});
 
 if (!!config.graylog) {
 	log = bunyan.createLogger({
@@ -43,11 +47,11 @@ if (!!config.graylog) {
 
 var enqueue = function(type, payload) {
 	log.debug({ message: 'enqueue: ' + type, payload: payload });
-    var job = createJobWrapper({
+    var job = pubMessageQ.createJob({
 		type: type,
 		payload: payload
-	})
-    return messageQ.addJob(job);
+	}).setTimeout(15 * 60 * 1000).setRetryMax(50).setRetryDelay(2 * 1000);
+    return pubMessageQ.addJob(job);
 }
 
 var deleteIfUnique = Promise.method(function(r, attachmentId) {
@@ -245,7 +249,7 @@ var applyDefaultFilter = Promise.method(function(r, accountId, messageId, messag
 })
 
 var startProcessing = function() {
-    messageQ.process(function(job, done) {
+    subMessageQ.process(function(job, done) {
         var type = job.type;
         var data = job.payload;
 
@@ -454,7 +458,7 @@ var startProcessing = function() {
                                 message: 'New mail in ' + folder.displayName + ' at: ' + myAddress
                             };
                         }
-                        return helper.notification.queueNewMailNotification(r, messageQ, config, payload);
+                        return helper.notification.queueNewMailNotification(r, pubMessageQ, config, payload);
                     })
                 })
             })
