@@ -445,7 +445,7 @@ var startProcessing = function() {
                                 folder: folder,
                                 messageId: messageId,
                                 header: folder.displayName + ' at: ' + myAddress,
-                                body: message.subject,
+                                body: message.subject || '(No Subject)',
                                 message: 'New mail in ' + folder.displayName + ' at: ' + myAddress
                             };
                         }else{
@@ -454,7 +454,7 @@ var startProcessing = function() {
                                 userId: userId,
                                 accountId: accountId,
                                 header: folder.displayName + ' at: ' + myAddress,
-                                body: message.subject,
+                                body: message.subject || '(No Subject)',
                                 message: 'New mail in ' + folder.displayName + ' at: ' + myAddress
                             };
                         }
