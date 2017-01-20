@@ -1,5 +1,8 @@
 ## Changelog
 
+01/20/2017: ?
+1. Refers to `database.md` to add missing tables
+
 12/03/2016: 4.2.0 -> 4.2.1
 1. Despite best effort, there is still another index to be added to support unified inbox:
 ```javascript
