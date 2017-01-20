@@ -1,7 +1,8 @@
 ## Changelog
 
-01/20/2017: ?
+01/20/2017: ? -> 4.4.0
 1. Refers to `database.md` to add missing tables
+2. Greylisting is now enabled. dermail-mta@4.3.0+ required
 
 12/03/2016: 4.2.0 -> 4.2.1
 1. Despite best effort, there is still another index to be added to support unified inbox:

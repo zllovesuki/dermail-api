@@ -2,6 +2,7 @@ var express = require('express'),
 	router = express.Router(),
 	path = require('path'),
 	_ = require('lodash'),
+    crypto = require('crypto'),
 	helper = require('../lib/helper'),
 	Promise = require('bluebird'),
 	fs = Promise.promisifyAll(require("fs"));
@@ -170,6 +171,105 @@ router.post('/process-from-raw', auth, function(req, res, next) {
 		return res.status(200).send({ok: false});
 	})
 });
+
+router.post('/greylist', auth, function(req, res, next) {
+    res.setHeader('Content-Type', 'application/json');
+
+	var config = req.config;
+
+	var r = req.r;
+	var messageQ = req.Q;
+
+	var triplet = req.body;
+
+    var time = Math.round(+new Date()/1000);
+
+    var hash = crypto.createHash('md5').update([triplet.ip, triplet.from, triplet.to].join(',')).digest('hex');
+
+    return r.table('greylist')
+    .get(hash)
+    .run(r.conn, {
+        readMode: 'majority'
+    })
+    .then(function(result) {
+        if (result === null) {
+            // new greylist
+            return r.table('greylist')
+            .insert({
+                hash: hash,
+                triplet: triplet,
+                lastSeen: time,
+                whitelisted: false
+            })
+            .run(r.conn, {
+                readMode: 'majority'
+            })
+            .then(function() {
+                return false;
+            })
+        }else{
+            // whitelisted, check expiration or renew
+            if (result.whitelisted) {
+                var whitelistExpiration = 30 * 24 * 60 * 60; // 30 days
+                // whitelist expires after 30 days
+                if (time - result.lastSeen > whitelistExpiration) {
+                    return r.table('greylist')
+                    .get(hash)
+                    .delete()
+                    .run(r.conn, {
+                        readMode: 'majority'
+                    })
+                    .then(function() {
+                        return false;
+                    })
+                }
+                // we will renew its whitelist
+                return r.table('greylist')
+                .get(hash)
+                .update({
+                    lastSeen: time
+                })
+                .run(r.conn, {
+                    readMode: 'majority'
+                })
+                .then(function() {
+                    return true;
+                })
+            }
+
+            // greylist already exist, check elapsed time
+            var minimumWait = 3 * 60; // 3 minutes
+            var expiration = 6 * 60 * 60; // 6 hours
+            if (time - result.lastSeen < minimumWait) {
+                // still within greylist perioid
+                return false;
+            }
+            if (time - result.lastSeen > expiration) {
+                // expired, please try again
+                return false;
+            }
+            // we should whitelist this triplet
+            return r.table('greylist')
+            .get(hash)
+            .update({
+                lastSeen: time,
+                whitelisted: true
+            })
+            .run(r.conn, {
+                readMode: 'majority'
+            })
+            .then(function() {
+                return true;
+            })
+        }
+    })
+    .then(function(good) {
+        return res.status(200).send({ok: good})
+    })
+    .catch(function(e) {
+        return next(e);
+    })
+})
 
 var checkDomain = Promise.method(function (r, domain) {
 	return r
