@@ -250,6 +250,10 @@ var applyDefaultFilter = Promise.method(function(r, accountId, messageId, messag
 
 var startProcessing = function() {
     subMessageQ.process(function(job, done) {
+        if (job.processCount - job.retryCount > 1) {
+            log.error({ message: 'Job ' + job.id + ' is a dup.' })
+            return done(null, 'Duplicate job, skipped.');
+        }
         var type = job.type;
         var data = job.payload;
 
