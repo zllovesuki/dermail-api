@@ -673,7 +673,7 @@ var startProcessing = function() {
                     }
                     return r.table('messages')
                     .get(messageId)
-                    .pluck('connection', 'replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'text', 'attachments', 'spf', 'dkim', 'savedOn')
+                    .pluck('connection', 'replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'html', 'attachments', 'spf', 'dkim', 'savedOn')
                     .merge(function(doc) {
                         return {
                             cc: r.branch(doc.hasFields('cc'), doc('cc'), []),
@@ -779,7 +779,7 @@ var startProcessing = function() {
                     .filter(function(doc) {
                         return doc('savedOn').gt(r.ISO8601(lastTrainedMailWasSavedOn))
                     })
-                    .pluck('connection', 'replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'text', 'attachments', 'spf', 'dkim', 'savedOn', 'savedOnRaw')
+                    .pluck('connection', 'replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'html', 'attachments', 'spf', 'dkim', 'savedOn', 'savedOnRaw')
                     .map(function(doc) {
                         return doc.merge(function() {
                             return {
