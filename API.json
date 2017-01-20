@@ -1,0 +1,15 @@
+{
+	"apps": [
+		{
+			"name": "API",
+			"script": "API.js",
+			"env_dev": {
+				"env": "development"
+			},
+			"watch": true,
+			"restart_delay": 5000,
+			"exec_mode": "cluster",
+			"instances": 4
+		}
+	]
+}
