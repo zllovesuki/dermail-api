@@ -8,6 +8,7 @@
 			},
 			"watch": true,
             "ignore_watch": [
+                "node_modules",
                 "db/working"
             ],
 			"restart_delay": 5000,
