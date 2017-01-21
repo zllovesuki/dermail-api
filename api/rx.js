@@ -184,10 +184,8 @@ router.post('/greylist', auth, function(req, res, next) {
 
     return checkWhitelist(req.log, geoIP, triplet.ip)
     .then(function(automaticWhitelist) {
-        if (automaticWhitelist) {
-            req.log.info({ message: 'Automatic whitelist' })
-            return true;
-        }
+        if (automaticWhitelist) return true;
+
         var time = Math.round(+new Date()/1000);
 
         var hash = crypto.createHash('md5').update([triplet.ip, triplet.from, triplet.to].join(',')).digest('hex');
@@ -287,14 +285,23 @@ var checkWhitelist = function(logger, geoIP, ip) {
     return new Promise(function(resolve) {
         geoIP.findISP(ip, function(err, found, isp) {
             if (err) {
-                logger.error(err)
+                logger.error(err);
                 return resolve(true);
             }
-            if (!found) return resolve(false);
+            if (!found) {
+                logger.info({ message: 'Cannot find ISP for: ' + triplet.ip })
+                return resolve(false);
+            }
             var good = whitelist.reduce(function(good, name) {
-                if (isp.name.toLowerCase().indexOf(name) !== -1) good = true;
+                if (isp.name.toLowerCase().indexOf(name) !== -1) {
+                    logger.info({ message: 'Automatic Whitelist: ' + triplet.ip, isp: isp })
+                    good = true;
+                }
                 return good;
             }, false);
+            if (!good) {
+                logger.info({ message: 'Not in Automatic Whitelist: ' + triplet.ip, isp: isp })
+            }
             return resolve(good);
 
         })
