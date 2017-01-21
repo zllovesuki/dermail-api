@@ -56,6 +56,7 @@ r.db('dermail').table("queue").indexCreate("userId")
 r.db('dermail').table("filters").indexCreate("accountId")
 r.db('dermail').table("attachments").indexCreate("checksum")
 r.db('dermail').table("attachments").indexCreate("contentId")
+r.db('dermail').table("greylist").indexCreate("lastSeen")
 ```
 
 
