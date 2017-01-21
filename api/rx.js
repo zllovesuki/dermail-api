@@ -289,18 +289,18 @@ var checkWhitelist = function(logger, geoIP, ip) {
                 return resolve(true);
             }
             if (!found) {
-                logger.info({ message: 'Cannot find ISP for: ' + triplet.ip })
+                logger.info({ message: 'Cannot find ISP for: ' + ip })
                 return resolve(false);
             }
             var good = whitelist.reduce(function(good, name) {
                 if (isp.name.toLowerCase().indexOf(name) !== -1) {
-                    logger.info({ message: 'Automatic Whitelist: ' + triplet.ip, isp: isp })
+                    logger.info({ message: 'Automatic Whitelist: ' + ip, isp: isp })
                     good = true;
                 }
                 return good;
             }, false);
             if (!good) {
-                logger.info({ message: 'Not in Automatic Whitelist: ' + triplet.ip, isp: isp })
+                logger.info({ message: 'Not in Automatic Whitelist: ' + ip, isp: isp })
             }
             return resolve(good);
 
