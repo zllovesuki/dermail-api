@@ -291,7 +291,7 @@ var checkWhitelist = function(logger, geoIP, ip) {
                 return resolve();
             }
             if (!found) return resolve();
-            if (!whilelist.reduce(function(good, name) {
+            if (!whitelist.reduce(function(good, name) {
                 if (isp.name.toLowerCase().indexOf(name) !== -1) good = true;
                 return good;
             }, false)) return reject();
