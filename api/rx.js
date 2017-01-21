@@ -178,56 +178,88 @@ router.post('/greylist', auth, function(req, res, next) {
 	var config = req.config;
 
 	var r = req.r;
-	var messageQ = req.Q;
+	var geoIP = req.geoIP;
 
 	var triplet = req.body;
 
-    var time = Math.round(+new Date()/1000);
-
-    var hash = crypto.createHash('md5').update([triplet.ip, triplet.from, triplet.to].join(',')).digest('hex');
-
-    return r.table('greylist')
-    .get(hash)
-    .run(r.conn, {
-        readMode: 'majority'
+    return checkWhitelist(req.logger, geoIP, triplet.ip)
+    .then(function() {
+        req.logger.info({ message: 'Automatic whitelist' })
+        return true;
     })
-    .then(function(result) {
-        if (result === null) {
-            // new greylist
-            return r.table('greylist')
-            .insert({
-                hash: hash,
-                triplet: triplet,
-                lastSeen: time,
-                whitelisted: false
-            })
-            .run(r.conn, {
-                readMode: 'majority'
-            })
-            .then(function() {
-                return false;
-            })
-        }else{
-            // whitelisted, check expiration or renew
-            if (result.whitelisted) {
-                var whitelistExpiration = 30 * 24 * 60 * 60; // 30 days
-                // whitelist expires after 30 days
-                if (time - result.lastSeen > whitelistExpiration) {
+    .catch(function(){
+        var time = Math.round(+new Date()/1000);
+
+        var hash = crypto.createHash('md5').update([triplet.ip, triplet.from, triplet.to].join(',')).digest('hex');
+
+        return r.table('greylist')
+        .get(hash)
+        .run(r.conn, {
+            readMode: 'majority'
+        })
+        .then(function(result) {
+            if (result === null) {
+                // new greylist
+                return r.table('greylist')
+                .insert({
+                    hash: hash,
+                    triplet: triplet,
+                    lastSeen: time,
+                    whitelisted: false
+                })
+                .run(r.conn, {
+                    readMode: 'majority'
+                })
+                .then(function() {
+                    return false;
+                })
+            }else{
+                // whitelisted, check expiration or renew
+                if (result.whitelisted) {
+                    var whitelistExpiration = 30 * 24 * 60 * 60; // 30 days
+                    // whitelist expires after 30 days
+                    if (time - result.lastSeen > whitelistExpiration) {
+                        return r.table('greylist')
+                        .get(hash)
+                        .delete()
+                        .run(r.conn, {
+                            readMode: 'majority'
+                        })
+                        .then(function() {
+                            return false;
+                        })
+                    }
+                    // we will renew its whitelist
                     return r.table('greylist')
                     .get(hash)
-                    .delete()
+                    .update({
+                        lastSeen: time
+                    })
                     .run(r.conn, {
                         readMode: 'majority'
                     })
                     .then(function() {
-                        return false;
+                        return true;
                     })
                 }
-                // we will renew its whitelist
+
+                // greylist already exist, check elapsed time
+                var minimumWait = 3 * 60; // 3 minutes
+                var expiration = 6 * 60 * 60; // 6 hours
+                if (time - result.lastSeen < minimumWait) {
+                    // still within greylist perioid
+                    return false;
+                }
+                if (time - result.lastSeen > expiration) {
+                    // expired, please try again
+                    return false;
+                }
+                // we should whitelist this triplet
                 return r.table('greylist')
                 .get(hash)
                 .update({
-                    lastSeen: time
+                    lastSeen: time,
+                    whitelisted: true
                 })
                 .run(r.conn, {
                     readMode: 'majority'
@@ -236,32 +268,7 @@ router.post('/greylist', auth, function(req, res, next) {
                     return true;
                 })
             }
-
-            // greylist already exist, check elapsed time
-            var minimumWait = 3 * 60; // 3 minutes
-            var expiration = 6 * 60 * 60; // 6 hours
-            if (time - result.lastSeen < minimumWait) {
-                // still within greylist perioid
-                return false;
-            }
-            if (time - result.lastSeen > expiration) {
-                // expired, please try again
-                return false;
-            }
-            // we should whitelist this triplet
-            return r.table('greylist')
-            .get(hash)
-            .update({
-                lastSeen: time,
-                whitelisted: true
-            })
-            .run(r.conn, {
-                readMode: 'majority'
-            })
-            .then(function() {
-                return true;
-            })
-        }
+        })
     })
     .then(function(good) {
         return res.status(200).send({ok: good})
@@ -270,6 +277,27 @@ router.post('/greylist', auth, function(req, res, next) {
         return next(e);
     })
 })
+
+var checkWhitelist = function(logger, geoIP, ip) {
+    // TODO: put the whitelist somewhere else
+    var whitelist = [
+        'google',
+        'microsoft'
+    ]
+    return new Promise(function(resolve, reject) {
+        geoIP.findISP(ip, function(err, found, isp) {
+            if (err) {
+                logger.error(err)
+                return resolve();
+            }
+            if (!found) return resolve();
+            if (!whilelist.reduce(function(good, name) {
+                if (isp.name.toLowerCase().indexOf(name) !== -1) good = true;
+                return good;
+            }, false)) return reject();
+        })
+    });
+}
 
 var checkDomain = Promise.method(function (r, domain) {
 	return r

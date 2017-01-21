@@ -6,3 +6,4 @@ public/app.js
 public/prod.js
 config.json
 usefulScripts/test_dkim.js
+db/data.db

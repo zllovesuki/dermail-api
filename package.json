@@ -26,6 +26,7 @@
     "express-rate-limit": "^2.6.0",
     "formidable": "^1.0.17",
     "gelf-stream": "git+https://github.com/zllovesuki/gelf-stream.git",
+    "geoipfind": "0.0.3",
     "glob-to-regexp": "^0.3.0",
     "html-to-text": "^3.0.0",
     "iconv": "^2.2.1",

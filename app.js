@@ -1,4 +1,4 @@
-module.exports = function(r) {
+module.exports = function(r, geoIP) {
 	var express = require('express'),
 		path = require('path'),
 		bodyParser = require('body-parser'),
@@ -58,6 +58,7 @@ module.exports = function(r) {
 		req.r = r;
 		req.Q = messageQ;
 		req.config = config;
+        req.geoIP = geoIP;
 		next();
 	});
 
