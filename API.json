@@ -7,6 +7,9 @@
 				"env": "development"
 			},
 			"watch": true,
+            "ignore_watch": [
+                "db/working"
+            ],
 			"restart_delay": 5000,
 			"exec_mode": "cluster",
 			"instances": 4
