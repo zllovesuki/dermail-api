@@ -282,7 +282,10 @@ var checkWhitelist = function(r, logger, geoIP, ip) {
         r.table('greylist').get('whitelist-name').run(r.conn, { readMode: 'majority' })
     ]).spread(function(whitelistASN, whitelistName) {
         if (whitelistASN === null) whitelistASN = [];
+        else whitelistASN = whitelistASN.value;
+
         if (whitelistName === null) whitelistName = [];
+        else whitelistName = whitelistName.value;
 
         return new Promise(function(resolve) {
             geoIP.findISP(ip, function(err, found, isp) {
