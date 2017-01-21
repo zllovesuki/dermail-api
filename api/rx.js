@@ -182,10 +182,10 @@ router.post('/greylist', auth, function(req, res, next) {
 
 	var triplet = req.body;
 
-    return checkWhitelist(req.logger, geoIP, triplet.ip)
+    return checkWhitelist(req.log, geoIP, triplet.ip)
     .then(function(automaticWhitelist) {
         if (automaticWhitelist) {
-            req.logger.info({ message: 'Automatic whitelist' })
+            req.log.info({ message: 'Automatic whitelist' })
             return true;
         }
         var time = Math.round(+new Date()/1000);
