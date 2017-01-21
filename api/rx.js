@@ -183,11 +183,11 @@ router.post('/greylist', auth, function(req, res, next) {
 	var triplet = req.body;
 
     return checkWhitelist(req.logger, geoIP, triplet.ip)
-    .then(function() {
-        req.logger.info({ message: 'Automatic whitelist' })
-        return true;
-    })
-    .catch(function(){
+    .then(function(automaticWhitelist) {
+        if (automaticWhitelist) {
+            req.logger.info({ message: 'Automatic whitelist' })
+            return true;
+        }
         var time = Math.round(+new Date()/1000);
 
         var hash = crypto.createHash('md5').update([triplet.ip, triplet.from, triplet.to].join(',')).digest('hex');
@@ -284,17 +284,19 @@ var checkWhitelist = function(logger, geoIP, ip) {
         'google',
         'microsoft'
     ]
-    return new Promise(function(resolve, reject) {
+    return new Promise(function(resolve) {
         geoIP.findISP(ip, function(err, found, isp) {
             if (err) {
                 logger.error(err)
-                return resolve();
+                return resolve(true);
             }
-            if (!found) return resolve();
-            if (!whitelist.reduce(function(good, name) {
+            if (!found) return resolve(false);
+            var good = whitelist.reduce(function(good, name) {
                 if (isp.name.toLowerCase().indexOf(name) !== -1) good = true;
                 return good;
-            }, false)) return reject();
+            }, false);
+            return resolve(good);
+
         })
     });
 }
