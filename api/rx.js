@@ -182,7 +182,7 @@ router.post('/greylist', auth, function(req, res, next) {
 
 	var triplet = req.body;
 
-    return checkWhitelist(req.log, geoIP, triplet.ip)
+    return checkWhitelist(r, req.log, geoIP, triplet.ip)
     .then(function(automaticWhitelist) {
         if (automaticWhitelist) return true;
 
@@ -276,36 +276,46 @@ router.post('/greylist', auth, function(req, res, next) {
     })
 })
 
-var checkWhitelist = function(logger, geoIP, ip) {
-    // TODO: put the whitelist somewhere else
-    var whitelist = [
-        'google',
-        'microsoft'
-    ]
-    return new Promise(function(resolve) {
-        geoIP.findISP(ip, function(err, found, isp) {
-            if (err) {
-                logger.error(err);
-                return resolve(true);
-            }
-            if (!found) {
-                logger.info({ message: 'Cannot find ISP for: ' + ip })
-                return resolve(false);
-            }
-            var good = whitelist.reduce(function(good, name) {
-                if (isp.name.toLowerCase().indexOf(name) !== -1) {
-                    logger.info({ message: 'Automatic Whitelist: ' + ip, isp: isp })
-                    good = true;
-                }
-                return good;
-            }, false);
-            if (!good) {
-                logger.info({ message: 'Not in Automatic Whitelist: ' + ip, isp: isp })
-            }
-            return resolve(good);
+var checkWhitelist = function(r, logger, geoIP, ip) {
+    return Promise.all([
+        r.table('greylist').get('whitelist-ASN').run(r.conn, { readMode: 'majority' }),
+        r.table('greylist').get('whitelist-name').run(r.conn, { readMode: 'majority' })
+    ]).spread(function(whitelistASN, whitelistName) {
+        if (whitelistASN === null) whitelistASN = [];
+        if (whitelistName === null) whitelistName = [];
 
-        })
-    });
+        return new Promise(function(resolve) {
+            geoIP.findISP(ip, function(err, found, isp) {
+                if (err) {
+                    logger.error(err);
+                    return resolve(true);
+                }
+                if (!found) {
+                    logger.info({ message: 'Cannot find ISP for: ' + ip + ', falling back to greylist' })
+                    return resolve(false);
+                }
+                var goodASN = whitelistASN.reduce(function(good, asn) {
+                    if (isp.asn.toLowerCase().indexOf(asn.toLowerCase()) !== -1) {
+                        logger.info({ message: 'Automatic Whitelist (ASN): ' + ip, isp: isp })
+                        good = true;
+                    }
+                    return good;
+                }, false)
+                var goodName = whitelistName.reduce(function(good, name) {
+                    if (isp.name.toLowerCase().indexOf(name.toLowerCase()) !== -1) {
+                        logger.info({ message: 'Automatic Whitelist (Name): ' + ip, isp: isp })
+                        good = true;
+                    }
+                    return good;
+                }, false)
+                if (!goodASN || !goodName) {
+                    logger.info({ message: 'No Automatic Whitelist: ' + ip, isp: isp })
+                }
+                return resolve(goodASN || goodName);
+
+            })
+        });
+    })
 }
 
 var checkDomain = Promise.method(function (r, domain) {
