@@ -783,7 +783,13 @@ var startProcessing = function() {
                     .filter(function(doc) {
                         return doc('savedOn').gt(r.ISO8601(lastTrainedMailWasSavedOn))
                     })
-                    .pluck('connection', 'replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'html', 'attachments', 'spf', 'dkim', 'savedOn', 'savedOnRaw')
+                    .pluck('folderId', 'connection', 'replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'html', 'attachments', 'spf', 'dkim', 'savedOn', 'savedOnRaw')
+                    .eqJoin('folderId', r.table('folders'))
+                    .pluck({
+                        left: true,
+                        right: 'displayName'
+                    })
+                    .zip()
                     .map(function(doc) {
                         return doc.merge(function() {
                             return {
