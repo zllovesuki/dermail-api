@@ -520,7 +520,7 @@ var startProcessing = function() {
             var pemKey = '-----BEGIN RSA PRIVATE KEY-----\r\n' + dkim.privateKey.replace(/.{78}/g, '$&\r\n') + '\r\n-----END RSA PRIVATE KEY-----';
 
             transporter.use('stream', require('./lib/signer').signer({
-                domainName: dkim.domainName,
+                domainName: dkim.domain,
                 keySelector: dkim.selector,
                 privateKey: pemKey
             }));
