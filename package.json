@@ -1,6 +1,6 @@
 {
   "name": "dermail-api",
-  "version": "4.5.0",
+  "version": "4.4.1",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -13,7 +13,6 @@
   "author": "Rachel Chen <me@rachelchen.me>",
   "license": "GPL-3.0",
   "dependencies": {
-    "@nodemailer/pro": "^1.0.0",
     "aho-corasick": "^0.1.3",
     "async": "^2.1.4",
     "bcrypt": "^1.0.1",

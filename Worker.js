@@ -15,8 +15,6 @@ var Queue = require('rethinkdb-job-queue'),
 	bunyan = require('bunyan'),
 	stream = require('gelf-stream'),
     classifier = require('dermail-spam'),
-    fs = Promise.promisifyAll(require('fs')),
-    nodemailer = require('@nodemailer/pro'),
 	log;
 
 var subMessageQ = new Queue(config.rethinkdb, {
@@ -498,107 +496,6 @@ var startProcessing = function() {
                     })
                 }
             )
-            .then(function() {
-                return callback();
-            })
-            .catch(function(e) {
-                return callback(e);
-            })
-
-            break;
-
-            case 'processTX':
-
-            var dkimData = JSON.parse(JSON.stringify(data.dkim));
-
-            delete data.dkim;
-
-            var transporter = nodemailer.createTransport({
-            	streamTransport: true
-            })
-
-            var pemKey = '-----BEGIN RSA PRIVATE KEY-----\r\n' + dkimData.privateKey.replace(/.{78}/g, '$&\r\n') + '\r\n-----END RSA PRIVATE KEY-----';
-
-            transporter.use('stream', require('./lib/signer').signer({
-                domainName: dkimData.domain,
-                keySelector: dkimData.selector,
-                privateKey: pemKey
-            }));
-
-            transporter.sendMail(data, function(err, info) {
-                if (err) return callback(err);
-
-                // TODO: don't hard code the tmp path
-                var tmpPath = '/tmp/' + crypto.createHash('md5').update(info.messageId).digest("hex");
-                info.message.pipe(fs.createWriteStream(tmpPath))
-                info.message.on('end', function() {
-                    enqueue('storeTX', {
-                        userId: data.userId,
-                        accountId: data.accountId,
-                        tmpPath: tmpPath,
-                        messageId: info.messageId
-                    }).then(function() {
-                        callback()
-                    })
-                })
-                info.message.on('error', function(e) {
-                    callback(e);
-                })
-            })
-
-            break;
-
-            case 'storeTX':
-
-            var filename = crypto.createHash('md5').update(data.tmpPath).digest("hex");
-
-            var uploadRawStream = function(mailPath, filename) {
-                return new Promise(function(resolve, reject) {
-                    fs.statAsync(mailPath)
-                    .then(function(stats) {
-                        var headers = {
-                            'Content-Length': stats.size,
-                            'Content-Type': 'text/plain'
-                        };
-
-                        var fileStream = fs.createReadStream(mailPath);
-
-                        fileStream.on('error', function(e) {
-                            log.error({ message: 'Create read stream in storeTX throws an error', error: '[' + e.name + '] ' + e.message, stack: e.stack });
-                            return reject(e);
-                        })
-
-                        s3.putStream(fileStream, '/raw/' + filename, headers, function(err, res) {
-                            if (err) {
-                                return reject(err);
-                            }
-                            return resolve();
-                        })
-                    })
-                    .catch(function(e) {
-                        return reject(e);
-                    })
-                });
-            }
-
-            return uploadRawStream(data.tmpPath, filename)
-            .then(function() {
-                return fs.unlinkAsync(data.tmpPath)
-                .catch(function(e) {
-                    log.error({ message: 'Error trying to remove TX raw', error: e })
-                })
-            })
-            .then(function() {
-                return enqueue('queueTX', {
-                    url: 'https://' + config.s3.bucket + '.' + config.s3.endpoint + '/raw/' + filename,
-                    tmpPath: data.tmpPath,
-                    accountId: data.accountId,
-                    userId: data.userId
-                })
-                .catch(function(e) {
-                    log.error({ message: 'Error trying to queue TX', error: e })
-                })
-            })
             .then(function() {
                 return callback();
             })
