@@ -509,7 +509,7 @@ var startProcessing = function() {
 
             case 'processTX':
 
-            var dkim = JSON.parse(JSON.stringify(data.dkim));
+            var dkimData = JSON.parse(JSON.stringify(data.dkim));
 
             delete data.dkim;
 
@@ -517,11 +517,11 @@ var startProcessing = function() {
             	streamTransport: true
             })
 
-            var pemKey = '-----BEGIN RSA PRIVATE KEY-----\r\n' + dkim.privateKey.replace(/.{78}/g, '$&\r\n') + '\r\n-----END RSA PRIVATE KEY-----';
+            var pemKey = '-----BEGIN RSA PRIVATE KEY-----\r\n' + dkimData.privateKey.replace(/.{78}/g, '$&\r\n') + '\r\n-----END RSA PRIVATE KEY-----';
 
             transporter.use('stream', require('./lib/signer').signer({
-                domainName: dkim.domain,
-                keySelector: dkim.selector,
+                domainName: dkimData.domain,
+                keySelector: dkimData.selector,
                 privateKey: pemKey
             }));
 
