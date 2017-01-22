@@ -214,7 +214,7 @@ var queueToTX = Promise.method(function(r, config, sender, accountId, userId, co
 	})
 	_.merge(compose, recipients);
     var job = messageQ.createJob({
-		type: 'queueTX',
+		type: 'processTX',
 		payload: compose
 	}).setTimeout(15 * 60 * 1000).setRetryMax(50).setRetryDelay(2 * 1000)
 	return messageQ.addJob(job);
