@@ -8,6 +8,7 @@
 			},
 			"watch": true,
 			"restart_delay": 5000,
+            "max_memory_restart": "500M",
 			"exec_mode": "cluster",
 			"instances": 8
 		},
