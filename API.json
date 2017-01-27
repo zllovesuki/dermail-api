@@ -12,6 +12,7 @@
                 "db/working"
             ],
 			"restart_delay": 5000,
+            "max_memory_restart": "750M",
 			"exec_mode": "cluster",
 			"instances": 4
 		}
