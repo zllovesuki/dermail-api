@@ -1,6 +1,6 @@
 var r = require('rethinkdb'),
     Promise = require('bluebird'),
-    geoipfind = require('geoipfind'),
+    ip2asn = require('ip2asn')(),
 	config = require('./config'),
 	bunyan = require('bunyan'),
 	stream = require('gelf-stream'),
@@ -22,15 +22,23 @@ if (!!config.graylog) {
 
 r.connect(config.rethinkdb).then(function(conn) {
     r.conn = conn;
-    var geoIP = geoipfind.geoIP('./db', function(e) {
-        if (!e) return;
-        log.error(e);
-        process.exit(1);
+    var opts = {};
+    ip2asn.lastUpdated(function(err, t) {
+        if (err) {
+            log.error(e)
+        }else{
+            if (t > 29) {
+                opts.update = true;
+            }
+            ip2asn.load(opts);
+        }
     });
-    var app = require('./app')(r, geoIP);
-    var port = config.cluster.basePort + parseInt(process.env.NODE_APP_INSTANCE);
-    var server = app.listen(port);
-    var io = require('socket.io')(server);
-    require('./lib/socket')(io, r, config);
-    log.info('Process ' + process.pid + ' is listening on port ' + port + ' to incoming API requests.')
+    ip2asn.on('ready', function() {
+        var app = require('./app')(r, ip2asn);
+        var port = config.cluster.basePort + parseInt(process.env.NODE_APP_INSTANCE);
+        var server = app.listen(port);
+        var io = require('socket.io')(server);
+        require('./lib/socket')(io, r, config);
+        log.info('Process ' + process.pid + ' is listening on port ' + port + ' to incoming API requests.')
+    })
 });

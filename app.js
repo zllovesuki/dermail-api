@@ -1,4 +1,4 @@
-module.exports = function(r, geoIP) {
+module.exports = function(r, ip2asn) {
 	var express = require('express'),
 		path = require('path'),
 		bodyParser = require('body-parser'),
@@ -58,7 +58,7 @@ module.exports = function(r, geoIP) {
 		req.r = r;
 		req.Q = messageQ;
 		req.config = config;
-        req.geoIP = geoIP;
+        req.ip2asn = ip2asn;
 		next();
 	});
 
