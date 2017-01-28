@@ -7,12 +7,8 @@
 				"env": "development"
 			},
 			"watch": true,
-            "ignore_watch": [
-                "node_modules",
-                "db/working"
-            ],
 			"restart_delay": 5000,
-            "max_memory_restart": "750M",
+            "max_memory_restart": "500M",
 			"exec_mode": "cluster",
 			"instances": 4
 		}
