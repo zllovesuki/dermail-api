@@ -298,7 +298,7 @@ var checkWhitelist = function(r, logger, ip2asn, ip) {
             return false;
         }
 
-        isp.asn = 'ASN' + isp.asn;
+        isp.asn = 'AS' + isp.asn;
 
         var goodASN = whitelistASN.reduce(function(good, asn) {
             if (isp.asn.toLowerCase().indexOf(asn.toLowerCase()) !== -1) {
@@ -314,7 +314,7 @@ var checkWhitelist = function(r, logger, ip2asn, ip) {
             }
             return good;
         }, false)
-        if (!goodASN || !goodName) {
+        if (!goodASN && !goodName) {
             logger.info({ message: 'No Automatic Whitelist: ' + ip, isp: isp })
         }
         return goodASN || goodName;
