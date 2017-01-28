@@ -10,11 +10,18 @@
 			"restart_delay": 5000,
             "max_memory_restart": "500M",
 			"exec_mode": "cluster",
-			"instances": 8
+			"instances": 6
 		},
         {
 			"name": "API-Worker-GC",
 			"script": "GC.js",
+			"watch": true,
+			"restart_delay": 5000,
+			"exec_mode": "fork"
+		},
+        {
+			"name": "API-Queue-Master",
+			"script": "qMaster.js",
 			"watch": true,
 			"restart_delay": 5000,
 			"exec_mode": "fork"

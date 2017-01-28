@@ -2,11 +2,6 @@ var	Queue = require('rethinkdb-job-queue'),
 	config = require('./config'),
 	log;
 
-if (config.qMaster !== true) {
-    console.log('Not assigned as Master Queue, exiting.')
-    return process.exit(0);
-}
-
 var messageQ = new Queue(config.rethinkdb, {
     name: 'jobQueue',
     // For the sake of review, we will remove finished jobs after 24 hours
