@@ -862,7 +862,7 @@ var startProcessing = function() {
                 })
             })
             .catch(function(e) {
-                log.error({ message: 'trainBayes returns error, manual intervention may be required.', payload: data })
+                log.error({ message: 'trainBayes returns error, manual intervention may be required.', payload: data, error: e })
                 return helper.notification.sendAlert(r, userId, 'error', 'trainBayes returns error, manual intervention may be required.')
             })
             .then(function() {
