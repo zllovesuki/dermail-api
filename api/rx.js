@@ -283,13 +283,21 @@ router.post('/greylist', auth, function(req, res, next) {
 var checkWhitelist = function(r, logger, ip2asn, ip) {
     return Promise.all([
         r.table('greylist').get('whitelist-ASN').run(r.conn, { readMode: 'majority' }),
-        r.table('greylist').get('whitelist-name').run(r.conn, { readMode: 'majority' })
-    ]).spread(function(whitelistASN, whitelistName) {
+        r.table('greylist').get('whitelist-name').run(r.conn, { readMode: 'majority' }),
+        r.table('greylist').get('blacklist-ASN').run(r.conn, { readMode: 'majority' }),
+        r.table('greylist').get('blacklist-name').run(r.conn, { readMode: 'majority' })
+    ]).spread(function(whitelistASN, whitelistName, blacklistASN, blacklistName) {
         if (whitelistASN === null) whitelistASN = [];
         else whitelistASN = whitelistASN.value;
 
         if (whitelistName === null) whitelistName = [];
         else whitelistName = whitelistName.value;
+
+        if (blacklistASN === null) blacklistASN = [];
+        else blacklistASN = blacklistASN.value;
+
+        if (blacklistName === null) blacklistName = [];
+        else blacklistName = blacklistName.value;
 
         var isp = ip2asn.lookup(ip)
 
@@ -299,6 +307,23 @@ var checkWhitelist = function(r, logger, ip2asn, ip) {
         }
 
         isp.asn = 'AS' + isp.asn;
+
+        var badASN = blacklistASN.reduce(function(bad, asn) {
+            if (isp.asn.toLowerCase().indexOf(asn.toLowerCase()) !== -1) {
+                logger.info({ message: 'Automatic Blacklist (ASN): ' + ip, isp: isp })
+                bad = true;
+            }
+            return bad;
+        }, false)
+        var badName = blacklistName.reduce(function(bad, name) {
+            if (isp.name.toLowerCase().indexOf(name.toLowerCase()) !== -1) {
+                logger.info({ message: 'Automatic Blacklist (Name): ' + ip, isp: isp })
+                bad = true;
+            }
+            return bad;
+        }, false)
+
+        if (badASN || badName) return false;
 
         var goodASN = whitelistASN.reduce(function(good, asn) {
             if (isp.asn.toLowerCase().indexOf(asn.toLowerCase()) !== -1) {
