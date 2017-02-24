@@ -46,9 +46,9 @@ r.connect(config.rethinkdb).then(function(conn) {
         ]).spread(function(nullValue, ownAddresses, lastTrainedMailWasSavedOn) {
             if (lastTrainedMailWasSavedOn === null) return null;
 
-            return classifier.categorize(message, ownAddresses, true)
-        }).then(function(probs) {
-            console.log(probs);
+            return classifier.tokenizer(message, ownAddresses)
+        }).then(function(tokens) {
+            console.log(tokens);
         })
     })
     .then(function() {
