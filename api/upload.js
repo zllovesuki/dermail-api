@@ -6,7 +6,9 @@ var express = require('express'),
 	crypto = require('crypto'),
 	fs = require('fs'),
 	knox = require('knox'),
-	s3 = knox.createClient(config.s3);
+	s3 = knox.createClient(Object.assign(config.s3, {
+        style: 'path'
+    }));
 
 var auth = helper.auth.middleware;
 
@@ -35,7 +37,7 @@ router.post('/s3Stream', auth, function(req, res, next) {
 
 		hashStream.on('end', function() {
 			var checksum = hash.digest('hex');
-			var key = '/'+ config.s3.bucket + '/' + checksum + '/' + fields.filename;
+			var key = checksum + '/' + fields.filename;
 			var uploadStream = fs.createReadStream(file.path);
 			s3.putStream(uploadStream, key, headers, function(uploadError, uploadRes) {
 				fs.unlink(file.path, function(rmError) {

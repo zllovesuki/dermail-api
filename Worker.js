@@ -11,7 +11,9 @@ var Queue = require('rethinkdb-job-queue'),
 	crypto = require('crypto'),
 	dkim = require('./lib/haraka/dkim'),
 	SPF = require('./lib/haraka/spf').SPF,
-	s3 = knox.createClient(config.s3),
+	s3 = knox.createClient(Object.assign(config.s3, {
+        style: 'path'
+    })),
 	bunyan = require('bunyan'),
 	stream = require('gelf-stream'),
     classifier = require('dermail-spam'),
@@ -83,7 +85,7 @@ var deleteIfUnique = Promise.method(function(r, attachmentId) {
 
 var deleteAttachmentOnS3 = function(checksum, generatedFileName, s3) {
 	return new Promise(function(resolve, reject) {
-		var key = config.s3.bucket + '/' + checksum + '/' + generatedFileName;
+		var key = checksum + '/' + generatedFileName;
 		s3.deleteFile(key, function(err, res){
 			if (err) {
 				return reject(err);
