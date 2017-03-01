@@ -35,7 +35,7 @@ router.post('/s3Stream', auth, function(req, res, next) {
 
 		hashStream.on('end', function() {
 			var checksum = hash.digest('hex');
-			var key = '/'+ checksum + '/' + fields.filename;
+			var key = '/'+ config.s3.bucket + '/' + checksum + '/' + fields.filename;
 			var uploadStream = fs.createReadStream(file.path);
 			s3.putStream(uploadStream, key, headers, function(uploadError, uploadRes) {
 				fs.unlink(file.path, function(rmError) {

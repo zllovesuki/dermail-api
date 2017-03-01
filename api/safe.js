@@ -32,7 +32,7 @@ router.get('/inline/*', function(req, res, next) {
 			res.end(emptyGif);
 		}else{
 			var attachment = results[0];
-			var url = 'https://' + config.s3.bucket + '.' + config.s3.endpoint + '/' + attachment.checksum + '/' + attachment.generatedFileName;
+			var url = 'https://' + config.s3.endpoint + '/' + config.s3.bucket + '/' + attachment.checksum + '/' + attachment.generatedFileName;
 			res.redirect(url);
 		}
 	})
@@ -80,7 +80,7 @@ router.get('/raw/:accountId/:messageId', function(req, res, next) {
 		var hash = crypto.createHash('md5')
 		hash.update(tmpPath);
 		var md5 = hash.digest('hex');
-		var url = 'https://' + config.s3.bucket + '.' + config.s3.endpoint + '/raw/' + md5;
+		var url = 'https://' + config.s3.endpoint + '/' + config.s3.bucket + '/raw/' + md5;
 		request({
 			url: url,
 			// Some websites are really being a dick about user-agent.

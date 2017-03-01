@@ -277,7 +277,7 @@ var startProcessing = function() {
             });
 
             var filename = crypto.createHash('md5').update(mailPath).digest("hex");
-            var url = 'https://' + config.s3.bucket + '.' + config.s3.endpoint + '/raw/' + filename;
+            var url = 'https://' + config.s3.endpoint + '/' + config.s3.bucket + '/raw/' + filename;
 
             mailParser.on('error', function(e) {
                 // Probably errors related to "Error: Encoding not recognized"
