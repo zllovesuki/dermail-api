@@ -83,7 +83,7 @@ var deleteIfUnique = Promise.method(function(r, attachmentId) {
 
 var deleteAttachmentOnS3 = function(checksum, generatedFileName, s3) {
 	return new Promise(function(resolve, reject) {
-		var key = checksum + '/' + generatedFileName;
+		var key = config.s3.bucket + '/' + checksum + '/' + generatedFileName;
 		s3.deleteFile(key, function(err, res){
 			if (err) {
 				return reject(err);
