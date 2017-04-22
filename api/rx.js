@@ -240,7 +240,7 @@ router.post('/greylist', auth, function(req, res, next) {
                 }
 
                 // greylist already exist, check elapsed time
-                var minimumWait = 3 * 60; // 3 minutes
+                var minimumWait = 1 * 60; // 1 minute
                 var expiration = 6 * 60 * 60; // 6 hours
                 if (time - result.lastSeen < minimumWait) {
                     // still within greylist perioid
