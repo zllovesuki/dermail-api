@@ -4,5 +4,5 @@ dist/static/
 npm-debug.log
 public/app.js
 public/prod.js
-config.json
+config/
 usefulScripts/test_dkim.js
