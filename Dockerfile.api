@@ -1,16 +1,19 @@
 FROM mhart/alpine-node:latest
 
-WORKDIR /usr/src/app
-
-COPY . /usr/src/app
-
 RUN apk add --no-cache git make gcc g++ python libtool autoconf automake \
     && npm install pm2 -g \
     && cd $(npm root -g)/npm \
     && npm install fs-extra \
-    && sed -i -e s/graceful-fs/fs-extra/ -e s/fs\.rename/fs.move/ ./lib/utils/rename.js \
-    && npm install \
+    && sed -i -e s/graceful-fs/fs-extra/ -e s/fs\.rename/fs.move/ ./lib/utils/rename.js
+
+RUN mkdir -p /usr/src/app
+WORKDIR /usr/src/app
+
+ADD package.json ./
+RUN npm install \
     && apk del make gcc g++ python libtool autoconf automake
+
+ADD . /usr/src/app
 
 EXPOSE 2000
 
