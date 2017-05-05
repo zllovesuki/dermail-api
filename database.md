@@ -4,9 +4,6 @@
 r.db('dermail').tableCreate('accounts', {
   primaryKey: 'accountId'
 })
-r.db('dermail').tableCreate('addresses', {
-  primaryKey: 'addressId'
-})
 r.db('dermail').tableCreate('attachments', {
   primaryKey: 'attachmentId'
 })
@@ -102,17 +99,7 @@ compound index of account + domainId in table "accounts"
 r.db('dermail').table('accounts').indexCreate('accountDomainId', [ r.row('account'),  r.row('domainId')])
 ```
 
-compound index of account + domain in table "addresses"
-```javascript
-r.db('dermail').table('addresses').indexCreate('accountDomain', [ r.row('account'),  r.row('domain')])
-```
-
-compound index of account + domain + accountId in table "addresses"
-```javascript
-r.db('dermail').table('addresses').indexCreate('accountDomainAccountId', [ r.row('account'),  r.row('domain'), r.row('accountId')])
-```
-
-compound index of accountId + 'Index' in table "addresses"
+compound index of accountId + 'Index' in table "folders"
 ```javascript
 r.db('dermail').table('folders').indexCreate('inboxAccountId', [ r.row('displayName'),  r.row('accountId') ])
 ```
