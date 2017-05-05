@@ -112,14 +112,8 @@ router.post('/sendMail', auth, function(req, res, next) {
 
 				compose.references.push(compose.inReplyTo);
 
-				if (typeof original.replyTo !== 'undefined') {
-					obj = emailToObject(original.replyTo[0]);
-				}else{
-					obj = original.from[0];
-				}
-
-				var name = obj.friendlyName;
-				var email = obj.account + '@' + obj.domain;
+				var name = obj.name;
+				var email = obj.address;
 
 				//var body = original.html.match(/^\s*(?:<(?:!(?:(?:--(?:[^-]+|-[^-])*--)+|\[CDATA\[(?:[^\]]+|](?:[^\]]|][^>]))*\]\]|[^<>]+)|(?!body[\s>])[a-z]+(?:\s*(?:[^<>"']+|"[^"]*"|'[^']*'))*|\/[a-z]+)\s*>|[^<]+)*\s*<body(?:\s*(?:[^<>"']+|"[^"]*"|'[^']*'))*\s*>([\s\S]+)<\/body\s*>/i);
 				// Jesus... Regex from http://stackoverflow.com/questions/1207975/regex-to-match-contents-of-html-body
@@ -152,8 +146,8 @@ router.post('/sendMail', auth, function(req, res, next) {
 
 					obj = original.to[0];
 
-					var name = obj.friendlyName;
-					var email = obj.account + '@' + obj.domain;
+                    var name = obj.name;
+    				var email = obj.address;
 
 					compose.addHTML = '<div class="dermail_extra"><br>' +
 						'<div class="dermail_quote">---------- Forwarded message ----------<br>' +
@@ -185,14 +179,6 @@ router.post('/sendMail', auth, function(req, res, next) {
 		return next(err);
 	})
 });
-
-var emailToObject = function(email) {
-	return {
-		account: email.address.substring(0, email.address.lastIndexOf("@")).toLowerCase(),
-		domain: email.address.substring(email.address.lastIndexOf("@") +1).toLowerCase(),
-		friendlyName: email.name
-	}
-}
 
 var checkForInReplyTo = function(r, _messageId) {
 	return r
