@@ -268,12 +268,6 @@ router.post('/unifiedInbox', auth, function(req, res, next) {
     .map(function(doc) {
         return doc.merge(function() {
             return {
-                'to': doc('to').concatMap(function(to) { // It's like a subquery
-                    return [r.table('addresses').get(to).without('accountId', 'addressId', 'internalOwner')]
-                }),
-                'from': doc('from').concatMap(function(from) { // It's like a subquery
-                    return [r.table('addresses').get(from).without('accountId', 'addressId', 'internalOwner')]
-                }),
                 'text': doc('text').slice(0, 100)
             }
         })
@@ -339,12 +333,6 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 		.map(function(doc) {
 			return doc.merge(function() {
 				return {
-					'to': doc('to').concatMap(function(to) { // It's like a subquery
-						return [r.table('addresses').get(to).without('accountId', 'addressId', 'internalOwner')]
-					}),
-					'from': doc('from').concatMap(function(from) { // It's like a subquery
-						return [r.table('addresses').get(from).without('accountId', 'addressId', 'internalOwner')]
-					}),
 					'text': doc('text').slice(0, 100)
 				}
 			})
@@ -399,18 +387,6 @@ router.post('/getMail', auth, function(req, res, next) {
 		})
 		.merge(function(doc) {
 			return {
-				'to': doc('to').concatMap(function(to) { // It's like a subquery
-					return [r.table('addresses').get(to).without('accountId', 'addressId', 'internalOwner')]
-				}),
-				'from': doc('from').concatMap(function(from) { // It's like a subquery
-					return [r.table('addresses').get(from).without('accountId', 'addressId', 'internalOwner')]
-				}),
-				'cc': doc('cc').concatMap(function(cc) { // It's like a subquery
-					return [r.table('addresses').get(cc).without('accountId', 'addressId', 'internalOwner')]
-				}),
-				'bcc': doc('bcc').concatMap(function(bcc) { // It's like a subquery
-					return [r.table('addresses').get(bcc).without('accountId', 'addressId', 'internalOwner')]
-				}),
 				'headers': r.table('messageHeaders').get(doc('headers')).without('accountId'),
 				'attachments': doc('attachments').concatMap(function(attachment) { // It's like a subquery
 					return [r.table('attachments').get(attachment)]
@@ -545,12 +521,6 @@ router.post('/searchWithFilter', auth, function(req, res, next) {
 	.map(function(doc) {
 		return doc.merge(function() {
 			return {
-				'to': doc('to').concatMap(function(to) { // It's like a subquery
-					return [r.table('addresses', {readMode: 'outdated'}).get(to).without('accountId', 'addressId', 'internalOwner')]
-				}),
-				'from': doc('from').concatMap(function(from) { // It's like a subquery
-					return [r.table('addresses', {readMode: 'outdated'}).get(from).without('accountId', 'addressId', 'internalOwner')]
-				}),
 				'folder': r.table('folders', {readMode: 'outdated'}).get(doc('folderId')).pluck('folderId', 'displayName')
 			}
 		})
@@ -583,47 +553,6 @@ router.post('/searchWithFilter', auth, function(req, res, next) {
 	})
 });
 
-router.post('/getAddresses', auth, function(req, res, next) {
-
-	var r = req.r;
-
-	var userId = req.user.userId;
-	var accountId = req.body.accountId;
-
-	if (!accountId) {
-		return next(new Exception.NotFound('Account ID Required.'));
-	}
-
-	if (req.user.accounts.indexOf(accountId) === -1) {
-		return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
-	}
-
-	return r
-	.table('addresses', { readMode: 'outdated' })
-	.eqJoin('accountId', r.table('accounts', { readMode: 'majority' })).without({
-		right: ['account', 'domainId', 'notify']
-	})
-	.zip()
-	.filter(function(d) {
-		return d('accountId').eq(accountId).and(r.not(d.hasFields('aliasOf'))).and(d('internalOwner').eq(null))
-	})
-	.map(function(c) {
-		return c.merge(function(e) {
-			return {
-				hold: r.branch(e.hasFields('hold'), e('hold'), false)
-			}
-		})
-	})
-	.run(r.conn)
-	.then(function(cursor) {
-		return cursor.toArray();
-	})
-	.then(function(results) {
-		return res.status(200).send(results);
-	})
-
-});
-
 router.post('/getMyOwnAddress', auth, function(req, res, next) {
 
 	var r = req.r;
@@ -639,22 +568,19 @@ router.post('/getMyOwnAddress', auth, function(req, res, next) {
 		return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
 	}
 
-	return r
-	.table('addresses', { readMode: 'outdated' })
-	.eqJoin('accountId', r.table('accounts', { readMode: 'majority' })).without({
-		right: ['account', 'domainId', 'notify']
-	})
-	.zip()
-	.filter(function(d) {
-		return d('accountId').eq(accountId).and(r.not(d('internalOwner').eq(null)))
-	})
-	.run(r.conn)
-	.then(function(cursor) {
-		return cursor.toArray();
-	})
-	.then(function(results) {
-		return res.status(200).send(results);
-	})
+    return r.table('accounts').getAll([userId, accountId], {
+        index: 'userAccountMapping'
+    })
+    .concatMap(function(z) {
+        return r.branch(z.hasFields('addresses'), z('addresses'), [])
+    })
+    .run(r.conn)
+    .then(function(cursor) {
+        return cursor.toArray();
+    })
+    .then(function(addresses) {
+    	return res.status(200).send(results);
+    })
 
 });
 

@@ -481,18 +481,6 @@ router.post('/modifyFilter', auth, function(req, res, next) {
 					return r // Then we searchWithFilter()
 					.table('messages', {readMode: 'majority'})
 					.getAll(accountId, {index: 'accountId'})
-					.map(function(doc) {
-						return doc.merge(function() {
-							return {
-								'to': doc('to').concatMap(function(to) { // It's like a subquery
-									return [r.table('addresses', {readMode: 'majority'}).get(to).without('accountId', 'addressId', 'internalOwner')]
-								}),
-								'from': doc('from').concatMap(function(from) { // It's like a subquery
-									return [r.table('addresses', {readMode: 'majority'}).get(from).without('accountId', 'addressId', 'internalOwner')]
-								})
-							}
-						})
-					})
 					.pluck('from', 'to', 'subject', 'text', 'messageId', 'accountId')
 					.run(r.conn)
 					.then(function(cursor) {

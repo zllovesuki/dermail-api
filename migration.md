@@ -28,3 +28,18 @@ r.db('dermail').table('addresses').filter(function(doc) {
 r.db('dermail').table('accounts').indexCreate('friendlyName', r.row('addresses')('name'), {multi: true})
 r.db('dermail').table('accounts').indexCreate('addresses', r.row('addresses')('address'), {multi: true})
 ```
+
+```javascript
+r.expr([
+    'from',
+    'to',
+    'cc',
+    'bcc'
+]).forEach(function(type) {
+    return r.db('dermail').table('messages').indexCreate(r.add(type, 'Name'), function(row) {
+        return row(type)('name')
+    }, {
+        multi: true
+    })
+})
+```
