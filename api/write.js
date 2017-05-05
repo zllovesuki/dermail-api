@@ -631,126 +631,37 @@ router.post('/updateDomain', auth, function(req, res, next) {
 			.then(function(cursor) {
 				return cursor.toArray();
 			})
-			.then(function(addresses) {
-				// This is the inefficiency
-				return Promise.map(addresses, function(address) {
-					var sourceOfTruth = address.account + '@' + address.domain;
-					listOfAccounts.push({
-						accountId: address.accountId,
-						account: address.account
-					});
-					return helper.address.getAddress(r, sourceOfTruth, address.accountId, customizeEmptyResponse)
-					.then(function(truth) {
-						return Promise.map(alias, function(domain) {
-							var email = address.account + '@' + domain;
-							return helper.address.getAddress(r, email, address.accountId, customizeEmptyResponse)
-							.then(function(exist) {
-								if (exist !== customizeEmptyResponse)  return;
-								// Address (alias) already exist, but we will not touch them **here**
-								// Aliases in address book will only be created, but never deleted (single source of truth)
-								// Since each account has its own "address book", it does not affect other users' ability
-								// to use the same domain
-
-								// Actually, we will delete alias in address book ***if and only if*** they have no dependencies
-								// e.g. No messages has the alias attached to it
-
-								//
-
-								// Address (alias) does not exist, let's create one
-								if (truth === customizeEmptyResponse) {
-									// We have a problem
-									throw new Error('Cannot find the single source of truth')
-								}
-								var one = {
-									address: email,
-									name: truth.friendlyName
-								}
-								return helper.address.createAlias(r, one, truth.addressId, address.accountId, userId);
-							})
-						}, { concurrency: 3 })
-					})
-				}, { concurrency: 3 })
-			})
+            .then(function(accounts) {
+                return Promise.map(accounts, function(account) {
+                    var addresses = [];
+                    addresses.push({
+                        name: req.user.firstName + ' ' + req.user.lastName,
+                        address: [account.account, account.domain].join('@'),
+                        isAlias: false
+                    })
+                    alias.forEach(function(domain) {
+                        addresses.push({
+                            name: req.user.firstName + ' ' + req.user.lastName,
+                            address: [account.account, domain].join('@'),
+                            isAlias: true
+                        })
+                    })
+                    return r.table('accounts')
+                    .get(account.accountId)
+                    .update({
+                        addresses: addresses
+                    })
+                    .run(r.conn)
+                })
+            })
 			.then(function() {
 				return r
 				.table('domains', {readMode: 'majority'})
 				.get(domainId)
 				.update({
 					alias: alias
-				}, { returnChanges: true })
-				.run(r.conn)
-				.then(function(delta) {
-					return Promise.map(delta.changes, function(change) {
-
-						if (typeof change.old_val !== 'object') return;
-						if (typeof change.new_val !== 'object') return;
-
-						var before = change.old_val.alias;
-						var after = change.new_val.alias;
-
-						if (typeof before !== 'object') return;
-						if (typeof after !== 'object') return;
-
-						var difference = before.filter(function(element) {
-							return after.indexOf(element) < 0;
-						})
-
-						// the net change is difference, we want to check them
-
-						if (difference.length === 0) return;
-
-						return Promise.map(listOfAccounts, function(address) {
-							return Promise.map(difference, function(domain) {
-								var email = address.account + '@' + domain;
-								return helper.address.getAddress(r, email, address.accountId, customizeEmptyResponse)
-								.then(function(truth) {
-									if (truth !== customizeEmptyResponse) {
-										var addressId = truth.addressId;
-
-										// This is the inefficiency -> table scan
-
-										return r
-										.table('messages', {readMode: 'majority'})
-										.pluck('to', 'from', 'cc', 'bcc')
-                                        .map(function(row) {
-                                            return row.merge(function(doc) {
-                                    			return {
-                                                    cc: r.branch(doc.hasFields('cc'), doc('cc'), []),
-                                    				bcc: r.branch(doc.hasFields('bcc'), doc('bcc'), [])
-                                    			}
-                                    		})
-                                        })
-										.filter(function(doc) {
-											return doc('from').contains(addressId)
-                                                .or(doc('to').contains(addressId))
-                                                .or(doc('cc').contains(addressId))
-                                                .or(doc('bcc').contains(addressId))
-										})
-										.count()
-										.run(r.conn)
-										.then(function(count) {
-											if (count === 0) {
-												return addressId;
-											}else{
-												return null;
-											}
-										})
-									}else{
-										return null;
-									}
-								})
-								.then(function(addressId) {
-									if (addressId === null) return;
-									return r
-									.table('addresses', {readMode: 'majority'})
-									.get(addressId)
-									.delete()
-									.run(r.conn);
-								})
-							})
-						})
-					})
 				})
+				.run(r.conn)
 			})
 			.then(function() {
 				return res.status(200).send({});
@@ -959,7 +870,6 @@ router.post('/updateAccount', auth, function(req, res, next) {
                 // steps here are basically from usefulScripts/firstUser.js
                 var accountId = shortid.generate();
                 var folderId = shortid.generate();
-                var addressId = shortid.generate();
 
                 return r
         		.table('accounts')
@@ -967,7 +877,12 @@ router.post('/updateAccount', auth, function(req, res, next) {
         			accountId: accountId,
         			userId: userId,
         			domainId: domainId,
-        			account: account
+        			account: account,
+                    addresses: [{
+                        name: req.user.firstName + ' ' + req.user.lastName,
+                        address: [account, domain.main].join('@'),
+                        isAlias: false
+                    }]
         		})
         		.run(r.conn)
                 .then(function() {
@@ -982,19 +897,6 @@ router.post('/updateAccount', auth, function(req, res, next) {
             			mutable: false
             		})
                     .run(r.conn)
-                })
-                .then(function() {
-                    return r
-            		.table('addresses')
-            		.insert({
-            			addressId: addressId,
-                        accountId: accountId,
-            			account: account,
-            			domain: domain.domain,
-            			friendlyName: req.user.firstName + ' ' + req.user.lastName,
-            			internalOwner: userId
-            		})
-            		.run(r.conn)
                 })
                 .then(function() {
                     return res.status(200).send(accountId);
@@ -1013,38 +915,6 @@ router.post('/updateAccount', auth, function(req, res, next) {
     }
 
 })
-
-router.post('/updateAddress', auth, function(req, res, next) {
-
-	var r = req.r;
-
-	var userId = req.user.userId;
-	var address = req.body;
-
-	return r
-	.table('addresses', { readMode: 'majority' })
-	.get(address.addressId)
-	.run(r.conn)
-	.then(function(result) {
-		if (req.user.accounts.indexOf(result.accountId) === -1) {
-			return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
-		}
-		/*if (result.internalOwner !== null || typeof result.aliasOf !== 'undefined') {
-			return next(new Exception.BadRequest('Cannot modify system-defined address.'));
-		}*/
-		return r
-		.table('addresses')
-		.get(address.addressId)
-		.update({
-			hold: address.hold,
-			friendlyName: address.friendlyName
-		})
-		.run(r.conn)
-		.then(function() {
-			return res.status(200).send({});
-		})
-	})
-});
 
 var batchMoveToTrashAndRemoveFolder = Promise.method(function(r, fromFolder, trashFolder) {
 	return r

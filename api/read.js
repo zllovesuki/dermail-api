@@ -456,6 +456,8 @@ router.post('/searchMailsInAccount', auth, function(req, res, next) {
 
 router.post('/getAddress', auth, function(req, res, next) {
 
+    // TODO: this should be implemented with search ahead
+
 	var r = req.r;
 
 	var userId = req.user.userId;

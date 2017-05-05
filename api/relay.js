@@ -62,16 +62,28 @@ router.post('/sendMail', auth, function(req, res, next) {
 		})
 		.then(function(account) {
 			var sender = {};
-            // TODO: allow the use of alias instead of hard coding from main address
-            sender.address = account['account'] + '@' + account['domain'];
-            return helper.address.getAddress(r, sender.address, accountId, {empty: true})
-            .then(function(_sender) {
-                if (_sender.hasOwnProperty('empty'))
-                    sender.name = req.user.firstName + ' ' + req.user.lastName;
-                else
-                    sender.name = _sender.friendlyName;
-
-    			return helper.dkim.getDKIMGivenAccountId(r, userId, accountId)
+            return r.table('accounts').getAll([userId, accountId], {
+                index: 'addresses'
+            })
+            .run(r.conn)
+            .then(function(cursor) {
+                return cursor.toArray();
+            })
+            .then(function(accounts) {
+                if (accounts.length === 0) {
+                    // this shouldn't happen
+                    return next(new Exception.BadRequest('Sender not found (A).'));
+                }
+                // TODO: Flexible sender
+                var senderAddress = account['account'] + '@' + account['domain'];
+                var sender = accounts[0].adddress.filter(function(one) {
+                    return one.address == senderAddress
+                })
+                if (sender.length === 0) {
+                    // this shouldn't happen
+                    return next(new Exception.BadRequest('Sender not found (B).'));
+                }
+                return helper.dkim.getDKIMGivenAccountId(r, userId, accountId)
     			.then(function(dkim) {
     				if (typeof dkim[0].dkim !== 'object') {
     					// DKIM is not setup
@@ -80,7 +92,7 @@ router.post('/sendMail', auth, function(req, res, next) {
     					compose.dkim = dkim[0].dkim;
     					compose.dkim.domain = dkim[0].domain;
     				}
-    				return queueToTX(r, config, sender, account.accountId, userId, compose, messageQ)
+    				return queueToTX(r, config, sender[0], account.accountId, userId, compose, messageQ)
     			})
             })
 		})
