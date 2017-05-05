@@ -186,15 +186,18 @@ var filter = function (r, accountId, messageId) {
 var applyDefaultFilter = Promise.method(function(r, accountId, messageId, message) {
 	var dstFolderName = null;
 	var doNotNotify = false;
-    return Promise.all([
-        // TODO: inject userId somehow
-        helper.classifier.getOwnAddresses(r, userId),
-        helper.classifier.getLastTrainedMailWasSavedOn(r)
-    ]).spread(function(ownAddresses, lastTrainedMailWasSavedOn) {
-        if (lastTrainedMailWasSavedOn === null) return null;
+    return helper.auth.accountIdToUserId(r, accountId)
+    .then(function(userId) {
+        return Promise.all([
+            helper.classifier.getOwnAddresses(r, userId),
+            helper.classifier.getLastTrainedMailWasSavedOn(r)
+        ]).spread(function(ownAddresses, lastTrainedMailWasSavedOn) {
+            if (lastTrainedMailWasSavedOn === null) return null;
 
-        return classifier.categorize(message, ownAddresses, true)
-    }).then(function(probs) {
+            return classifier.categorize(message, ownAddresses, true)
+        })
+    })
+    .then(function(probs) {
         if (probs === null) {
             log.info({ message: 'Bayesian filter not yet trained, falling back.' });
             if (helper.filter.isFalseReply(message) || !helper.filter.isSPFAndDKIMValid(message)) {
