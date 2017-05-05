@@ -79,6 +79,66 @@ r.connect(config.rethinkdb).then(function(conn) {
         }, { concurrency: 5 })
     })
     .then(function() {
+        // Update TX messages
+        return r.table('messages')
+        .filter(function(doc) {
+            return doc.hasFields('TXExtra')
+        })
+        .pluck('to', 'from', 'cc', 'bcc', 'messageId')
+        .map(function(doc) {
+            return doc.merge(function() {
+                return {
+                    cc: r.branch(doc.hasFields('cc'), doc('cc'), []),
+                    bcc: r.branch(doc.hasFields('bcc'), doc('bcc'), []),
+                }
+            })
+        })
+        .map(function(doc) {
+            return doc.merge(function() {
+                return {
+                    to: doc('to').concatMap(function(addr) {
+                        return [r.table('addresses').get(addr).without('accountId', 'addressId', 'internalOwner')]
+                    }).map(function(a) {
+                        return {
+                            address: a('account').add('@').add(a('domain')),
+                            name: a('friendlyName')
+                        }
+                    }),
+                    from: doc('from').concatMap(function(addr) {
+                        return [r.table('addresses').get(addr).without('accountId', 'addressId', 'internalOwner')]
+                    }).map(function(a) {
+                        return {
+                            address: a('account').add('@').add(a('domain')),
+                            name: a('friendlyName')
+                        }
+                    }),
+                    cc: doc('cc').concatMap(function(addr) {
+                        return [r.table('addresses').get(addr).without('accountId', 'addressId', 'internalOwner')]
+                    }).map(function(a) {
+                        return {
+                            address: a('account').add('@').add(a('domain')),
+                            name: a('friendlyName')
+                        }
+                    }),
+                    bcc: doc('bcc').concatMap(function(addr) {
+                        return [r.table('addresses').get(addr).without('accountId', 'addressId', 'internalOwner')]
+                    }).map(function(a) {
+                        return {
+                            address: a('account').add('@').add(a('domain')),
+                            name: a('friendlyName')
+                        }
+                    }),
+                }
+            })
+        })
+        .forEach(function(doc) {
+            return r.table('messages')
+            .get(doc('messageId'))
+            .update(doc)
+        })
+        .run(r.conn)
+    })
+    .then(function() {
         r.conn.close();
     })
 })
