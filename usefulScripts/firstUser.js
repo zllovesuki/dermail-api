@@ -20,7 +20,6 @@ var userId = shortid.generate();
 var domainId = shortid.generate();
 var accountId = shortid.generate();
 var folderId = shortid.generate();
-var addressId = shortid.generate();
 
 function actual(conn) {
 	return r
@@ -52,7 +51,11 @@ function actual(conn) {
 			accountId: accountId,
 			userId: userId,
 			domainId: domainId,
-			account: account
+			account: account,
+            addresses: [{
+                name: fN + ' ' + lN,
+                address: [account, domain].join('@')
+            }]
 		})
 		.run(conn)
 	})
@@ -70,24 +73,10 @@ function actual(conn) {
 		.run(conn)
 	})
 	.then(function() {
-		return r
-		.table('addresses')
-		.insert({
-			addressId: addressId,
-            accountId: accountId,
-			account: account,
-			domain: domain,
-			friendlyName: fN + ' ' + lN,
-			internalOwner: userId
-		})
-		.run(conn)
-	})
-	.then(function() {
 		console.log('Account ID: ' + accountId);
 		console.log('User ID: ' + userId);
 		console.log('Domain ID: ' + domainId);
 		console.log('Folder ID: ' + folderId);
-		console.log('Address ID: ' + addressId);
 		conn.close();
 	});
 }
