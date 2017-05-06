@@ -609,9 +609,11 @@ router.post('/getMyOwnAddress', auth, function(req, res, next) {
         return cursor.toArray();
     })
     .then(function(addresses) {
-    	return res.status(200).send(results);
+    	return res.status(200).send(addresses);
     })
-
+    .catch(function(e) {
+		return next(e);
+	})
 });
 
 module.exports = router;

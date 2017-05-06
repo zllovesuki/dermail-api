@@ -1,11 +1,11 @@
-var express = require('express'),
+var Promise = require('bluebird'),
+    express = require('express'),
 	router = express.Router(),
 	validator = require('validator'),
 	config = require('../config'),
 	_ = require('lodash'),
 	moment = require('moment-timezone'),
 	helper = require('../lib/helper'),
-	Promise = require('bluebird'),
 	unNeededFields = [
 		'showMore',
 		'toBox',
@@ -34,10 +34,6 @@ router.post('/sendMail', auth, function(req, res, next) {
 		return next(new Exception.BadRequest('At least one "to" recipient is required.'));
 	}
 
-	delete compose.to;
-	delete compose.cc;
-	delete compose.bcc; // Better safe than sorry
-
 	compose.html = compose.html || '';
 
 	// Reply speicifc
@@ -45,48 +41,42 @@ router.post('/sendMail', auth, function(req, res, next) {
 		return next(new Exception.BadRequest('"inReplyTo" field is required for replying/forwarding.'))
 	}
 
-	var constructor = Promise.method(function() {
-
-	});
+	var constructor = Promise.resolve;
 
 	var actual = function() {
-		return Promise.map(Object.keys(compose.addresses), function(each) {
-			return Promise.map(compose.addresses[each], function(recipient) {
-				if (!validator.isEmail(recipient.address)) {
-					throw new Exception.BadRequest('Invalid email: ' + recipient.address);
-				}
-			}, { concurrency: 3 })
-		}, { concurrency: 3 })
+        return (Promise.method(function() {
+            Object.keys(compose.addresses).forEach(function(each) {
+                if (typeof compose.addresses[each].address !== 'undefined') {
+                    if (!validator.isEmail(compose.addresses[each].address)) {
+    					throw new Exception.BadRequest('Invalid email: ' + compose.addresses[each].address);
+    				}
+                }else{
+                    compose.addresses[each].forEach(function(recipient) {
+                        if (!validator.isEmail(recipient.address)) {
+        					throw new Exception.BadRequest('Invalid email: ' + recipient.address);
+        				}
+                    })
+                }
+            })
+        }))()
 		.then(function() {
 			return helper.auth.userAccountMapping(r, userId, accountId)
 		})
 		.then(function(account) {
-			var sender = {};
-            return r.table('accounts').getAll([userId, accountId], {
-                index: 'addresses'
-            })
-            .run(r.conn)
-            .then(function(cursor) {
-                return cursor.toArray();
-            })
-            .then(function(accounts) {
-                if (accounts.length === 0) {
-                    // this shouldn't happen
-                    return next(new Exception.BadRequest('Sender not found (A).'));
+            // TODO: check again for security reasons
+            // check for alias status as well
+            var sender = compose.addresses.sender;
+
+            return helper.dkim.getDKIMGivenAccountId(r, userId, accountId)
+            .then(function(dkim) {
+                if (typeof dkim[0].dkim !== 'object' || compose.addresses.sender.isAlias) {
+                    // DKIM is not setup
+                    compose.dkim = false;
+                }else{
+                    compose.dkim = dkim[0].dkim;
+                    compose.dkim.domain = dkim[0].domain;
                 }
-                var sender = compose.addresses.sender;
-                
-                return helper.dkim.getDKIMGivenAccountId(r, userId, accountId)
-    			.then(function(dkim) {
-    				if (typeof dkim[0].dkim !== 'object') {
-    					// DKIM is not setup
-    					compose.dkim = false;
-    				}else{
-    					compose.dkim = dkim[0].dkim;
-    					compose.dkim.domain = dkim[0].domain;
-    				}
-    				return queueToTX(r, config, sender, account.accountId, userId, compose, messageQ)
-    			})
+                return queueToTX(r, config, sender, account.accountId, userId, compose, messageQ)
             })
 		})
 	}
@@ -185,6 +175,7 @@ var checkForInReplyTo = function(r, _messageId) {
 
 var queueToTX = Promise.method(function(r, config, sender, accountId, userId, compose, messageQ) {
 	var addresses = _.cloneDeep(compose.addresses);
+    delete addresses.sender;
 	compose.from = sender;
 	compose.userId = userId;
 	compose.accountId = accountId;
