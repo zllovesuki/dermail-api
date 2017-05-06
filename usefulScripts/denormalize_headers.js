@@ -22,10 +22,10 @@ r.connect(config.rethinkdb).then(function(conn) {
         .eqJoin('headers', r.table('messageHeaders'))
         .forEach(function(row) {
             return r.table('messages')
-                .get(row('left')('messageId'))
-                .update({
-                    headers: r.literal(row('right').without('headerId'))
-                })
+            .get(row('left')('messageId'))
+            .update({
+                headers: r.literal(row('right').without('headerId'))
+            })
         })
         .run(r.conn)
     })

@@ -26,7 +26,7 @@ r.connect(config.rethinkdb).then(function(conn) {
         })
         .forEach(function(doc) {
             return r.table('messages').get(doc('messageId')).update({
-                attachments: r.liter(doc('attachments').without('attachmentId'))
+                attachments: r.literal(doc('attachments').without('attachmentId'))
             })
         })
         .run(r.conn)
