@@ -82,6 +82,11 @@ account and folder mapping in "folders"
 r.db('dermail').table('folders').indexCreate('accountFolderMapping', [ r.row('accountId'),  r.row('folderId')])
 ```
 
+```javascript
+r.table('accounts').indexCreate('friendlyName', r.row('addresses')('name'), {multi: true}).run(r.conn),
+r.table('accounts').indexCreate('addresses', r.row('addresses')('address'), {multi: true}).run(r.conn)
+```
+
 # TO DO for rx
 
 secondary index of "domain" to table "domains"

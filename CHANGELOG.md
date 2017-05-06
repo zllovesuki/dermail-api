@@ -1,5 +1,10 @@
 ## Changelog
 
+05/06/2017: 4.x -> 5.0
+1. De-normalized `addresses`. Please run `usefulScripts/updateAddresses-4.x-to-5.0.js` *ONCE* to migrate data structure
+2. After which you may delete table `addresses`
+3. Please use dermail-webmail@5.0.0+ in conjunction with the new API
+
 01/20/2017: ? -> 4.4.0
 1. Refers to `database.md` to add missing tables
 2. Greylisting is now enabled. dermail-mta@4.3.0+ required
