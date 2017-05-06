@@ -19,9 +19,9 @@ router.get('/inline/*', function(req, res, next) {
 
 	var contentId = cid.substring(4);
 
-	r
-	.table('attachments', {readMode: 'outdated'})
-	.getAll(contentId, { index: 'contentId' })
+    r.table('messages')
+    .getAll(contentId, {index: 'attachmentContentId'})
+    .pluck('attachments')
 	.run(r.conn)
 	.then(function(cursor) {
 		return cursor.toArray();
@@ -31,7 +31,9 @@ router.get('/inline/*', function(req, res, next) {
 			res.setHeader('content-type', 'image/gif');
 			res.end(emptyGif);
 		}else{
-			var attachment = results[0];
+			var attachment = results[0].attachments.filter(function(attach) {
+                return attach.contentId === contentId
+            })[0];
 			var url = 'https://' + config.s3.endpoint + '/' + config.s3.bucket + '/' + attachment.checksum + '/' + attachment.generatedFileName;
 			res.redirect(url);
 		}

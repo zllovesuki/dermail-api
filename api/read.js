@@ -385,13 +385,6 @@ router.post('/getMail', auth, function(req, res, next) {
 				bcc: r.branch(doc.hasFields('bcc'), doc('bcc'), [])
 			}
 		})
-		.merge(function(doc) {
-			return {
-				'attachments': doc('attachments').concatMap(function(attachment) { // It's like a subquery
-					return [r.table('attachments').get(attachment)]
-				})
-			}
-		})
 		.run(r.conn, {
             readMode: 'majority'
         })

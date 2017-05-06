@@ -213,7 +213,7 @@ router.post('/updateFolder', auth, function(req, res, next) {
 				return r
 				.table('messages', {readMode: 'majority'})
 				.between([folderId, r.minval], [folderId, r.maxval], {index: 'folderSaved'})
-				.pluck('messageId', 'headers', 'attachments')
+				.pluck('messageId', 'attachments')
 				.run(r.conn)
 				.then(function(cursor) {
 					return cursor.toArray();

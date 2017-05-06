@@ -56,30 +56,20 @@ var enqueue = function(type, payload) {
     return pubMessageQ.addJob(job);
 }
 
-var deleteIfUnique = Promise.method(function(r, attachmentId) {
+var deleteIfUnique = Promise.method(function(r, attachment) {
 	var doNotDeleteS3 = {
 		doNotDeleteS3: true
 	};
-	return r
-	.table('attachments')
-	.get(attachmentId)
-	.run(r.conn)
-	.then(function(attachment) {
-		if (attachment === null) { // ok... that's weird...
-			return doNotDeleteS3;
-		}
-		return r
-		.table('attachments')
-		.getAll(attachment.checksum, {index: 'checksum'})
-		.count()
-		.run(r.conn)
-		.then(function(count) {
-			if (count === 1) { // Last copy, go for it
-				return attachment;
-			}else{ // Other attachments have the same checksum, don't delete
-				return doNotDeleteS3;
-			}
-		})
+    return r.table('messages')
+    .getAll(attachment.checksum, {index: 'attachmentChecksum'})
+    .count()
+    .run(r.conn)
+    .then(function(count) {
+        if (count === 1) { // Last copy, go for it
+            return attachment;
+        }else{ // Other attachments have the same checksum, don't delete
+            return doNotDeleteS3;
+        }
 	})
 })
 
@@ -94,14 +84,6 @@ var deleteAttachmentOnS3 = function(checksum, generatedFileName, s3) {
 			}
 		});
 	});
-}
-
-var deleteAttachmentFromDatabase = function(r, attachmentId) {
-	return r
-	.table('attachments')
-	.get(attachmentId)
-	.delete()
-	.run(r.conn)
 }
 
 var filter = function (r, accountId, messageId) {
@@ -119,13 +101,6 @@ var filter = function (r, accountId, messageId) {
                     replyTo: r.branch(doc.hasFields('replyTo'), doc('replyTo'), [])
                 }
             })
-			.merge(function(doc) {
-				return {
-                    'attachments': doc('attachments').concatMap(function(attachment) {
-                        return [r.table('attachments').get(attachment)]
-                    })
-				}
-			})
 			.run(r.conn, {
                 readMode: 'majority'
             })
@@ -543,8 +518,8 @@ var startProcessing = function() {
                 };
 
                 var queueDeleteAttachment = function() {
-                    return Promise.map(message.attachments, function(attachmentId) {
-                        return enqueue('checkUnique', attachmentId)
+                    return Promise.map(message.attachments, function(attachment) {
+                        return enqueue('checkUnique', attachment)
                     }, { concurrency: 3 });
                 }
 
@@ -571,14 +546,10 @@ var startProcessing = function() {
             .then(function(attachment) {
                 if (!attachment.hasOwnProperty('doNotDeleteS3')) {
                     return enqueue('deleteAttachment', {
-                        attachmentId: attachment.attachmentId,
                         checksum: attachment.checksum,
                         generatedFileName: attachment.generatedFileName
                     });
                 }
-            })
-            .then(function() {
-                return deleteAttachmentFromDatabase(r, data);
             })
             .then(function() {
                 return callback();
@@ -653,13 +624,6 @@ var startProcessing = function() {
                             replyTo: r.branch(doc.hasFields('replyTo'), doc('replyTo'), [])
                         }
                     })
-        			.merge(function(doc) {
-        				return {
-                            'attachments': doc('attachments').concatMap(function(attachment) {
-                                return [r.table('attachments').get(attachment)]
-                            })
-        				}
-        			})
                     .run(r.conn, {
                         readMode: 'majority'
                     })
@@ -751,15 +715,6 @@ var startProcessing = function() {
                                 cc: r.branch(doc.hasFields('cc'), doc('cc'), []),
                                 bcc: r.branch(doc.hasFields('bcc'), doc('bcc'), []),
                                 replyTo: r.branch(doc.hasFields('replyTo'), doc('replyTo'), [])
-                            }
-                        })
-                    })
-                    .map(function(doc) {
-                        return doc.merge(function() {
-                            return {
-                                'attachments': doc('attachments').concatMap(function(attachment) {
-                                    return [r.table('attachments').get(attachment)]
-                                })
                             }
                         })
                     })
