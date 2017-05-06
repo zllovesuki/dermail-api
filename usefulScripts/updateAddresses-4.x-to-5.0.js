@@ -106,7 +106,7 @@ r.connect(config.rethinkdb).then(function(conn) {
                         }])
                     }
                 })
-        })
+        }).run(r.conn)
     })
     .then(function() {
         // Update TX messages
