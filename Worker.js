@@ -121,18 +121,6 @@ var filter = function (r, accountId, messageId) {
             })
 			.merge(function(doc) {
 				return {
-                    'to': doc('to').concatMap(function(to) {
-                        return [r.table('addresses').get(to).without('accountId', 'addressId', 'internalOwner')]
-                    }),
-                    'from': doc('from').concatMap(function(from) {
-                        return [r.table('addresses').get(from).without('accountId', 'addressId', 'internalOwner')]
-                    }),
-                    'cc': doc('cc').concatMap(function(cc) {
-                        return [r.table('addresses').get(cc).without('accountId', 'addressId', 'internalOwner')]
-                    }),
-                    'bcc': doc('bcc').concatMap(function(bcc) {
-                        return [r.table('addresses').get(bcc).without('accountId', 'addressId', 'internalOwner')]
-                    }),
                     'headers': r.table('messageHeaders').get(doc('headers')).pluck('sender', 'x-beenthere', 'x-mailinglist'),
                     'attachments': doc('attachments').concatMap(function(attachment) {
                         return [r.table('attachments').get(attachment)]
@@ -198,14 +186,18 @@ var filter = function (r, accountId, messageId) {
 var applyDefaultFilter = Promise.method(function(r, accountId, messageId, message) {
 	var dstFolderName = null;
 	var doNotNotify = false;
-    return Promise.all([
-        helper.classifier.getOwnAddresses(r),
-        helper.classifier.getLastTrainedMailWasSavedOn(r)
-    ]).spread(function(ownAddresses, lastTrainedMailWasSavedOn) {
-        if (lastTrainedMailWasSavedOn === null) return null;
+    return helper.auth.accountIdToUserId(r, accountId)
+    .then(function(userId) {
+        return Promise.all([
+            helper.classifier.getOwnAddresses(r, userId),
+            helper.classifier.getLastTrainedMailWasSavedOn(r)
+        ]).spread(function(ownAddresses, lastTrainedMailWasSavedOn) {
+            if (lastTrainedMailWasSavedOn === null) return null;
 
-        return classifier.categorize(message, ownAddresses, true)
-    }).then(function(probs) {
+            return classifier.categorize(message, ownAddresses, true)
+        })
+    })
+    .then(function(probs) {
         if (probs === null) {
             log.info({ message: 'Bayesian filter not yet trained, falling back.' });
             if (helper.filter.isFalseReply(message) || !helper.filter.isSPFAndDKIMValid(message)) {
@@ -425,18 +417,10 @@ var startProcessing = function() {
                 jobId: job.id
             };
 
-            return Promise.join(
-                helper.address.getArrayOfAddress(r, accountId, message.to),
-                helper.address.getArrayOfAddress(r, accountId, message.from),
-                helper.address.getArrayOfAddress(r, accountId, message.cc),
-                helper.address.getArrayOfAddress(r, accountId, message.bcc),
-                function(toAddr, fromAddr, ccAddr, bccAddr) {
-                    return helper.folder.getInternalFolder(r, accountId, 'Inbox')
-                    .then(function(inboxFolder) {
-                        return helper.insert.saveMessage(r, accountId, inboxFolder, toAddr, fromAddr, ccAddr, bccAddr, message, false)
-                    })
-                }
-            )
+            return helper.folder.getInternalFolder(r, accountId, 'Inbox')
+            .then(function(inboxFolder) {
+                return helper.insert.saveMessage(r, accountId, inboxFolder, message, false)
+            })
             .then(function(messageId) {
                 return filter(r, accountId, messageId)
                 .then(function(notify) {
@@ -486,18 +470,10 @@ var startProcessing = function() {
 
             message.savedOn = new Date().toISOString();
 
-            return Promise.join(
-                helper.address.getArrayOfAddress(r, accountId, message.to),
-                helper.address.getArrayOfAddress(r, accountId, message.from),
-                helper.address.getArrayOfAddress(r, accountId, message.cc),
-                helper.address.getArrayOfAddress(r, accountId, message.bcc),
-                function(toAddr, fromAddr, ccAddr, bccAddr) {
-                    return helper.folder.getInternalFolder(r, accountId, 'Sent')
-                    .then(function(sentFolder) {
-                        return helper.insert.saveMessage(r, accountId, sentFolder, toAddr, fromAddr, ccAddr, bccAddr, message, true)
-                    })
-                }
-            )
+            return helper.folder.getInternalFolder(r, accountId, 'Sent')
+            .then(function(sentFolder) {
+                return helper.insert.saveMessage(r, accountId, sentFolder, message, true)
+            })
             .then(function() {
                 return callback();
             })
@@ -672,7 +648,7 @@ var startProcessing = function() {
                 }
                 return Promise.all([
                     helper.classifier.getLastTrainedMailWasSavedOn(r),
-                    helper.classifier.getOwnAddresses(r)
+                    helper.classifier.getOwnAddresses(r, userId)
                 ]).spread(function(lastTrainedMailWasSavedOn, ownAddresses) {
                     if (lastTrainedMailWasSavedOn === null) {
                         return helper.classifier.dne(r, userId)
@@ -689,18 +665,6 @@ var startProcessing = function() {
                     })
         			.merge(function(doc) {
         				return {
-                            'to': doc('to').concatMap(function(to) {
-                                return [r.table('addresses').get(to).without('accountId', 'addressId', 'internalOwner')]
-                            }),
-                            'from': doc('from').concatMap(function(from) {
-                                return [r.table('addresses').get(from).without('accountId', 'addressId', 'internalOwner')]
-                            }),
-                            'cc': doc('cc').concatMap(function(cc) {
-                                return [r.table('addresses').get(cc).without('accountId', 'addressId', 'internalOwner')]
-                            }),
-                            'bcc': doc('bcc').concatMap(function(bcc) {
-                                return [r.table('addresses').get(bcc).without('accountId', 'addressId', 'internalOwner')]
-                            }),
                             'headers': r.table('messageHeaders').get(doc('headers')).pluck('sender', 'x-beenthere', 'x-mailinglist'),
                             'attachments': doc('attachments').concatMap(function(attachment) {
                                 return [r.table('attachments').get(attachment)]
@@ -768,7 +732,7 @@ var startProcessing = function() {
                 }
                 return Promise.all([
                     helper.classifier.getLastTrainedMailWasSavedOn(r),
-                    helper.classifier.getOwnAddresses(r)
+                    helper.classifier.getOwnAddresses(r, userId)
                 ]).spread(function(lastTrainedMailWasSavedOn, ownAddresses) {
                     if (lastTrainedMailWasSavedOn === null) {
                         return helper.classifier.dne(r, userId)
@@ -804,18 +768,6 @@ var startProcessing = function() {
                     .map(function(doc) {
                         return doc.merge(function() {
                             return {
-                                'to': doc('to').concatMap(function(to) {
-                                    return [r.table('addresses').get(to).without('accountId', 'addressId', 'internalOwner')]
-                                }),
-                                'from': doc('from').concatMap(function(from) {
-                                    return [r.table('addresses').get(from).without('accountId', 'addressId', 'internalOwner')]
-                                }),
-                                'cc': doc('cc').concatMap(function(cc) {
-                                    return [r.table('addresses').get(cc).without('accountId', 'addressId', 'internalOwner')]
-                                }),
-                                'bcc': doc('bcc').concatMap(function(bcc) {
-                                    return [r.table('addresses').get(bcc).without('accountId', 'addressId', 'internalOwner')]
-                                }),
                                 'headers': r.table('messageHeaders').get(doc('headers')).pluck('sender', 'x-beenthere', 'x-mailinglist'),
                                 'attachments': doc('attachments').concatMap(function(attachment) {
                                     return [r.table('attachments').get(attachment)]

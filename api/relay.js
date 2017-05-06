@@ -1,15 +1,15 @@
-var express = require('express'),
+var Promise = require('bluebird'),
+    express = require('express'),
 	router = express.Router(),
 	validator = require('validator'),
 	config = require('../config'),
 	_ = require('lodash'),
 	moment = require('moment-timezone'),
 	helper = require('../lib/helper'),
-	Promise = require('bluebird'),
 	unNeededFields = [
 		'showMore',
 		'toBox',
-		'recipients',
+		'addresses',
 		'type'
 	],
 	Exception = require('../lib/error');
@@ -30,13 +30,9 @@ router.post('/sendMail', auth, function(req, res, next) {
 		return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
 	}
 
-	if (compose.recipients.to.length === 0) {
+	if (compose.addresses.to.length === 0) {
 		return next(new Exception.BadRequest('At least one "to" recipient is required.'));
 	}
-
-	delete compose.to;
-	delete compose.cc;
-	delete compose.bcc; // Better safe than sorry
 
 	compose.html = compose.html || '';
 
@@ -45,43 +41,42 @@ router.post('/sendMail', auth, function(req, res, next) {
 		return next(new Exception.BadRequest('"inReplyTo" field is required for replying/forwarding.'))
 	}
 
-	var constructor = Promise.method(function() {
-
-	});
+	var constructor = Promise.resolve;
 
 	var actual = function() {
-		return Promise.map(Object.keys(compose.recipients), function(each) {
-			return Promise.map(compose.recipients[each], function(recipient) {
-				if (!validator.isEmail(recipient.address)) {
-					throw new Exception.BadRequest('Invalid email: ' + recipient.address);
-				}
-			}, { concurrency: 3 })
-		}, { concurrency: 3 })
+        return (Promise.method(function() {
+            Object.keys(compose.addresses).forEach(function(each) {
+                if (typeof compose.addresses[each].address !== 'undefined') {
+                    if (!validator.isEmail(compose.addresses[each].address)) {
+    					throw new Exception.BadRequest('Invalid email: ' + compose.addresses[each].address);
+    				}
+                }else{
+                    compose.addresses[each].forEach(function(recipient) {
+                        if (!validator.isEmail(recipient.address)) {
+        					throw new Exception.BadRequest('Invalid email: ' + recipient.address);
+        				}
+                    })
+                }
+            })
+        }))()
 		.then(function() {
 			return helper.auth.userAccountMapping(r, userId, accountId)
 		})
 		.then(function(account) {
-			var sender = {};
-            // TODO: allow the use of alias instead of hard coding from main address
-            sender.address = account['account'] + '@' + account['domain'];
-            return helper.address.getAddress(r, sender.address, accountId, {empty: true})
-            .then(function(_sender) {
-                if (_sender.hasOwnProperty('empty'))
-                    sender.name = req.user.firstName + ' ' + req.user.lastName;
-                else
-                    sender.name = _sender.friendlyName;
+            // TODO: check again for security reasons
+            // check for alias status as well
+            var sender = compose.addresses.sender;
 
-    			return helper.dkim.getDKIMGivenAccountId(r, userId, accountId)
-    			.then(function(dkim) {
-    				if (typeof dkim[0].dkim !== 'object') {
-    					// DKIM is not setup
-    					compose.dkim = false;
-    				}else{
-    					compose.dkim = dkim[0].dkim;
-    					compose.dkim.domain = dkim[0].domain;
-    				}
-    				return queueToTX(r, config, sender, account.accountId, userId, compose, messageQ)
-    			})
+            return helper.dkim.getDKIMGivenAccountId(r, userId, accountId)
+            .then(function(dkim) {
+                if (typeof dkim[0].dkim !== 'object' || compose.addresses.sender.isAlias) {
+                    // DKIM is not setup
+                    compose.dkim = false;
+                }else{
+                    compose.dkim = dkim[0].dkim;
+                    compose.dkim.domain = dkim[0].domain;
+                }
+                return queueToTX(r, config, sender, account.accountId, userId, compose, messageQ)
             })
 		})
 	}
@@ -100,14 +95,8 @@ router.post('/sendMail', auth, function(req, res, next) {
 
 				compose.references.push(compose.inReplyTo);
 
-				if (typeof original.replyTo !== 'undefined') {
-					obj = emailToObject(original.replyTo[0]);
-				}else{
-					obj = original.from[0];
-				}
-
-				var name = obj.friendlyName;
-				var email = obj.account + '@' + obj.domain;
+				var name = obj.name;
+				var email = obj.address;
 
 				//var body = original.html.match(/^\s*(?:<(?:!(?:(?:--(?:[^-]+|-[^-])*--)+|\[CDATA\[(?:[^\]]+|](?:[^\]]|][^>]))*\]\]|[^<>]+)|(?!body[\s>])[a-z]+(?:\s*(?:[^<>"']+|"[^"]*"|'[^']*'))*|\/[a-z]+)\s*>|[^<]+)*\s*<body(?:\s*(?:[^<>"']+|"[^"]*"|'[^']*'))*\s*>([\s\S]+)<\/body\s*>/i);
 				// Jesus... Regex from http://stackoverflow.com/questions/1207975/regex-to-match-contents-of-html-body
@@ -140,8 +129,8 @@ router.post('/sendMail', auth, function(req, res, next) {
 
 					obj = original.to[0];
 
-					var name = obj.friendlyName;
-					var email = obj.account + '@' + obj.domain;
+                    var name = obj.name;
+    				var email = obj.address;
 
 					compose.addHTML = '<div class="dermail_extra"><br>' +
 						'<div class="dermail_quote">---------- Forwarded message ----------<br>' +
@@ -174,30 +163,10 @@ router.post('/sendMail', auth, function(req, res, next) {
 	})
 });
 
-var emailToObject = function(email) {
-	return {
-		account: email.address.substring(0, email.address.lastIndexOf("@")).toLowerCase(),
-		domain: email.address.substring(email.address.lastIndexOf("@") +1).toLowerCase(),
-		friendlyName: email.name
-	}
-}
-
 var checkForInReplyTo = function(r, _messageId) {
 	return r
 	.table('messages', { readMode: 'majority' })
 	.getAll(_messageId, { index: '_messageId' })
-	.map(function(d) {
-		return d.merge(function(doc) {
-			return {
-				'to': doc('to').concatMap(function(to) { // It's like a subquery
-					return [r.table('addresses', {readMode: 'majority'}).get(to).without('accountId', 'addressId', 'internalOwner')]
-				}),
-				'from': doc('from').concatMap(function(from) { // It's like a subquery
-					return [r.table('addresses', {readMode: 'majority'}).get(from).without('accountId', 'addressId', 'internalOwner')]
-				})
-			}
-		})
-	})
 	.run(r.conn)
 	.then(function(cursor) {
 		return cursor.toArray();
@@ -205,14 +174,15 @@ var checkForInReplyTo = function(r, _messageId) {
 }
 
 var queueToTX = Promise.method(function(r, config, sender, accountId, userId, compose, messageQ) {
-	var recipients = _.cloneDeep(compose.recipients);
+	var addresses = _.cloneDeep(compose.addresses);
+    delete addresses.sender;
 	compose.from = sender;
 	compose.userId = userId;
 	compose.accountId = accountId;
 	unNeededFields.forEach(function(field) {
 		delete compose[field];
 	})
-	_.merge(compose, recipients);
+	_.merge(compose, addresses);
     var job = messageQ.createJob({
 		type: 'queueTX',
 		payload: compose

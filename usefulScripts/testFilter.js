@@ -11,16 +11,6 @@ r.connect(config.rethinkdb).then(function(conn) {
 		return r
 		.table('messages')
 		.get(process.argv[3])
-		.merge(function(doc) {
-			return {
-				'to': doc('to').concatMap(function(to) { // It's like a subquery
-					return [r.table('addresses').get(to).without('accountId', 'addressId', 'internalOwner')]
-				}),
-				'from': doc('from').concatMap(function(from) { // It's like a subquery
-					return [r.table('addresses').get(from).without('accountId', 'addressId', 'internalOwner')]
-				})
-			}
-		})
 		.pluck('from', 'to', 'subject', 'text', 'messageId', 'accountId')
 		.run(r.conn)
 		.then(function(message) {
