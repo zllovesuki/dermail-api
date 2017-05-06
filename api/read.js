@@ -456,23 +456,51 @@ router.post('/searchMailsInAccount', auth, function(req, res, next) {
 
 router.post('/getAddress', auth, function(req, res, next) {
 
-    // TODO: this should be implemented with search ahead
-
 	var r = req.r;
 
 	var userId = req.user.userId;
-	var email = req.body.email;
+	var query = req.body.query || '';
 	var accountId = req.body.accountId;
-	var empty = {friendlyName: ''};
+	var empty = [{name: '', address: query}];
 
-	if (req.user.accounts.indexOf(accountId) === -1) {
+	if (req.user.accounts.indexOf(accountId) === -1 || query.length < 3) {
 		return res.status(200).send(empty); // Early surrender: account does not belong to user
 	}
 
-	return helper.address.getAddress(r, email, accountId, empty)
-	.then(function(result) {
-		delete result.addressId;
-		return res.status(200).send(result);
+	return r.table('messages')
+    .getAll(accountId, {
+        index: 'accountId'
+    })
+    .eqJoin('folderId', r.db('dermail').table('folders'))
+    .zip()
+    .filter(function(doc) {
+        return r.not(r.expr(['Spam']).contains(doc('displayName')))
+    })
+    .concatMap(function(row) {
+        return r.expr(['to', 'from', 'cc', 'bcc']).fold([], function(acc, type) {
+            return acc.add(r.branch(row.hasFields(type), row(type), []))
+        })
+    })
+    .map(function(obj) {
+        return obj.merge(function() {
+            return {
+                address: r.branch(obj.hasFields('address'), obj('address').downcase(), '')
+            }
+        })
+    })
+    .distinct()
+    .filter(function(doc) {
+        return doc('address').match(r.add('(?i)', query)).or(doc('name').match(r.add('(?i)', query)))
+    })
+    .run(r.conn)
+    .then(function(cursor) {
+        return cursor.toArray();
+    })
+    .then(function(results) {
+        if (results.length === 0) {
+            return res.status(200).send(empty)
+        }
+		return res.status(200).send(results);
 	})
 	.catch(function(e) {
 		return next(e);

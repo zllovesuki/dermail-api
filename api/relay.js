@@ -9,7 +9,7 @@ var express = require('express'),
 	unNeededFields = [
 		'showMore',
 		'toBox',
-		'recipients',
+		'addresses',
 		'type'
 	],
 	Exception = require('../lib/error');
@@ -30,7 +30,7 @@ router.post('/sendMail', auth, function(req, res, next) {
 		return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
 	}
 
-	if (compose.recipients.to.length === 0) {
+	if (compose.addresses.to.length === 0) {
 		return next(new Exception.BadRequest('At least one "to" recipient is required.'));
 	}
 
@@ -50,8 +50,8 @@ router.post('/sendMail', auth, function(req, res, next) {
 	});
 
 	var actual = function() {
-		return Promise.map(Object.keys(compose.recipients), function(each) {
-			return Promise.map(compose.recipients[each], function(recipient) {
+		return Promise.map(Object.keys(compose.addresses), function(each) {
+			return Promise.map(compose.addresses[each], function(recipient) {
 				if (!validator.isEmail(recipient.address)) {
 					throw new Exception.BadRequest('Invalid email: ' + recipient.address);
 				}
@@ -74,15 +74,8 @@ router.post('/sendMail', auth, function(req, res, next) {
                     // this shouldn't happen
                     return next(new Exception.BadRequest('Sender not found (A).'));
                 }
-                // TODO: Flexible sender
-                var senderAddress = account['account'] + '@' + account['domain'];
-                var sender = accounts[0].adddress.filter(function(one) {
-                    return one.address == senderAddress
-                })
-                if (sender.length === 0) {
-                    // this shouldn't happen
-                    return next(new Exception.BadRequest('Sender not found (B).'));
-                }
+                var sender = compose.addresses.sender;
+                
                 return helper.dkim.getDKIMGivenAccountId(r, userId, accountId)
     			.then(function(dkim) {
     				if (typeof dkim[0].dkim !== 'object') {
@@ -92,7 +85,7 @@ router.post('/sendMail', auth, function(req, res, next) {
     					compose.dkim = dkim[0].dkim;
     					compose.dkim.domain = dkim[0].domain;
     				}
-    				return queueToTX(r, config, sender[0], account.accountId, userId, compose, messageQ)
+    				return queueToTX(r, config, sender, account.accountId, userId, compose, messageQ)
     			})
             })
 		})
@@ -191,14 +184,14 @@ var checkForInReplyTo = function(r, _messageId) {
 }
 
 var queueToTX = Promise.method(function(r, config, sender, accountId, userId, compose, messageQ) {
-	var recipients = _.cloneDeep(compose.recipients);
+	var addresses = _.cloneDeep(compose.addresses);
 	compose.from = sender;
 	compose.userId = userId;
 	compose.accountId = accountId;
 	unNeededFields.forEach(function(field) {
 		delete compose[field];
 	})
-	_.merge(compose, recipients);
+	_.merge(compose, addresses);
     var job = messageQ.createJob({
 		type: 'queueTX',
 		payload: compose
