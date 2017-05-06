@@ -4,9 +4,6 @@
 r.db('dermail').tableCreate('accounts', {
   primaryKey: 'accountId'
 })
-r.db('dermail').tableCreate('attachments', {
-  primaryKey: 'attachmentId'
-})
 r.db('dermail').tableCreate('domains', {
   primaryKey: 'domainId'
 })
@@ -51,8 +48,6 @@ r.db('dermail').table("messages").indexCreate("folderId")
 r.db('dermail').table("messages").indexCreate("_messageId")
 r.db('dermail').table("queue").indexCreate("userId")
 r.db('dermail').table("filters").indexCreate("accountId")
-r.db('dermail').table("attachments").indexCreate("checksum")
-r.db('dermail').table("attachments").indexCreate("contentId")
 r.db('dermail').table("greylist").indexCreate("lastSeen")
 ```
 
@@ -83,8 +78,13 @@ r.db('dermail').table('folders').indexCreate('accountFolderMapping', [ r.row('ac
 ```
 
 ```javascript
-r.table('accounts').indexCreate('friendlyName', r.row('addresses')('name'), {multi: true}).run(r.conn),
-r.table('accounts').indexCreate('addresses', r.row('addresses')('address'), {multi: true}).run(r.conn)
+r.table('accounts').indexCreate('friendlyName', r.row('addresses')('name'), {multi: true})
+r.table('accounts').indexCreate('addresses', r.row('addresses')('address'), {multi: true})
+```
+
+```javascript
+r.table('messages').indexCreate('attachmentChecksum', r.row('attachments')('checksum'), {multi: true})
+r.table('messages').indexCreate('attachmentContentId', r.row('attachments')('contentId'), {multi: true})
 ```
 
 # TO DO for rx

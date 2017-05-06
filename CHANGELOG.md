@@ -1,5 +1,11 @@
 ## Changelog
 
+05/06/2017: 5.0 -> 5.1
+1. De-normalized `attachments`. Please run `usefulScripts/attachments.js` *ONCE* to migrate data structure
+2. De-normalized `headers`. Please run `usefulScripts/headers.js` *ONCE* to migrate data structure
+3. After which you may delete table `headers` and `attachments`
+4. Please use dermail-webmail@5.0.0+ in conjunction with the new API
+
 05/06/2017: 4.x -> 5.0
 1. De-normalized `addresses`. Please run `usefulScripts/updateAddresses-4.x-to-5.0.js` *ONCE* to migrate data structure
 2. After which you may delete table `addresses`
