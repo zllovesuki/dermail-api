@@ -387,7 +387,6 @@ router.post('/getMail', auth, function(req, res, next) {
 		})
 		.merge(function(doc) {
 			return {
-				'headers': r.table('messageHeaders').get(doc('headers')).without('accountId'),
 				'attachments': doc('attachments').concatMap(function(attachment) { // It's like a subquery
 					return [r.table('attachments').get(attachment)]
 				})

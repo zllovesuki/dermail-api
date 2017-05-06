@@ -121,7 +121,6 @@ var filter = function (r, accountId, messageId) {
             })
 			.merge(function(doc) {
 				return {
-                    'headers': r.table('messageHeaders').get(doc('headers')).pluck('sender', 'x-beenthere', 'x-mailinglist'),
                     'attachments': doc('attachments').concatMap(function(attachment) {
                         return [r.table('attachments').get(attachment)]
                     })
@@ -543,14 +542,6 @@ var startProcessing = function() {
                     .run(r.conn)
                 };
 
-                var deleteHeader = function() {
-                    return r
-                    .table('messageHeaders')
-                    .get(message.headers)
-                    .delete()
-                    .run(r.conn);
-                };
-
                 var queueDeleteAttachment = function() {
                     return Promise.map(message.attachments, function(attachmentId) {
                         return enqueue('checkUnique', attachmentId)
@@ -559,7 +550,6 @@ var startProcessing = function() {
 
                 return Promise.all([
                     deleteMessage(),
-                    deleteHeader(),
                     queueDeleteAttachment()
                 ])
             }, { concurrency: 3 })
@@ -665,7 +655,6 @@ var startProcessing = function() {
                     })
         			.merge(function(doc) {
         				return {
-                            'headers': r.table('messageHeaders').get(doc('headers')).pluck('sender', 'x-beenthere', 'x-mailinglist'),
                             'attachments': doc('attachments').concatMap(function(attachment) {
                                 return [r.table('attachments').get(attachment)]
                             })
@@ -768,7 +757,6 @@ var startProcessing = function() {
                     .map(function(doc) {
                         return doc.merge(function() {
                             return {
-                                'headers': r.table('messageHeaders').get(doc('headers')).pluck('sender', 'x-beenthere', 'x-mailinglist'),
                                 'attachments': doc('attachments').concatMap(function(attachment) {
                                     return [r.table('attachments').get(attachment)]
                                 })
