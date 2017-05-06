@@ -83,7 +83,7 @@ r.connect(config.rethinkdb).then(function(conn) {
                         res.checksum
                     ].join('')).pipe(mailParser);
                 });
-            }, { concurrency: 5 })
+            }, { concurrency: 10 })
         })
     })
     .then(function() {
@@ -170,7 +170,7 @@ r.connect(config.rethinkdb).then(function(conn) {
     })
     .then(function() {
         // legacy migration
-        r.table('messages')
+        return r.table('messages')
         .filter(function(doc) {
             return r.not(doc.hasFields('connection')).and(r.not(doc.hasFields('TXExtra')))
         })
