@@ -417,33 +417,39 @@ router.post('/searchMailsInAccount', auth, function(req, res, next) {
 		return res.status(200).send([]); // Early surrender: account does not belong to user
 	}
 
-	/* Ideally, .indexCreate('messageAccountMapping', [r.row('messageId'), r.row('accountId')])
-	** can be used without adding another index "accountId". But the behavior was unexpected.
-	*/
-
-	return r
-	.table('messages', {readMode: 'outdated'})
-	.getAll(accountId, {index: 'accountId'})
-	.filter(function(doc){
-		return r.or(doc('text').match("(?i)" + searchString), doc('subject').match("(?i)" + searchString))
-	})
-	.map(function(doc) {
-		return doc.merge(function() {
-			return {
-				'folder': r.table('folders', {readMode: 'majority'}).get(doc('folderId')).pluck('folderId', 'displayName')
-			}
-		})
-	})
-	.pluck('subject', 'messageId', '_messageId', 'folder')
-	.run(r.conn)
-	.then(function(cursor) {
-		return cursor.toArray();
-	})
-	.then(function(messages) {
-		return res.status(200).send(messages);
-	}).error(function(e) {
-		return next(e);
-	})
+    req.elasticsearch.search({
+        q: searchString,
+        index: 'messages',
+        type: accountId,
+        storedFields: false
+    }, function(error, response) {
+        if (error) {
+            return next(error);
+        }
+        var ids = response.hits.hits.map(function(doc) {
+            return doc._id;
+        })
+        r.table('messages')
+        .getAll(r.args(ids))
+        .map(function(doc) {
+    		return doc.merge(function() {
+    			return {
+    				'folder': r.table('folders', {readMode: 'majority'}).get(doc('folderId')).pluck('folderId', 'displayName')
+    			}
+    		})
+    	})
+        .pluck('subject', 'messageId', '_messageId', 'folder')
+    	.run(r.conn)
+    	.then(function(cursor) {
+    		return cursor.toArray();
+    	})
+    	.then(function(messages) {
+    		return res.status(200).send(messages);
+    	})
+        .error(function(e) {
+    		return next(e);
+    	})
+    })
 });
 
 router.post('/getAddress', auth, function(req, res, next) {

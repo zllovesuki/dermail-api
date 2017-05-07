@@ -3,6 +3,7 @@ module.exports = {
 	cluster: {
 		basePort: 2000
 	},
+    elasticsearch: require('./config/config.json').elasticsearch || null,
 	rethinkdb: require('./config/config.json').rethinkdb,
 	graylog: require('./config/config.json').graylog || null,
     qMaster: require('./config/config.json').qMaster === true,

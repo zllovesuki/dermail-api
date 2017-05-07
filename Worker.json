@@ -25,6 +25,13 @@
 			"watch": true,
 			"restart_delay": 5000,
 			"exec_mode": "fork"
+		},
+        {
+			"name": "API-Fulltext",
+			"script": "fulltext.js",
+			"watch": false,
+			"restart_delay": 5000,
+			"exec_mode": "fork"
 		}
 	]
 }

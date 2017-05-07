@@ -11,6 +11,7 @@ module.exports = function(r, ip2asn) {
 		app = express(),
 		RateLimit = require('express-rate-limit'),
 		rx = require('./api/rx'),
+        elasticsearch = require('elasticsearch'),
 		authentication = require('./api/authentication'),
 		read = require('./api/read'),
 		write = require('./api/write'),
@@ -59,6 +60,14 @@ module.exports = function(r, ip2asn) {
 		req.Q = messageQ;
 		req.config = config;
         req.ip2asn = ip2asn;
+        if (!config.elasticsearch) {
+            req.elasticsearch = null
+        }else{
+            req.elasticsearch = new elasticsearch.Client({
+                host: config.elasticsearch + ':9200',
+                requestTimeout: 1000 * 60 * 5
+            });
+        }
 		next();
 	});
 
