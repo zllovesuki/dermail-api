@@ -21,8 +21,6 @@ if (!!config.graylog) {
 	});
 }
 
-var counter = 0;
-
 if (!config.elasticsearch) {
     log.info({ message: 'Elasticsearch not configured.' });
     process.exit(0);
@@ -67,8 +65,6 @@ r.connect(config.rethinkdb).then(function(conn) {
                 }
 
                 if (count === 0 && !ready) {
-                    if (counter > 30) process.exit(0);
-                    counter++;
                     return client.create({
                         index: 'messages',
                         type: result.new_val.accountId,
