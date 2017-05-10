@@ -95,6 +95,12 @@ router.post('/sendMail', auth, function(req, res, next) {
 
 				compose.references.push(compose.inReplyTo);
 
+                if (typeof original.replyTo !== 'undefined') {
+					obj = emailToObject(original.replyTo[0]);
+				}else{
+					obj = original.from[0];
+				}
+
 				var name = obj.name;
 				var email = obj.address;
 
@@ -162,6 +168,13 @@ router.post('/sendMail', auth, function(req, res, next) {
 		return next(err);
 	})
 });
+
+var emailToObject = function(email) {
+	return {
+		address: email.address.toLowerCase(),
+		name: email.name
+	}
+}
 
 var checkForInReplyTo = function(r, _messageId) {
 	return r
