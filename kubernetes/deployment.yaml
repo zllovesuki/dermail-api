@@ -38,10 +38,15 @@ spec:
           timeoutSeconds: 5
         volumeMounts:
         - name: config-volume
+          readOnly: true
           mountPath: /usr/src/app/config
+      imagePullSecrets:
+      - name: rachel-sh-login
       volumes:
       - name: config-volume
-        secretName: api
+        secret:
+          defaultMode: 420
+          secretName: api
 ---
 kind: Service
 apiVersion: v1
@@ -53,13 +58,17 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-  - port: 2000
+  - name: instance-0
+    port: 2000
     targetPort: 2000
-  - port: 2001
+  - name: instance-1
+    port: 2001
     targetPort: 2001
-  - port: 2002
+  - name: instance-2
+    port: 2002
     targetPort: 2002
-  - port: 2003
+  - name: instance-3
+    port: 2003
     targetPort: 2003
   selector:
     app: api
