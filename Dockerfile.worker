@@ -15,4 +15,4 @@ RUN npm install \
 
 ADD . /usr/src/app
 
-CMD ["pm2", "start", "API.json", "--no-daemon"]
+CMD ["pm2", "start", "Worker.json", "--no-daemon"]

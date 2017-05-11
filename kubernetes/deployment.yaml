@@ -2,6 +2,40 @@ kind: Deployment
 apiVersion: extensions/v1beta1
 metadata:
   labels:
+    app: worker
+    version: v1
+  name: worker
+  namespace: dermail
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      containers:
+      - name: worker
+        image: rachel.sh/zllovesuki/dermail-api-worker:5.2.0
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: config-volume
+          readOnly: true
+          mountPath: /usr/src/app/config
+      imagePullSecrets:
+      - name: rachel-sh-login
+      volumes:
+      - name: config-volume
+        secret:
+          defaultMode: 420
+          secretName: api
+---
+kind: Deployment
+apiVersion: extensions/v1beta1
+metadata:
+  labels:
     app: api
     version: v1
   name: api
