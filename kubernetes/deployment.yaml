@@ -1,0 +1,65 @@
+kind: Deployment
+apiVersion: extensions/v1beta1
+metadata:
+  labels:
+    app: api
+    version: v1
+  name: api
+  namespace: dermail
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+      - name: api
+        image: rachel.sh/zllovesuki/dermail-api:5.2.0
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 2000
+          protocol: TCP
+        - containerPort: 2001
+          protocol: TCP
+        - containerPort: 2002
+          protocol: TCP
+        - containerPort: 2003
+          protocol: TCP
+        args:
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 2000
+          initialDelaySeconds: 120
+          timeoutSeconds: 5
+        volumeMounts:
+        - name: config-volume
+          mountPath: /usr/src/app/config
+      volumes:
+      - name: config-volume
+        secretName: api
+---
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    app: api
+  name: api
+  namespace: dermail
+spec:
+  type: ClusterIP
+  ports:
+  - port: 2000
+    targetPort: 2000
+  - port: 2001
+    targetPort: 2001
+  - port: 2002
+    targetPort: 2002
+  - port: 2003
+    targetPort: 2003
+  selector:
+    app: api
