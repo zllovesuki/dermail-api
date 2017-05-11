@@ -93,7 +93,7 @@ module.exports = function(r, ip2asn) {
 
 	// catch 404 and forward to error handler
 	app.use(function(req, res, next) {
-		res.status(200).send({ok: true, message: 'Dermail API v2'});
+		res.status(200).send({ok: true, message: 'Dermail API v2 (v' + require(__dirname + '/version.json') + ')'});
 	});
 
 	// production error handler

@@ -9,7 +9,7 @@ var express = require('express'),
 
 var Exception = require('../lib/error');
 
-var auth = helper.auth.middleware;
+var auth = helper.auth.api;
 
 router.post('/get-s3', auth, function(req, res, next) {
 	res.setHeader('Content-Type', 'application/json');
@@ -28,7 +28,7 @@ router.post('/setup-tx', auth, function(req, res, next) {
 		return next(new Error('API is not setup correctly.'));
 	}
 
-	return res.status(200).send({ok: true, domainName: config.domainName});
+	return res.status(200).send({ok: true, domainName: config.domainName, s3: config.s3 });
 
 })
 
