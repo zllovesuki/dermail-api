@@ -15,26 +15,6 @@ r.connect(config.rethinkdb).then(function(conn) {
             replyTo: r.branch(doc.hasFields('replyTo'), doc('replyTo'), [])
         }
     })
-    .merge(function(doc) {
-        return {
-            'to': doc('to').concatMap(function(to) {
-                return [r.table('addresses').get(to).without('accountId', 'addressId', 'internalOwner')]
-            }),
-            'from': doc('from').concatMap(function(from) {
-                return [r.table('addresses').get(from).without('accountId', 'addressId', 'internalOwner')]
-            }),
-            'cc': doc('cc').concatMap(function(cc) {
-                return [r.table('addresses').get(cc).without('accountId', 'addressId', 'internalOwner')]
-            }),
-            'bcc': doc('bcc').concatMap(function(bcc) {
-                return [r.table('addresses').get(bcc).without('accountId', 'addressId', 'internalOwner')]
-            }),
-            'headers': r.table('messageHeaders').get(doc('headers')).pluck('sender', 'x-beenthere', 'x-mailinglist'),
-            'attachments': doc('attachments').concatMap(function(attachment) {
-                return [r.table('attachments').get(attachment)]
-            })
-        }
-    })
     .run(r.conn, {
         readMode: 'majority'
     })
