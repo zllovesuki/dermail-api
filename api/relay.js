@@ -143,7 +143,7 @@ router.post('/sendMail', auth, function(req, res, next) {
 						'From: ' + (name.length > 0 ? name + ' ' : '') + '&lt;<a href="mailto:' + email + '" target="_blank">' + email + '</a>&gt;<br>'+
 						'Date: ' + date + '<br>' +
 						'Subject: ' + original.subject + '<br>' +
-						'To: ' + '<a href="mailto:' + email + '" target="_blank">' + name + '</a><br><br><br>'+
+						'To: ' + (name.length > 0 ? name + ' ' : '') + '<a href="mailto:' + email + '" target="_blank">' + email + '</a><br><br><br>'+
 						html + '</div></div>';
 
 					break;
