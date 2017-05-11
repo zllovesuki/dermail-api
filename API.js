@@ -35,7 +35,7 @@ r.connect(config.rethinkdb).then(function(conn) {
     });
     ip2asn.on('ready', function() {
         var app = require('./app')(r, ip2asn);
-        var port = config.cluster.basePort + parseInt(process.env.NODE_APP_INSTANCE);
+        var port = config.cluster.basePort;
         var server = app.listen(port);
         var io = require('socket.io')(server);
         require('./lib/socket')(io, r, config);
