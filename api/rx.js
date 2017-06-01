@@ -5,7 +5,8 @@ var express = require('express'),
     crypto = require('crypto'),
 	helper = require('../lib/helper'),
 	Promise = require('bluebird'),
-	fs = Promise.promisifyAll(require("fs"));
+	fs = Promise.promisifyAll(require("fs")),
+    globToRegExp = require('glob-to-regexp');
 
 var Exception = require('../lib/error');
 
@@ -181,10 +182,19 @@ router.post('/greylist', auth, function(req, res, next) {
 	var ip2asn = req.ip2asn;
 
 	var triplet = req.body;
+    var extra = {};
+    if (req.body.hostname) {
+        extra.hostname = req.body.hostname;
+        delete req.body.hostname;
+    }
+    if (triplet.from.lastIndexOf('@') > 0) {
+        extra.from = triplet.from.slice(triplet.from.lastIndexOf('@') + 1)
+    }
 
-    return checkWhitelist(r, req.log, ip2asn, triplet.ip)
+    return checkWhitelist(r, req.log, ip2asn, triplet.ip, extra)
     .then(function(automaticWhitelist) {
         if (automaticWhitelist) return true;
+        if (automaticWhitelist === null) return false; // Blacklisted
 
         var time = Math.round(+new Date()/1000);
 
@@ -280,13 +290,14 @@ router.post('/greylist', auth, function(req, res, next) {
     })
 })
 
-var checkWhitelist = function(r, logger, ip2asn, ip) {
+var checkWhitelist = function(r, logger, ip2asn, ip, extra) {
     return Promise.all([
         r.table('greylist').get('whitelist-ASN').run(r.conn, { readMode: 'majority' }),
         r.table('greylist').get('whitelist-name').run(r.conn, { readMode: 'majority' }),
         r.table('greylist').get('blacklist-ASN').run(r.conn, { readMode: 'majority' }),
-        r.table('greylist').get('blacklist-name').run(r.conn, { readMode: 'majority' })
-    ]).spread(function(whitelistASN, whitelistName, blacklistASN, blacklistName) {
+        r.table('greylist').get('blacklist-name').run(r.conn, { readMode: 'majority' }),
+        r.table('greylist').get('blacklist-domain').run(r.conn, { readMode: 'majority' })
+    ]).spread(function(whitelistASN, whitelistName, blacklistASN, blacklistName, blacklistDomain) {
         if (whitelistASN === null) whitelistASN = [];
         else whitelistASN = whitelistASN.value;
 
@@ -298,6 +309,21 @@ var checkWhitelist = function(r, logger, ip2asn, ip) {
 
         if (blacklistName === null) blacklistName = [];
         else blacklistName = blacklistName.value;
+
+        if (blacklistDomain === null) blacklistDomain = [];
+        else blacklistDomain = blacklistDomain.value;
+
+        if (blacklistDomain.reduce(function(bad, domain) {
+            if (typeof extra.hostname !== 'undefined' && globToRegExp(domain.toLowerCase()).test(extra.hostname.toLowerCase())) {
+                logger.info({ message: 'Automatic Blacklist (Domain): ' + extra.hostname.toLowerCase(), rule: domain.toLowerCase() })
+                bad = true;
+            }
+            if (typeof extra.from !== 'undefined' && globToRegExp(domain.toLowerCase()).test(extra.from.toLowerCase())) {
+                logger.info({ message: 'Automatic Blacklist (From): ' + extra.from.toLowerCase(), rule: domain.toLowerCase() })
+                bad = true;
+            }
+            return bad;
+        }, false)) return null; // null for blacklist
 
         var isp = ip2asn.lookup(ip)
 
@@ -323,7 +349,7 @@ var checkWhitelist = function(r, logger, ip2asn, ip) {
             return bad;
         }, false)
 
-        if (badASN || badName) return false;
+        if (badASN || badName) return null; // null for blacklist
 
         var goodASN = whitelistASN.reduce(function(good, asn) {
             if (isp.asn.toLowerCase().indexOf(asn.toLowerCase()) !== -1) {
