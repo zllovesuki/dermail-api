@@ -216,6 +216,25 @@ var applyDefaultFilter = Promise.method(function(r, accountId, messageId, messag
     })
 })
 
+var getMails = function(messageIds) {
+    return r.table('messages')
+    .getAll(r.args(messageIds))
+    .pluck('TXExtra', 'messageId', 'connection', 'replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'html', 'attachments', 'spf', 'dkim', 'savedOn')
+    .merge(function(doc) {
+        return {
+            cc: r.branch(doc.hasFields('cc'), doc('cc'), []),
+            bcc: r.branch(doc.hasFields('bcc'), doc('bcc'), []),
+            replyTo: r.branch(doc.hasFields('replyTo'), doc('replyTo'), [])
+        }
+    })
+    .run(r.conn, {
+        readMode: 'majority'
+    })
+    .then(function(cursor) {
+        return cursor.toArray();
+    })
+}
+
 var startProcessing = function() {
     subMessageQ.process(function(job, done) {
         if (job.processCount - job.retryCount > 1) {
@@ -507,29 +526,43 @@ var startProcessing = function() {
 
             case 'truncateFolder':
 
-            return Promise.map(data.messages, function(message) {
-
-                var deleteMessage = function() {
-                    return r
-                    .table('messages')
-                    .get(message.messageId)
-                    .delete()
-                    .run(r.conn)
-                };
-
-                var queueDeleteAttachment = function() {
-                    return Promise.map(message.attachments, function(attachment) {
-                        return enqueue('checkUnique', attachment)
-                    }, { concurrency: 3 });
-                }
-
+            return getMails(data.messages.map(function(message) {
+                return message.messageId
+            })).then(function(mails) {
                 return Promise.all([
-                    deleteMessage(),
-                    queueDeleteAttachment()
+                    r.table('messages')
+                    .getAll(r.args(data.messages.map(function(message) {
+                        return message.messageId
+                    })))
+                    .delete()
+                    .run(r.conn),
+
+                    Promise.map(data.messages.map(function(message) {
+                        return message.attachments
+                    }).reduce(function(a, b) {
+                        return a.concat(b)
+                    }), function(attachment) {
+                        return enqueue('checkUnique', attachment)
+                    }, { concurrency: 3 })
                 ])
-            }, { concurrency: 3 })
-            .then(function() {
-                return helper.notification.sendAlert(r, data.userId, 'success', 'Folder truncated.')
+                .then(function() {
+                    return helper.notification.sendAlert(r, data.userId, 'success', 'Folder truncated.')
+                })
+                .then(function() {
+                    // untrain deleted mails
+                    if (data.changeFrom === 'Sent') return;
+                    var job = pubMessageQ.createJob({
+                        type: 'modifyBayes',
+                        payload: {
+                            changeFrom: (data.changeFrom === 'Spam' ? 'Spam' : 'Ham'),
+                            changeTo: 'Undo',
+                            userId: data.userId,
+                            messages: mails,
+                            prefetch: true
+                        }
+                    }).setTimeout(15 * 60 * 1000).setRetryMax(50).setRetryDelay(2 * 1000)
+                    return pubMessageQ.addJob(job)
+                })
             })
             .then(function() {
                 return callback();
@@ -600,8 +633,10 @@ var startProcessing = function() {
             // This requires more testing
 
             var userId = data.userId;
-            var messageId = data.messageId;
+            var messages = data.messages;
             var changeTo = data.changeTo;
+            var changeFrom = data.changeFrom;
+            var prefetch = (data.prefetch === true);
 
             return helper.classifier.acquireLock(r, (new Date().toISOString())).then(function(isLocked) {
                 if (!isLocked) {
@@ -614,43 +649,49 @@ var startProcessing = function() {
                     if (lastTrainedMailWasSavedOn === null) {
                         return helper.classifier.dne(r, userId)
                     }
-                    return r.table('messages')
-                    .get(messageId)
-                    .pluck('connection', 'replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'html', 'attachments', 'spf', 'dkim', 'savedOn')
-                    .merge(function(doc) {
-                        return {
-                            cc: r.branch(doc.hasFields('cc'), doc('cc'), []),
-                            bcc: r.branch(doc.hasFields('bcc'), doc('bcc'), []),
-                            replyTo: r.branch(doc.hasFields('replyTo'), doc('replyTo'), [])
-                        }
-                    })
-                    .run(r.conn, {
-                        readMode: 'majority'
-                    })
-                    .then(function(mail) {
-                        // newer emails will be trained with manual trigger
-                        if ( (new Date(mail.savedOn)) > (new Date(lastTrainedMailWasSavedOn)) ) return;
-                        switch (changeTo) {
-                            case 'Spam':
-                            log.info({ message: messageId + ' will be trained as Spam instead' })
-                            return classifier.unlearn(mail, ownAddresses, 'Ham')
-                            .then(function() {
-                                return classifier.learn(mail, ownAddresses, 'Spam')
-                            })
-                            break;
+                    var fetchMails = function() {
+                        if (prefetch) return Promise.resolve(messages)
+                        return getMails(messages)
+                    }
+                    return fetchMails()
+                    .then(function(mails) {
+                        return Promise.map(mails, function(mail) {
+                            // we never train sent emails
+                            if (!!mail.TXExtra) return;
+                            // newer emails will be trained with manual trigger
+                            if ( (new Date(mail.savedOn)) > (new Date(lastTrainedMailWasSavedOn)) ) return;
+                            switch (changeTo) {
+                                case 'Spam':
+                                log.info({ message: mail.messageId + ' will be trained as Spam instead' })
+                                return classifier.unlearn(mail, ownAddresses, 'Ham')
+                                .then(function() {
+                                    return classifier.learn(mail, ownAddresses, 'Spam')
+                                })
+                                break;
 
-                            case 'Ham':
-                            log.info({ message: messageId + ' will be trained as Ham instead' })
-                            return classifier.unlearn(mail, ownAddresses, 'Spam')
-                            .then(function() {
+                                case 'Ham':
+                                log.info({ message: mail.messageId + ' will be trained as Ham instead' })
+                                return classifier.unlearn(mail, ownAddresses, 'Spam')
+                                .then(function() {
+                                    return classifier.learn(mail, ownAddresses, 'Ham')
+                                })
+                                break;
+
+                                case 'Undo':
+                                log.info({ message: mail.messageId + ' will be unlearned from ' + changeFrom })
+                                return classifier.unlearn(mail, ownAddresses, changeFrom)
+                                break;
+
+                                case 'Add':
+                                log.info({ message: mail.messageId + ' will be trained as Ham' })
                                 return classifier.learn(mail, ownAddresses, 'Ham')
-                            })
-                            break;
+                                break;
 
-                            default:
+                                default:
 
-                            break;
-                        }
+                                break;
+                            }
+                        }, { concurrency: 5 })
                     })
                     .then(function() {
                         return helper.notification.sendAlert(r, userId, 'success', 'Bayesian filter retrained.')
@@ -702,7 +743,7 @@ var startProcessing = function() {
                     .filter(function(doc) {
                         return doc('savedOn').gt(r.ISO8601(lastTrainedMailWasSavedOn))
                     })
-                    .pluck('folderId', 'connection', 'replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'html', 'attachments', 'spf', 'dkim', 'savedOn', 'savedOnRaw')
+                    .pluck('TXExtra', 'folderId', 'connection', 'replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'html', 'attachments', 'spf', 'dkim', 'savedOn', 'savedOnRaw')
                     .eqJoin('folderId', r.table('folders'))
                     .pluck({
                         left: true,
@@ -727,7 +768,8 @@ var startProcessing = function() {
                     })
                     .then(function(results) {
                         results = results.filter(function(doc) {
-                            return doc.displayName !== 'Sent'
+                            // we never train sent emails
+                            return !!!doc.TXExtra
                         })
                         if (results.length === 0) {
                             log.info({ message: 'No new mails to be trained.' })
