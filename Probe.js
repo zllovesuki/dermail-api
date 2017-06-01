@@ -28,7 +28,7 @@ discover().then(function(ip) {
         r.conn = conn;
 
     	app.use(function(req, res, next) {
-            r.table('domain', {
+            r.table('domains', {
                 readMode: 'majority'
             }).run(r.conn).then(function() {
                 res.status(200).send('ok')

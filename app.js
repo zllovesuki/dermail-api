@@ -73,7 +73,7 @@ module.exports = function(r, ip2asn) {
 
     app.use('/healthz', function(req, res, next) {
         var r = req.r;
-        r.table('domain', {
+        r.table('domains', {
             readMode: 'majority'
         }).run(r.conn).then(function() {
             res.status(200).send('ok')
