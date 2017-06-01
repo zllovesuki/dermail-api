@@ -18,8 +18,17 @@ spec:
     spec:
       containers:
       - name: worker
-        image: rachel.sh/zllovesuki/dermail-api-worker:5.2.0
+        image: rachel.sh/zllovesuki/dermail-api-worker:5.5.0
         imagePullPolicy: Always
+        ports:
+        - containerPort: 1999
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 1999
+          initialDelaySeconds: 15
+          timeoutSeconds: 5
         volumeMounts:
         - name: config-volume
           readOnly: true
@@ -52,23 +61,16 @@ spec:
     spec:
       containers:
       - name: api
-        image: rachel.sh/zllovesuki/dermail-api:5.2.0
+        image: rachel.sh/zllovesuki/dermail-api:5.5.0
         imagePullPolicy: Always
         ports:
         - containerPort: 2000
           protocol: TCP
-        - containerPort: 2001
-          protocol: TCP
-        - containerPort: 2002
-          protocol: TCP
-        - containerPort: 2003
-          protocol: TCP
-        args:
         livenessProbe:
           httpGet:
-            path: /
+            path: /healthz
             port: 2000
-          initialDelaySeconds: 120
+          initialDelaySeconds: 15
           timeoutSeconds: 5
         volumeMounts:
         - name: config-volume
@@ -92,17 +94,8 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-  - name: instance-0
+  - name: API-Worker-Probe
     port: 2000
     targetPort: 2000
-  - name: instance-1
-    port: 2001
-    targetPort: 2001
-  - name: instance-2
-    port: 2002
-    targetPort: 2002
-  - name: instance-3
-    port: 2003
-    targetPort: 2003
   selector:
     app: api
