@@ -119,7 +119,7 @@ router.post('/updateMail', auth, function(req, res, next) {
                         }
                     }
                     return checkSource().then(function() {
-                        res.status(200).send(result);
+                        res.status(200).send(trashFolder);
                     })
                 })
             })
