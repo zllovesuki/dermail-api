@@ -175,6 +175,33 @@ router.post('/updateMail', auth, function(req, res, next) {
                 return next(e);
             })
             break;
+        case 'delete':
+            return Promise.all([
+                helper.auth.messageAccountMapping(r, messageId, accountId),
+                helper.folder.getInternalFolder(r, accountId, 'Trash')
+            ]).spread(function(message, trashFolder) {
+                if (message.folderId !== trashFolder) {
+                    return next(new Exception.Forbidden('Message must be in the Trash folder first to be deleted permanently.'))
+                }
+                // untrain deleted mails
+                var job = messageQ.createJob({
+                    type: 'deleteMessagesPermanently',
+                    payload: {
+                        changeFrom: 'Trash', // only from trash
+                        changeTo: 'Undo',
+                        userId: userId,
+                        messages: [message]
+                    }
+                }).setTimeout(15 * 60 * 1000).setRetryMax(50).setRetryDelay(2 * 1000)
+                return messageQ.addJob(job);
+            })
+            .then(function() {
+                res.status(200).send({})
+            })
+            .catch(function(e) {
+                return next(e);
+            })
+            break;
         default:
             return next(new Error('Not implemented.'));
             break;
@@ -255,7 +282,7 @@ router.post('/updateFolder', auth, function(req, res, next) {
                 })
                 .then(function(messages) {
                     var job = messageQ.createJob({
-                        type: 'truncateFolder',
+                        type: 'deleteMessagesPermanently',
                         payload: {
                             userId: userId,
                             changeFrom: folder.displayName,

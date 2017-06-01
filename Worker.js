@@ -220,12 +220,14 @@ var getMails = function(messageIds) {
     return r.table('messages')
     .getAll(r.args(messageIds))
     .pluck('TXExtra', 'messageId', 'connection', 'replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'html', 'attachments', 'spf', 'dkim', 'savedOn')
-    .merge(function(doc) {
-        return {
-            cc: r.branch(doc.hasFields('cc'), doc('cc'), []),
-            bcc: r.branch(doc.hasFields('bcc'), doc('bcc'), []),
-            replyTo: r.branch(doc.hasFields('replyTo'), doc('replyTo'), [])
-        }
+    .map(function(doc) {
+        return doc.merge(function() {
+            return {
+                cc: r.branch(doc.hasFields('cc'), doc('cc'), []),
+                bcc: r.branch(doc.hasFields('bcc'), doc('bcc'), []),
+                replyTo: r.branch(doc.hasFields('replyTo'), doc('replyTo'), [])
+            }
+        })
     })
     .run(r.conn, {
         readMode: 'majority'
@@ -524,7 +526,7 @@ var startProcessing = function() {
 
             break;
 
-            case 'truncateFolder':
+            case 'deleteMessagesPermanently':
 
             return getMails(data.messages.map(function(message) {
                 return message.messageId
@@ -546,7 +548,7 @@ var startProcessing = function() {
                     }, { concurrency: 3 })
                 ])
                 .then(function() {
-                    return helper.notification.sendAlert(r, data.userId, 'success', 'Folder truncated.')
+                    return helper.notification.sendAlert(r, data.userId, 'success', 'Deleted permanently.')
                 })
                 .then(function() {
                     // untrain deleted mails
