@@ -183,9 +183,13 @@ router.post('/greylist', auth, function(req, res, next) {
 
 	var triplet = req.body;
     var extra = {};
-    if (req.body.hostname) {
-        extra.hostname = req.body.hostname;
-        delete req.body.hostname;
+    if (req.body.clientHostname) {
+        extra.clientHostname = req.body.clientHostname;
+        delete req.body.clientHostname;
+    }
+    if (req.body.hostNameAppearsAs) {
+        extra.hostNameAppearsAs = req.body.hostNameAppearsAs;
+        delete req.body.hostNameAppearsAs;
     }
     if (triplet.from.lastIndexOf('@') > 0) {
         extra.from = triplet.from.slice(triplet.from.lastIndexOf('@') + 1)
@@ -314,11 +318,16 @@ var checkWhitelist = function(r, logger, ip2asn, ip, extra) {
         else blacklistDomain = blacklistDomain.value;
 
         if (blacklistDomain.reduce(function(bad, domain) {
-            if (typeof extra.hostname !== 'undefined' && globToRegExp(domain.toLowerCase()).test(extra.hostname.toLowerCase())) {
-                logger.info({ message: 'Automatic Blacklist (Domain): ' + extra.hostname.toLowerCase(), rule: domain.toLowerCase() })
+            var regex = globToRegExp(domain.toLowerCase());
+            if (typeof extra.clientHostname !== 'undefined' && regex.test(extra.clientHostname.toLowerCase())) {
+                logger.info({ message: 'Automatic Blacklist (clientHostname): ' + extra.clientHostname.toLowerCase(), rule: domain.toLowerCase() })
                 bad = true;
             }
-            if (typeof extra.from !== 'undefined' && globToRegExp(domain.toLowerCase()).test(extra.from.toLowerCase())) {
+            if (typeof extra.hostNameAppearsAs !== 'undefined' && regex.test(extra.hostNameAppearsAs.toLowerCase())) {
+                logger.info({ message: 'Automatic Blacklist (hostNameAppearsAs): ' + extra.hostNameAppearsAs.toLowerCase(), rule: domain.toLowerCase() })
+                bad = true;
+            }
+            if (typeof extra.from !== 'undefined' && regex.test(extra.from.toLowerCase())) {
                 logger.info({ message: 'Automatic Blacklist (From): ' + extra.from.toLowerCase(), rule: domain.toLowerCase() })
                 bad = true;
             }
