@@ -163,7 +163,7 @@ var applyDefaultFilter = Promise.method(function(r, accountId, messageId, messag
     return helper.auth.accountIdToUserId(r, accountId)
     .then(function(userId) {
         return Promise.all([
-            helper.classifier.getOwnAddresses(r, userId),
+            helper.classifier.getOwnAddresses(r),
             helper.classifier.getLastTrainedMailWasSavedOn(r)
         ]).spread(function(ownAddresses, lastTrainedMailWasSavedOn) {
             if (lastTrainedMailWasSavedOn === null) return null;
@@ -646,7 +646,7 @@ var startProcessing = function() {
                 }
                 return Promise.all([
                     helper.classifier.getLastTrainedMailWasSavedOn(r),
-                    helper.classifier.getOwnAddresses(r, userId)
+                    helper.classifier.getOwnAddresses(r)
                 ]).spread(function(lastTrainedMailWasSavedOn, ownAddresses) {
                     if (lastTrainedMailWasSavedOn === null) {
                         return helper.classifier.dne(r, userId)
@@ -728,7 +728,7 @@ var startProcessing = function() {
                 }
                 return Promise.all([
                     helper.classifier.getLastTrainedMailWasSavedOn(r),
-                    helper.classifier.getOwnAddresses(r, userId)
+                    helper.classifier.getOwnAddresses(r)
                 ]).spread(function(lastTrainedMailWasSavedOn, ownAddresses) {
                     if (lastTrainedMailWasSavedOn === null) {
                         return helper.classifier.dne(r, userId)
