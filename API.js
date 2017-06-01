@@ -21,8 +21,13 @@ if (!!config.graylog) {
 	});
 }
 
+var endpoint = false;
+
 discover().then(function(ip) {
-    if (ip !== null) config.rethinkdb.host = ip;
+    if (ip !== null) {
+        config.rethinkdb.host = ip;
+        endpoint = ip;
+    }
     r.connect(config.rethinkdb).then(function(conn) {
         r.conn = conn;
         var opts = {};
@@ -37,7 +42,7 @@ discover().then(function(ip) {
             }
         });
         ip2asn.on('ready', function() {
-            var app = require('./app')(r, ip2asn);
+            var app = require('./app')(r, ip2asn, endpoint);
             var port = config.cluster.basePort;
             var server = app.listen(port);
             var io = require('socket.io')(server);

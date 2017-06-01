@@ -22,16 +22,32 @@ if (!!config.graylog) {
 	});
 }
 
+var endpoint = false;
+var endpointChanged = false;
+
 discover().then(function(ip) {
-    if (ip !== null) config.rethinkdb.host = ip;
+    if (ip !== null) {
+        config.rethinkdb.host = ip
+        endpoint = ip;
+    }
     r.connect(config.rethinkdb).then(function(conn) {
         r.conn = conn;
 
     	app.use(function(req, res, next) {
-            r.table('domains', {
-                readMode: 'majority'
-            }).run(r.conn).then(function() {
-                res.status(200).send('ok')
+            if (endpointChanged) {
+                return next(new Error('Endpoint changed.'))
+            }
+            Promise.all([
+                discover(),
+                r.table('domains', {
+                    readMode: 'majority'
+                }).run(r.conn)
+            ]).spread(function(ip, domains) {
+                if (endpoint !== false && ip !== endpoint) {
+                    endpointChanged = true;
+                    throw new Error('Endpoint changed.')
+                }
+                return res.status(200).send('ok')
             }).catch(function(e) {
                 next(e)
             })

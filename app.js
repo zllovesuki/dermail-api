@@ -1,4 +1,6 @@
-module.exports = function(r, ip2asn) {
+var endpointChanged = false;
+
+module.exports = function(r, ip2asn, endpoint) {
 	var express = require('express'),
 		path = require('path'),
 		bodyParser = require('body-parser'),
@@ -73,10 +75,20 @@ module.exports = function(r, ip2asn) {
 
     app.use('/healthz', function(req, res, next) {
         var r = req.r;
-        r.table('domains', {
-            readMode: 'majority'
-        }).run(r.conn).then(function() {
-            res.status(200).send('ok')
+        if (endpointChanged) {
+            return next(new Error('Endpoint changed.'))
+        }
+        Promise.all([
+            discover(),
+            r.table('domains', {
+                readMode: 'majority'
+            }).run(r.conn)
+        ]).spread(function(ip, domains) {
+            if (endpoint !== false && ip !== endpoint) {
+                endpointChanged = true;
+                throw new Error('Endpoint changed.')
+            }
+            return res.status(200).send('ok')
         }).catch(function(e) {
             next(e)
         })
