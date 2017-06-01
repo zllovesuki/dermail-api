@@ -1,7 +1,8 @@
 var endpointChanged = false;
 
 module.exports = function(r, ip2asn, endpoint) {
-	var express = require('express'),
+	var Promise = require('bluebird'),
+        express = require('express'),
 		path = require('path'),
 		bodyParser = require('body-parser'),
 		jsonParser = bodyParser.json({limit: '55mb'}),
