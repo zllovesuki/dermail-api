@@ -1,5 +1,6 @@
 var	Queue = require('rethinkdb-job-queue'),
 	config = require('./config'),
+    discover = require('./lib/discover'),
 	log;
 
 discover().then(function(ip) {
