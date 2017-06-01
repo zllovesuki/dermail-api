@@ -1,5 +1,6 @@
 var r = require('rethinkdb'),
     config = require('./config'),
+    discover = require('./lib/discover'),
     log;
 
 if (!!config.graylog) {
@@ -16,22 +17,25 @@ if (!!config.graylog) {
     });
 }
 
-r.connect(config.rethinkdb).then(function(conn) {
-    setInterval(function() {
-        var now = new Date();
-        var time = Math.round(now.setHours(now.getHours() - 6) / 1000);
-        r.table('greylist')
-        .between(r.minval, time, {index: 'lastSeen'})
-        .filter(function(doc) {
-            return doc('whitelisted').eq(false)
-        })
-        .delete()
-        .run(conn, {
-            readMode: 'majority'
-        })
-        .then(function(result) {
-            log.info('Deleted %d expired greylist', result.deleted);
-        })
-    }, 6 * 60 * 60 * 1000) // every 6 hours
-    log.info('Process ' + process.pid + ' is running to clean up expired greylist every 6 hours.')
+discover().then(function(ip) {
+    if (ip !== null) config.rethinkdb.host = ip;
+    r.connect(config.rethinkdb).then(function(conn) {
+        setInterval(function() {
+            var now = new Date();
+            var time = Math.round(now.setHours(now.getHours() - 6) / 1000);
+            r.table('greylist')
+            .between(r.minval, time, {index: 'lastSeen'})
+            .filter(function(doc) {
+                return doc('whitelisted').eq(false)
+            })
+            .delete()
+            .run(conn, {
+                readMode: 'majority'
+            })
+            .then(function(result) {
+                log.info('Deleted %d expired greylist', result.deleted);
+            })
+        }, 6 * 60 * 60 * 1000) // every 6 hours
+        log.info('Process ' + process.pid + ' is running to clean up expired greylist every 6 hours.')
+    })
 })
