@@ -11,6 +11,7 @@ module.exports = function(r, ip2asn, endpoint) {
 		jwt = require('jwt-simple'),
         Queue = require('rethinkdb-job-queue'),
 		app = express(),
+        discover = require('./lib/discover'),
 		RateLimit = require('express-rate-limit'),
 		rx = require('./api/rx'),
         elasticsearch = require('elasticsearch'),
