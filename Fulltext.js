@@ -4,7 +4,6 @@ var Promise = require('bluebird'),
 	config = require('./config'),
     bunyan = require('bunyan'),
 	stream = require('gelf-stream'),
-    classifier = require('dermail-spam'),
 	log;
 
 if (!!config.graylog) {

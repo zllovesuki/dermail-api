@@ -71,6 +71,15 @@ module.exports = function(r, ip2asn) {
 		next();
 	});
 
+    app.use('/healthz', function(req, res, next) {
+        var r = req.r;
+        r.tableList().run(r.conn).then(function() {
+            res.status(200).send('ok')
+        }).catch(function(e) {
+            next(e)
+        })
+    });
+
 	var loginLimiter = new RateLimit({
 		windowMs: 60 * 60 * 1000, // 1 hour window
 		delayAfter: 3, // begin slowing down responses after three requests
