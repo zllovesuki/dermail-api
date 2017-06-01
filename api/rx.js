@@ -228,17 +228,6 @@ router.post('/greylist', auth, function(req, res, next) {
             }else{
                 // whitelisted, check expiration or renew
                 if (result.whitelisted) {
-                    var whitelistExpiration = 30 * 24 * 60 * 60; // 30 days
-                    // whitelist expires after 30 days
-                    if (time - result.lastSeen > whitelistExpiration) {
-                        return r.table('greylist').get(hash).delete()
-                        .run(r.conn, {
-                            readMode: 'majority'
-                        })
-                        .then(function() {
-                            return false;
-                        })
-                    }
                     // we will renew its whitelist
                     return r.table('greylist')
                     .get(hash)
@@ -255,20 +244,9 @@ router.post('/greylist', auth, function(req, res, next) {
 
                 // greylist already exist, check elapsed time
                 var minimumWait = 1 * 60; // 1 minute
-                var expiration = 6 * 60 * 60; // 6 hours
                 if (time - result.lastSeen < minimumWait) {
                     // still within greylist perioid
                     return false;
-                }
-                if (time - result.lastSeen > expiration) {
-                    // expired, please try again
-                    return r.table('greylist').get(hash).delete()
-                    .run(r.conn, {
-                        readMode: 'majority'
-                    })
-                    .then(function() {
-                        return false;
-                    })
                 }
                 // we should whitelist this triplet
                 return r.table('greylist')
