@@ -255,6 +255,14 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 	var r = req.r;
 
     var accounts = [];
+    var skipFolders = [
+        'Spam',
+        'Trash',
+        'Sent'
+    ]
+    var includeFolders = [];
+    var starlight = [];
+
 	var accountId = req.body.accountId;
 	var folderId = req.body.folderId;
 	var slice = (typeof req.body.slice === 'object' ? req.body.slice : {} );
@@ -265,21 +273,13 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 	var starOnly = !!slice.starOnly;
     var exclude = slice.exclude || [];
 
-    var skipFolders = [
-        'Spam',
-        'Trash',
-        'Sent'
-    ]
-
-    var includeFolders = [];
-
     var enforce = function() {
         if (folderId !== 'inbox' && !folderId) {
-    		return next(new Exception.Unauthorized('Folder ID Required.'));
+    		return Promise.reject(new Exception.Unauthorized('Folder ID Required.'));
     	}
 
     	if (accountId !== 'unified' && req.user.accounts.indexOf(accountId) === -1) {
-    		return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
+    		return Promise.reject(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
     	}
         if (accountId !=='unified' || folderId !== 'inbox')
             return helper.auth.accountFolderMapping(r, accountId, folderId)
@@ -297,6 +297,13 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
         accounts = req.user.accounts
     }
 
+    if (starOnly) {
+        starlight.push(true)
+    }else{
+        starlight.push(true)
+        starlight.push(false)
+    }
+
 	return enforce()
 	.then(function(folder) {
 		return r
@@ -304,6 +311,9 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
         .orderBy({index: r.desc('savedOn')})
         .filter(function(doc) {
             return r.expr(accounts).contains(doc('accountId'))
+            .and(r.expr(starlight).contains(doc('isStar')))
+            .and(r.expr(exclude).contains(doc('messageId')).not())
+            .and(doc('savedOn').lt(lastDate))
         })
 	})
     .then(function(p) {
@@ -318,29 +328,16 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
         if (accountId !=='unified' || folderId !== 'inbox') {
             return p.filter(function(doc) {
                 return r.expr(includeFolders).contains(doc('displayName'))
-                .and(doc('savedOn').lt(lastDate))
-                .and(r.expr(exclude).contains(doc('messageId')).not())
             })
         }else{
             return p.filter(function(doc) {
                 return r.expr(skipFolders).contains(doc('displayName')).not()
-                .and(doc('savedOn').lt(lastDate))
-                .and(r.expr(exclude).contains(doc('messageId')).not())
             })
         }
-    })
-	.then(function(p) {
-		if (starOnly) {
-			return p.filter(function(doc) {
-				return doc('isStar').eq(true)
-			})
-		}else{
-			return p
-		}
 	})
 	.then(function(p) {
 		return p
-        .slice(start, end)
+        .limit(end)
 		.run(r.conn, {
             readMode: 'majority'
         })
