@@ -308,12 +308,12 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 	.then(function(folder) {
 		return r
 		.table('messages')
+        .between(r.minval, lastDate, { index: 'savedOn' })
         .orderBy({index: r.desc('savedOn')})
         .filter(function(doc) {
             return r.expr(accounts).contains(doc('accountId'))
             .and(r.expr(starlight).contains(doc('isStar')))
             .and(r.expr(exclude).contains(doc('messageId')).not())
-            .and(doc('savedOn').lt(lastDate))
         })
 	})
     .then(function(p) {
