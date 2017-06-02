@@ -315,14 +315,9 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
             .and(r.expr(starlight).contains(doc('isStar')))
             .and(r.expr(exclude).contains(doc('messageId')).not())
         })
-	})
-    .then(function(p) {
-        return p.eqJoin('folderId', r.table('folders'))
-        .pluck({
-            left: ['messageId', '_messageId', 'date', 'savedOn', 'to', 'from', 'accountId', 'subject', 'text', 'isRead', 'isStar'],
-            right: ['folderId', 'displayName']
+        .map(function(doc) {
+            return doc.merge(r.table('folders').get(doc('folderId')).pluck('displayName'))
         })
-        .zip()
 	})
     .then(function(p) {
         if (accountId !=='unified' || folderId !== 'inbox') {
@@ -337,6 +332,7 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 	})
 	.then(function(p) {
 		return p
+        .pluck('messageId', '_messageId', 'folderId', 'displayName', 'date', 'savedOn', 'to', 'from', 'accountId', 'subject', 'text', 'isRead', 'isStar')
         .limit(end)
 		.run(r.conn, {
             readMode: 'majority'
