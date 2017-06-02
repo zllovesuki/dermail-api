@@ -198,7 +198,7 @@ router.post('/greylist', auth, function(req, res, next) {
     return checkWhitelist(r, req.log, ip2asn, triplet.ip, extra)
     .then(function(automaticWhitelist) {
         if (automaticWhitelist) return true;
-        if (automaticWhitelist === null) return false; // Blacklisted
+        if (automaticWhitelist === null) return null; // null is blacklisted
 
         var time = Math.round(+new Date()/1000);
 

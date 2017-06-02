@@ -20,12 +20,14 @@ if (!!config.graylog) {
 discover().then(function(ip) {
     if (ip !== null) config.rethinkdb.host = ip;
     r.connect(config.rethinkdb).then(function(conn) {
-        setInterval(function() {
-            var now = new Date();
+        log.info('Process ' + process.pid + ' is running to clean up expired greylist every 6 hours.')
+        var doClean = function() {
+            var nowPending = new Date();
+            var nowWhitelisted = new Date();
             // 6 hours expiration
-            var pending = Math.round(now.setHours(now.getHours() - 6) / 1000);
+            var pending = Math.round(nowPending.setHours(nowPending.getHours() - 6) / 1000);
             // 30 days expiration
-            var whitelisted = Math.round(now.setDate(now.now.getDate() - 30) / 1000);
+            var whitelisted = Math.round(nowWhitelisted.setDate(nowWhitelisted.getDate() - 30) / 1000);
             Promise.all([
                 r.table('greylist')
                 .between(r.minval, pending, {index: 'lastSeen'})
@@ -52,7 +54,13 @@ discover().then(function(ip) {
                     log.info('Deleted %d expired whitelist', result.deleted);
                 })
             ])
-        }, 6 * 60 * 60 * 1000) // every 6 hours
-        log.info('Process ' + process.pid + ' is running to clean up expired greylist every 6 hours.')
+        }
+        var clean = function() {
+            return doClean().then(function() {
+                setTimeout(function() {
+                    clean()
+                }, 6 * 60 * 60 * 1000) // every 6 hours
+            })
+        }
     })
 })
