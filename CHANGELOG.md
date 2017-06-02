@@ -1,5 +1,16 @@
 ## Changelog
 
+06/01/2017: 5.x -> 5.7
+1. unified inbox is supported. Please drop the old index and add the new one:
+```javascript
+r.db('dermail').table("messages").indexCreate("savedOn")
+```
+2. old indices is no longer needed:
+```javascript
+r.db('dermail').table("messages").indexDrop("folderId")
+r.db('dermail').table("messages").indexDrop("folderSaved")
+```
+
 05/06/2017: 5.0 -> 5.1
 1. De-normalized `attachments`. Please run `usefulScripts/attachments.js` *ONCE* to migrate data structure
 2. De-normalized `headers`. Please run `usefulScripts/headers.js` *ONCE* to migrate data structure

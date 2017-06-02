@@ -109,6 +109,14 @@ router.post('/getAccount', auth, function(req, res, next) {
 		return next(new Exception.BadRequest('Account ID Required'));
 	}
 
+    if (accountId === 'unified') {
+        return res.status(200).send({
+            account: 'everything',
+            domain: 'unified',
+            accountId: 'unified'
+        })
+    }
+
 	if (req.user.accounts.indexOf(accountId) === -1) {
 		return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
 	}
@@ -217,6 +225,17 @@ router.post('/getFolder', auth, function(req, res, next) {
 		return next(new Exception.BadRequest('Account ID Required'));
 	}
 
+    if (accountId === 'unified' && folderId === 'inbox') {
+        return res.status(200).send({
+            accountId: 'unified',
+            description: 'Unified Inbox',
+            displayName: 'Inbox',
+            folderId: 'inbox',
+            mutable: false,
+            parent: null
+        })
+    }
+
 	if (req.user.accounts.indexOf(accountId) === -1) {
 		return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
 	}
@@ -231,91 +250,70 @@ router.post('/getFolder', auth, function(req, res, next) {
 
 });
 
-router.post('/unifiedInbox', auth, function(req, res, next) {
-
-	var r = req.r;
-
-	var userId = req.user.userId;
-	var slice = (typeof req.body.slice === 'object' ? req.body.slice : {} );
-    var displayName = req.body.displayName || 'Inbox';
-	var lastDate = slice.savedOn || r.maxval;
-	var start = 0;
-	var end = slice.perPage || 5;
-	end = parseInt(end);
-
-    return r.table('folders')
-    .between([displayName, r.minval], [displayName, r.maxval], {index: 'inboxAccountId'})
-    .eqJoin('accountId', r.table('accounts'))
-    .pluck({
-        left: ['folderId', 'displayName'],
-        right: ['userId', 'accountId']
-    })
-    .zip()
-    .filter(function(doc) {
-        return doc('userId').eq(userId);
-    })
-    .eqJoin('folderId', r.table('messages'), {index: 'folderId'})
-    .pluck({
-        left: ['folderId', 'displayName'],
-        right: ['messageId', '_messageId', 'date', 'savedOn', 'to', 'from', 'accountId', 'subject', 'text', 'isRead', 'isStar']
-    })
-    .zip()
-    .orderBy(r.desc('savedOn'))
-    .filter(function(doc) {
-        return doc('savedOn').lt(lastDate)
-    })
-    .slice(start, end)
-    .map(function(doc) {
-        return doc.merge(function() {
-            return {
-                'text': doc('text').slice(0, 100)
-            }
-        })
-    })
-    .run(r.conn, {
-        readMode: 'majority'
-    })
-    .then(function(cursor) {
-        return cursor.toArray();
-    })
-    .then(function(messages) {
-        return res.status(200).send(messages);
-    })
-    .error(function(e) {
-        req.log.error(e);
-        return res.status(200).send([]);
-    })
-});
-
 router.post('/getMailsInFolder', auth, function(req, res, next) {
 
 	var r = req.r;
 
-	var userId = req.user.userId;
+    var accounts = req.user.accounts;
 	var accountId = req.body.accountId;
 	var folderId = req.body.folderId;
 	var slice = (typeof req.body.slice === 'object' ? req.body.slice : {} );
-	var lastDate = slice.savedOn || r.maxval;
+    var lastDate = slice.savedOn || r.maxval;
 	var start = 0;
 	var end = slice.perPage || 5;
 	end = parseInt(end);
 	var starOnly = !!slice.starOnly;
+    var exclude = slice.exclude || [];
 
-	if (!folderId) {
-		return next(new Exception.Unauthorized('Folder ID Required.'));
-	}
+    var skipFolders = [
+        'Spam',
+        'Trash',
+        'Sent'
+    ]
 
-	if (req.user.accounts.indexOf(accountId) === -1) {
-		return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
-	}
+    var enforce = function() {
+        if (folderId !== 'inbox' && !folderId) {
+    		return next(new Exception.Unauthorized('Folder ID Required.'));
+    	}
 
-	return helper.auth.accountFolderMapping(r, accountId, folderId)
+    	if (accountId !== 'unified' && req.user.accounts.indexOf(accountId) === -1) {
+    		return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
+    	}
+        if (accountId !=='unified' || folderId !== 'inbox')
+            return helper.auth.accountFolderMapping(r, accountId, folderId)
+        else
+            return Promise.resolve();
+    }
+
+	return enforce()
 	.then(function(folder) {
 		return r
 		.table('messages')
-		.between([folderId, r.minval], [folderId, lastDate], {index: 'folderSaved'})
-		.orderBy({index: r.desc('folderSaved')})
+        .orderBy({index: r.desc('savedOn')})
+        .eqJoin('folderId', r.table('folders'))
+        .pluck({
+            left: ['messageId', '_messageId', 'date', 'savedOn', 'to', 'from', 'accountId', 'subject', 'text', 'isRead', 'isStar'],
+            right: ['folderId', 'displayName']
+        })
+        .zip()
 	})
+    .then(function(p) {
+        if (accountId !=='unified' || folderId !== 'inbox') {
+            return p.filter(function(doc) {
+                return doc('accountId').eq(accountId)
+                .and(doc('folderId').eq(folderId))
+                .and(doc('savedOn').lt(lastDate))
+                .and(r.expr(exclude).contains(doc('messageId')).not())
+            })
+        }else{
+            return p.filter(function(doc) {
+                return r.expr(accounts).contains(doc('accountId'))
+                .and(r.expr(skipFolders).contains(doc('displayName')).not())
+                .and(doc('savedOn').lt(lastDate))
+                .and(r.expr(exclude).contains(doc('messageId')).not())
+            })
+        }
+    })
 	.then(function(p) {
 		if (starOnly) {
 			return p.filter(function(doc) {
@@ -326,17 +324,8 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 		}
 	})
 	.then(function(p) {
-		p
-		.slice(start, end)
-		.pluck('messageId', '_messageId', 'date', 'savedOn', 'to', 'from', 'folderId', 'accountId', 'subject', 'text', 'isRead', 'isStar')
-		// Save some bandwidth and processsing
-		.map(function(doc) {
-			return doc.merge(function() {
-				return {
-					'text': doc('text').slice(0, 100)
-				}
-			})
-		})
+		return p
+        .slice(start, end)
 		.run(r.conn, {
             readMode: 'majority'
         })
@@ -344,7 +333,10 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 			return cursor.toArray();
 		})
 		.then(function(messages) {
-			return res.status(200).send(messages);
+            return res.status(200).send(messages.map(function(message) {
+                message.text = message.text.slice(0, 100)
+                return message
+            }));
 		})
 		.error(function(e) {
 			req.log.error(e);

@@ -46,15 +46,10 @@ r.db('dermail').table("folders").indexCreate("accountId")
 r.db('dermail').table("messages").indexCreate("accountId")
 r.db('dermail').table("messages").indexCreate("folderId")
 r.db('dermail').table("messages").indexCreate("_messageId")
+r.db('dermail').table("messages").indexCreate("savedOn")
 r.db('dermail').table("queue").indexCreate("userId")
 r.db('dermail').table("filters").indexCreate("accountId")
 r.db('dermail').table("greylist").indexCreate("lastSeen")
-```
-
-
-compound index of folderId + date (savedOn) in table "messages"
-```javascript
-r.db('dermail').table('messages').indexCreate('folderSaved', [ r.row('folderId'),  r.row('savedOn')])
 ```
 
 Add secondary index of "folderId" and "isRead" to table "messages" as "unreadCount"
