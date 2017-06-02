@@ -339,7 +339,6 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 		}
 	})
 	.then(function(p) {
-        console.log(p.toString())
 		return p
         .slice(start, end)
 		.run(r.conn, {

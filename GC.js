@@ -62,5 +62,6 @@ discover().then(function(ip) {
                 }, 6 * 60 * 60 * 1000) // every 6 hours
             })
         }
+        clean()
     })
 })
