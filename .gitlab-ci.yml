@@ -8,16 +8,17 @@ before_script:
   - apt-get update -qq && apt-get install -y -qq curl
   - npm install
   - npm install forever -g
-  - cp .gitlab-ci.config.json config.json
+  - mkdir config
+  - cp .gitlab-ci.config.json config/config.json
 
 cache:
   paths:
     - node_modules/
-    - config.json
+    - config/
 
 api:
   stage: test
   script:
-    - NODE_APP_INSTANCE=0 forever start API.js
-    - sleep 5
+    - forever start API.js
+    - sleep 30
     - curl -I http://127.0.0.1:2000/
