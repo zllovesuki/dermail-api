@@ -254,7 +254,7 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 
 	var r = req.r;
 
-    var accounts = req.user.accounts;
+    var accounts = [];
 	var accountId = req.body.accountId;
 	var folderId = req.body.folderId;
 	var slice = (typeof req.body.slice === 'object' ? req.body.slice : {} );
@@ -271,6 +271,8 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
         'Sent'
     ]
 
+    var includeFolders = [];
+
     var enforce = function() {
         if (folderId !== 'inbox' && !folderId) {
     		return next(new Exception.Unauthorized('Folder ID Required.'));
@@ -281,8 +283,18 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
     	}
         if (accountId !=='unified' || folderId !== 'inbox')
             return helper.auth.accountFolderMapping(r, accountId, folderId)
+            .then(function(folder) {
+                includeFolders = [ folder.displayName ]
+                return folder
+            })
         else
-            return Promise.resolve();
+            return Promise.resolve({});
+    }
+
+    if (accountId !=='unified' || folderId !== 'inbox') {
+        accounts = [ accountId ]
+    }else{
+        accounts = req.user.accounts
     }
 
 	return enforce()
@@ -290,7 +302,12 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 		return r
 		.table('messages')
         .orderBy({index: r.desc('savedOn')})
-        .eqJoin('folderId', r.table('folders'))
+        .filter(function(doc) {
+            return r.expr(accounts).contains(doc('accountId'))
+        })
+	})
+    .then(function(p) {
+        return p.eqJoin('folderId', r.table('folders'))
         .pluck({
             left: ['messageId', '_messageId', 'date', 'savedOn', 'to', 'from', 'accountId', 'subject', 'text', 'isRead', 'isStar'],
             right: ['folderId', 'displayName']
@@ -300,15 +317,13 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
     .then(function(p) {
         if (accountId !=='unified' || folderId !== 'inbox') {
             return p.filter(function(doc) {
-                return doc('accountId').eq(accountId)
-                .and(doc('folderId').eq(folderId))
+                return r.expr(includeFolders).contains(doc('displayName'))
                 .and(doc('savedOn').lt(lastDate))
                 .and(r.expr(exclude).contains(doc('messageId')).not())
             })
         }else{
             return p.filter(function(doc) {
-                return r.expr(accounts).contains(doc('accountId'))
-                .and(r.expr(skipFolders).contains(doc('displayName')).not())
+                return r.expr(skipFolders).contains(doc('displayName')).not()
                 .and(doc('savedOn').lt(lastDate))
                 .and(r.expr(exclude).contains(doc('messageId')).not())
             })
@@ -324,6 +339,7 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 		}
 	})
 	.then(function(p) {
+        console.log(p.toString())
 		return p
         .slice(start, end)
 		.run(r.conn, {
