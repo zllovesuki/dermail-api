@@ -383,20 +383,29 @@ router.post('/getMail', auth, function(req, res, next) {
 	.then(function() {
 		return r
 		.table('messages')
-		.get(messageId)
-		.pluck('messageId', '_messageId', 'headers', 'date', 'to', 'from', 'cc', 'bcc', 'replyTo', 'folderId', 'accountId', 'subject', 'html', 'attachments', 'isRead', 'isStar', 'references', 'authentication_results', 'dkim', 'spf')
-		// Save some bandwidth and processsing
-		.merge(function(doc) {
-			return {
-                cc: r.branch(doc.hasFields('cc'), doc('cc'), []),
-				bcc: r.branch(doc.hasFields('bcc'), doc('bcc'), [])
-			}
-		})
+		.getAll(messageId)
+        .eqJoin('folderId', r.table('folders'))
+		.pluck({
+            left: ['messageId', '_messageId', 'headers', 'date', 'to', 'from', 'cc', 'bcc', 'replyTo', 'accountId', 'subject', 'html', 'attachments', 'isRead', 'isStar', 'references', 'authentication_results', 'dkim', 'spf'],
+            right: ['folderId', 'displayName']
+        })
+		.zip()
+		.map(function(doc) {
+            return doc.merge(function() {
+    			return {
+                    cc: r.branch(doc.hasFields('cc'), doc('cc'), []),
+    				bcc: r.branch(doc.hasFields('bcc'), doc('bcc'), [])
+    			}
+    		})
+        })
 		.run(r.conn, {
             readMode: 'majority'
         })
-		.then(function(message) {
-			return res.status(200).send(message);
+        .then(function(cursor) {
+            return cursor.toArray()
+        })
+		.then(function(messages) {
+			return res.status(200).send(messages[0] || {});
 		})
 		.error(function(e) {
 			return next(e);
