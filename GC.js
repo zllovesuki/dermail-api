@@ -28,7 +28,7 @@ discover().then(function(ip) {
             var pending = Math.round(nowPending.setHours(nowPending.getHours() - 6) / 1000);
             // 30 days expiration
             var whitelisted = Math.round(nowWhitelisted.setDate(nowWhitelisted.getDate() - 30) / 1000);
-            Promise.all([
+            return Promise.all([
                 r.table('greylist')
                 .between(r.minval, pending, {index: 'lastSeen'})
                 .filter(function(doc) {
