@@ -452,7 +452,7 @@ router.post('/searchMailsInAccount', auth, function(req, res, next) {
     				'folder': r.table('folders').get(doc('folderId')).pluck('folderId', 'displayName'),
                     'account': r.table('accounts').get(doc('accountId')).merge(function(acc) {
                         return r.table('domains').get(acc('domainId')).pluck('domain')
-                    }).pluck('account', 'domain')
+                    }).pluck('accountId', 'account', 'domain')
     			}
     		})
     	})

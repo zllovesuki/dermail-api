@@ -66,19 +66,30 @@ discover().then(function(ip) {
                         return cursor.next(fetchNext);
                     }
 
-                    if (count === 0 && !ready) {
-                        return client.create({
+                    if (!ready) {
+                        return client.search({
                             index: 'messages',
-                            type: result.new_val.accountId,
-                            id: result.new_val.messageId,
-                            body: result.new_val
-                        }, function(error, response) {
-                            if (error) throw error;
-                            cursor.next(fetchNext);
+                            body: {
+                                query: {
+                                    match: {
+                                        _id: result.new_val.messageId
+                                    }
+                                }
+                            }
+                        }, function(err, res) {
+                            if (err) throw error;
+                            if (res.hits.total > 0) return cursor.next(fetchNext);
+                            return client.create({
+                                index: 'messages',
+                                type: result.new_val.accountId,
+                                id: result.new_val.messageId,
+                                body: result.new_val
+                            }, function(error, response) {
+                                if (error) throw error;
+                                cursor.next(fetchNext);
+                            })
                         })
                     }
-
-                    if (!ready) return cursor.next(fetchNext);
 
                     if (result.new_val === null && result.old_val !== null) {
                         // delete
