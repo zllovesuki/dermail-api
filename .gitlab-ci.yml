@@ -8,7 +8,7 @@ before_script:
   - apt-get update -qq && apt-get install -y -qq curl
   - npm install
   - npm install forever -g
-  - mkdir config
+  - mkdir -p config
   - cp .gitlab-ci.config.json config/config.json
 
 cache:
