@@ -318,7 +318,6 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
         .map(function(doc) {
             return doc.merge({
                 displayName: r.table('folders').get(doc('folderId'))('displayName'),
-                accountFlatFolders: r.table('folders').getAll(doc('accountId'), { index: 'accountId' }).coerceTo('array')
             })
         })
 	})
@@ -335,8 +334,13 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 	})
 	.then(function(p) {
 		return p
-        .pluck('messageId', '_messageId', 'folderId', 'displayName', 'accountFlatFolders', 'date', 'savedOn', 'to', 'from', 'accountId', 'subject', 'text', 'isRead', 'isStar')
+        .pluck('messageId', '_messageId', 'folderId', 'displayName', 'date', 'savedOn', 'to', 'from', 'accountId', 'subject', 'text', 'isRead', 'isStar')
         .limit(end)
+        .map(function(doc) {
+            return doc.merge({
+                accountFlatFolders: r.table('folders').getAll(doc('accountId'), { index: 'accountId' }).coerceTo('array')
+            })
+        })
 		.run(r.conn, {
             readMode: 'majority'
         })
