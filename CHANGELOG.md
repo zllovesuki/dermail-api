@@ -5,7 +5,7 @@
 ```javascript
 r.db('dermail').table("messages").indexDrop("savedOn")
 r.db('dermail').table("messages").indexCreate("folderSavedOn", function(row) {
-    return [row('folderId', row('savedOn'))]
+    return [row('folderId'), row('savedOn')]
 })
 ```
 
