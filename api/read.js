@@ -316,7 +316,10 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
             .and(r.expr(exclude).contains(doc('messageId')).not())
         })
         .map(function(doc) {
-            return doc.merge(r.table('folders').get(doc('folderId')).pluck('displayName'))
+            return doc.merge({
+                displayName: r.table('folders').get(doc('folderId'))('displayName'),
+                accountFlatFolders: r.table('folders').getAll(doc('accountId'), { index: 'accountId' }).coerceTo('array')
+            })
         })
 	})
     .then(function(p) {
@@ -332,7 +335,7 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 	})
 	.then(function(p) {
 		return p
-        .pluck('messageId', '_messageId', 'folderId', 'displayName', 'date', 'savedOn', 'to', 'from', 'accountId', 'subject', 'text', 'isRead', 'isStar')
+        .pluck('messageId', '_messageId', 'folderId', 'displayName', 'accountFlatFolders', 'date', 'savedOn', 'to', 'from', 'accountId', 'subject', 'text', 'isRead', 'isStar')
         .limit(end)
 		.run(r.conn, {
             readMode: 'majority'
@@ -376,29 +379,25 @@ router.post('/getMail', auth, function(req, res, next) {
 	.then(function() {
 		return r
 		.table('messages')
-		.getAll(messageId)
-        .eqJoin('folderId', r.table('folders'))
-		.pluck({
-            left: ['messageId', '_messageId', 'headers', 'date', 'to', 'from', 'cc', 'bcc', 'replyTo', 'accountId', 'subject', 'html', 'attachments', 'isRead', 'isStar', 'references', 'authentication_results', 'dkim', 'spf'],
-            right: ['folderId', 'displayName']
+		.get(messageId)
+        .merge(function(doc) {
+            return {
+                displayName: r.table('folders').get(doc('folderId'))('displayName'),
+                accountFlatFolders: r.table('folders').getAll(doc('accountId'), { index: 'accountId' }).coerceTo('array')
+            }
         })
-		.zip()
-		.map(function(doc) {
-            return doc.merge(function() {
-    			return {
-                    cc: r.branch(doc.hasFields('cc'), doc('cc'), []),
-    				bcc: r.branch(doc.hasFields('bcc'), doc('bcc'), [])
-    			}
-    		})
+		.pluck('messageId', '_messageId', 'accountFlatFolders', 'displayName', 'folderId', 'headers', 'date', 'to', 'from', 'cc', 'bcc', 'replyTo', 'accountId', 'subject', 'html', 'attachments', 'isRead', 'isStar', 'references', 'authentication_results', 'dkim', 'spf')
+        .merge(function(doc) {
+            return {
+                cc: r.branch(doc.hasFields('cc'), doc('cc'), []),
+                bcc: r.branch(doc.hasFields('bcc'), doc('bcc'), [])
+            }
         })
 		.run(r.conn, {
             readMode: 'majority'
         })
-        .then(function(cursor) {
-            return cursor.toArray()
-        })
-		.then(function(messages) {
-			return res.status(200).send(messages[0] || {});
+		.then(function(message) {
+			return res.status(200).send(message);
 		})
 		.error(function(e) {
 			return next(e);
@@ -422,16 +421,19 @@ router.post('/searchMailsInAccount', auth, function(req, res, next) {
 		return res.status(200).send([]); // Empty string gives empty result
 	}
 
-	if (req.user.accounts.indexOf(accountId) === -1) {
+	if (accountId !== 'unified' && req.user.accounts.indexOf(accountId) === -1) {
 		return res.status(200).send([]); // Early surrender: account does not belong to user
 	}
 
-    req.elasticsearch.search({
+    var searchObj = {
         q: searchString,
         index: 'messages',
-        type: accountId,
         storedFields: false
-    }, function(error, response) {
+    }
+
+    if (accountId !== 'unified') searchObj.type = accountId
+
+    req.elasticsearch.search(searchObj, function(error, response) {
         if (error) {
             return next(error);
         }
@@ -443,11 +445,14 @@ router.post('/searchMailsInAccount', auth, function(req, res, next) {
         .map(function(doc) {
     		return doc.merge(function() {
     			return {
-    				'folder': r.table('folders', {readMode: 'majority'}).get(doc('folderId')).pluck('folderId', 'displayName')
+    				'folder': r.table('folders').get(doc('folderId')).pluck('folderId', 'displayName'),
+                    'account': r.table('accounts').get(doc('accountId')).merge(function(acc) {
+                        return r.table('domains').get(acc('domainId')).pluck('domain')
+                    }).pluck('account', 'domain')
     			}
     		})
     	})
-        .pluck('subject', 'messageId', '_messageId', 'folder')
+        .pluck('subject', 'messageId', '_messageId', 'folder', 'account')
     	.run(r.conn)
     	.then(function(cursor) {
     		return cursor.toArray();
