@@ -267,7 +267,7 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 	var accountId = req.body.accountId;
 	var folderId = req.body.folderId;
 	var slice = (typeof req.body.slice === 'object' ? req.body.slice : {} );
-    var context = slice.context || [];
+    var context = slice.context || {};
 	var start = 0;
 	var end = slice.perPage || 5;
 	end = parseInt(end);
@@ -303,7 +303,6 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 
         var folderMap = {}
         var accountMap = {}
-        var contextMap = {}
         var complex = [];
         var includeFolderIds = []
 
@@ -311,9 +310,11 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
             if (typeof accountMap[folder.accountId] === 'undefined') {
                 accountMap[folder.accountId] = [];
             }
+            if (typeof context[folder.folderId] === 'undefined') {
+                context[folder.folderId] = r.maxval
+            }
             accountMap[folder.accountId].push(folder)
             folderMap[folder.folderId] = folder
-            contextMap[folder.folderId] = r.maxval
 
             if (accountId !=='unified' || folderId !== 'inbox') {
                 if (folder.folderId === folderId) {
@@ -328,10 +329,6 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 
         if (includeFolderIds.length === 0) return;
 
-        context.forEach(function(message) {
-            contextMap[message.folderId] = message.savedOn;
-        })
-
         for (var i = 0; i < includeFolderIds.length; i++) {
             complex.push({
                 left: [
@@ -340,7 +337,7 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
                 ],
                 right: [
                     includeFolderIds[i],
-                    contextMap[includeFolderIds[i]]
+                    context[includeFolderIds[i]]
                 ]
             })
         }
