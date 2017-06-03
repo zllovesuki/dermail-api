@@ -46,7 +46,6 @@ r.db('dermail').table("folders").indexCreate("accountId")
 r.db('dermail').table("messages").indexCreate("accountId")
 r.db('dermail').table("messages").indexCreate("folderId")
 r.db('dermail').table("messages").indexCreate("_messageId")
-r.db('dermail').table("messages").indexCreate("savedOn")
 r.db('dermail').table("queue").indexCreate("userId")
 r.db('dermail').table("filters").indexCreate("accountId")
 r.db('dermail').table("greylist").indexCreate("lastSeen")
@@ -55,6 +54,13 @@ r.db('dermail').table("greylist").indexCreate("lastSeen")
 Add secondary index of "folderId" and "isRead" to table "messages" as "unreadCount"
 ```javascript
 r.db('dermail').table('messages').indexCreate('unreadCount', [r.row('folderId'), r.row('isRead')])
+```
+
+Add secondary index of "folderSavedOn" to table "messages"
+```javascript
+r.db('dermail').table("messages").indexCreate("folderSavedOn", function(row) {
+    return [row('folderId', row('savedOn'))]
+})
 ```
 
 user and account mapping in "accounts"

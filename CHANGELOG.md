@@ -1,5 +1,14 @@
 ## Changelog
 
+06/02/2017: 5.7/5.8 -> 5.9
+1. Improved performance in getMailsInFolder(), but will require some database changes again:
+```javascript
+r.db('dermail').table("messages").indexDrop("savedOn")
+r.db('dermail').table("messages").indexCreate("folderSavedOn", function(row) {
+    return [row('folderId', row('savedOn'))]
+})
+```
+
 06/01/2017: 5.x -> 5.7
 1. unified inbox is supported. Please drop the old index and add the new one:
 ```javascript

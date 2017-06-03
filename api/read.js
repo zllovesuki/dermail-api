@@ -1,6 +1,8 @@
-var express = require('express'),
+var Promise = require('bluebird'),
+    express = require('express'),
 	router = express.Router(),
 	helper = require('../lib/helper'),
+    binarySearchInsert = require('binary-search-insert'),
 	crypto = require('crypto'),
 	Exception = require('../lib/error');
 
@@ -254,47 +256,35 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
 
 	var r = req.r;
 
-    var accounts = [];
+    var accountIds = [];
     var skipFolders = [
         'Spam',
         'Trash',
         'Sent'
     ]
-    var includeFolders = [];
     var starlight = [];
 
 	var accountId = req.body.accountId;
 	var folderId = req.body.folderId;
 	var slice = (typeof req.body.slice === 'object' ? req.body.slice : {} );
-    var lastDate = slice.savedOn || r.maxval;
+    var context = slice.context || [];
 	var start = 0;
 	var end = slice.perPage || 5;
 	end = parseInt(end);
 	var starOnly = !!slice.starOnly;
-    var exclude = slice.exclude || [];
 
-    var enforce = function() {
-        if (folderId !== 'inbox' && !folderId) {
-    		return Promise.reject(new Exception.Unauthorized('Folder ID Required.'));
-    	}
+    if (folderId !== 'inbox' && !folderId) {
+        return next(new Exception.Unauthorized('Folder ID Required.'));
+    }
 
-    	if (accountId !== 'unified' && req.user.accounts.indexOf(accountId) === -1) {
-    		return Promise.reject(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
-    	}
-        if (accountId !=='unified' || folderId !== 'inbox')
-            return helper.auth.accountFolderMapping(r, accountId, folderId)
-            .then(function(folder) {
-                includeFolders = [ folder.displayName ]
-                return folder
-            })
-        else
-            return Promise.resolve({});
+    if (accountId !== 'unified' && req.user.accounts.indexOf(accountId) === -1) {
+        return next(new Exception.Forbidden('Unspeakable horror.')); // Early surrender: account does not belong to user
     }
 
     if (accountId !=='unified' || folderId !== 'inbox') {
-        accounts = [ accountId ]
+        accountIds = [ accountId ]
     }else{
-        accounts = req.user.accounts
+        accountIds = req.user.accounts
     }
 
     if (starOnly) {
@@ -304,61 +294,97 @@ router.post('/getMailsInFolder', auth, function(req, res, next) {
         starlight.push(false)
     }
 
-	return enforce()
-	.then(function(folder) {
-		return r
-		.table('messages')
-        .between(r.minval, lastDate, { index: 'savedOn' })
-        .orderBy({index: r.desc('savedOn')})
-        .filter(function(doc) {
-            return r.expr(accounts).contains(doc('accountId'))
-            .and(r.expr(starlight).contains(doc('isStar')))
-            .and(r.expr(exclude).contains(doc('messageId')).not())
+    var sorted = [];
+
+    return helper.folder.getFoldersFromAccounts(r, accountIds)
+    .then(function(folders) {
+
+        if (folders.length === 0) return;
+
+        var folderMap = {}
+        var accountMap = {}
+        var contextMap = {}
+        var complex = [];
+        var includeFolderIds = []
+
+        folders.forEach(function(folder) {
+            if (typeof accountMap[folder.accountId] === 'undefined') {
+                accountMap[folder.accountId] = [];
+            }
+            accountMap[folder.accountId].push(folder)
+            folderMap[folder.folderId] = folder
+            contextMap[folder.folderId] = r.maxval
+
+            if (accountId !=='unified' || folderId !== 'inbox') {
+                if (folder.folderId === folderId) {
+                    includeFolderIds.push(folder.folderId)
+                }
+            }else{
+                if (skipFolders.indexOf(folder.displayName) < 0) {
+                    includeFolderIds.push(folder.folderId)
+                }
+            }
         })
-        .map(function(doc) {
-            return doc.merge({
-                displayName: r.table('folders').get(doc('folderId'))('displayName'),
-            })
+
+        if (includeFolderIds.length === 0) return;
+
+        context.forEach(function(message) {
+            contextMap[message.folderId] = message.savedOn;
         })
-	})
-    .then(function(p) {
-        if (accountId !=='unified' || folderId !== 'inbox') {
-            return p.filter(function(doc) {
-                return r.expr(includeFolders).contains(doc('displayName'))
-            })
-        }else{
-            return p.filter(function(doc) {
-                return r.expr(skipFolders).contains(doc('displayName')).not()
+
+        for (var i = 0; i < includeFolderIds.length; i++) {
+            complex.push({
+                left: [
+                    includeFolderIds[i],
+                    r.minval
+                ],
+                right: [
+                    includeFolderIds[i],
+                    contextMap[includeFolderIds[i]]
+                ]
             })
         }
-	})
-	.then(function(p) {
-		return p
-        .pluck('messageId', '_messageId', 'folderId', 'displayName', 'date', 'savedOn', 'to', 'from', 'accountId', 'subject', 'text', 'isRead', 'isStar')
-        .limit(end)
-        .map(function(doc) {
-            return doc.merge({
-                accountFlatFolders: r.table('folders').getAll(doc('accountId'), { index: 'accountId' }).coerceTo('array')
+
+        var arrayOfPromises = [];
+        for (var i = 0; i < complex.length; i++) {
+            arrayOfPromises.push(r.table('messages')
+            .between(r.expr(complex[i].left), r.expr(complex[i].right), { index: 'folderSavedOn' })
+            .orderBy({ index: r.desc('folderSavedOn') })
+            .filter(function(doc) {
+                return r.expr(starlight).contains(doc('isStar'))
             })
-        })
-		.run(r.conn, {
-            readMode: 'majority'
-        })
-		.then(function(cursor) {
-			return cursor.toArray();
-		})
-		.then(function(messages) {
-            return res.status(200).send(messages.map(function(message) {
-                message.text = message.text.slice(0, 100)
-                return message
-            }));
-		})
-		.error(function(e) {
-			req.log.error(e);
-			return res.status(200).send([]);
-		})
-	})
-	.catch(function(e) {
+            .pluck('messageId', '_messageId', 'folderId', 'date', 'savedOn', 'to', 'from', 'accountId', 'subject', 'text', 'isRead', 'isStar')
+            .slice(start, end)
+            .run(r.conn)
+            .then(function(cursor) {
+                var errorHandler = function(err) {
+                    if (((err.name === "ReqlDriverError") && err.message === "No more rows in the cursor.")) {
+                        return;
+                    }else{
+                        throw err;
+                    }
+                }
+                var fetchNext = function(message) {
+                    message.displayName = folderMap[message.folderId].displayName
+                    message.accountFlatFolders = accountMap[message.accountId]
+                    message.text = message.text.slice(0, 100)
+                    binarySearchInsert(sorted, function(a, b) {
+                        if (b.savedOn < a.savedOn) return -1;
+                        else if (b.savedOn > a.savedOn) return 1;
+                        else return 0
+                    }, message)
+                    cursor.next().then(fetchNext).error(errorHandler);
+                }
+                cursor.next().then(fetchNext).error(errorHandler);
+            }))
+        }
+
+        return Promise.all(arrayOfPromises)
+    })
+    .then(function() {
+        return res.status(200).send(sorted.slice(start, end))
+    })
+    .catch(function(e) {
 		return next(e);
 	})
 });
