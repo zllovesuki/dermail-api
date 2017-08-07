@@ -1,4 +1,5 @@
-var Promise = require('bluebird'),
+var Queue = require('rethinkdb-job-queue'),
+    Promise = require('bluebird'),
     r = require('rethinkdb'),
 	config = require('./config'),
     bunyan = require('bunyan'),
@@ -25,46 +26,79 @@ if (!!config.graylog) {
 var endpoint = false;
 var endpointChanged = false;
 
+var lastMessage = null;
+
 discover().then(function(ip) {
     if (ip !== null) {
         config.rethinkdb.host = ip
         endpoint = ip;
     }
-    r.connect(config.rethinkdb).then(function(conn) {
-        r.conn = conn;
 
-    	app.use(function(req, res, next) {
-            if (endpointChanged) {
-                return next(new Error('Endpoint changed.'))
-            }
-            Promise.all([
-                discover(),
-                r.table('domains', {
-                    readMode: 'majority'
-                }).run(r.conn)
-            ]).spread(function(ip, domains) {
-                if (endpoint !== false && ip !== endpoint) {
-                    endpointChanged = true;
-                    throw new Error('Endpoint changed.')
-                }
-                return res.status(200).send('ok')
-            }).catch(function(e) {
-                next(e)
+    var messageQ = new Queue(config.rethinkdb, {
+        name: 'healthCheckQueue'
+    });
+
+    var queueCounter = function() {
+        var job = messageQ.createJob({
+            type: 'test'
+        }).setTimeout(1 * 60 * 1000).setRetryMax(0);
+        return messageQ.addJob(job).then(function() {
+            setTimeout(queueCounter, 15 * 1000);
+        });
+    }
+
+    messageQ.ready().then(function() {
+        return messageQ.reset();
+    }).then(function() {
+        r.connect(config.rethinkdb).then(function(conn) {
+            r.conn = conn;
+
+            queueCounter();
+
+            messageQ.process(function(job, next) {
+                messageQ.removeJob(job);
+                lastMessage = new Date();
+                next();
             })
-    	});
 
-    	app.use(function(err, req, res, next) {
-    		res.status(err.status || 500);
-    		res.send({
-    			ok: false,
-    			errName: err.name,
-    			message: err.message
-    		});
-    	});
+        	app.use(function(req, res, next) {
+                if (endpointChanged) {
+                    return next(new Error('Endpoint changed.'))
+                }
+                discover().then(function(ip) {
+                    if (endpoint !== false && ip !== endpoint) {
+                        endpointChanged = true;
+                        throw new Error('Endpoint changed.')
+                    }
+                    if (lastMessage === null) {
+                        return res.status(200).send({})
+                    }
+                    var timeNow = new Date();
+                    if (timeNow.getTime() - lastMessage.getTime() > 30 * 1000) {
+                        throw new Error('Timeout!.')
+                    }
+                    return res.status(200).send({
+                        endpoint: ip,
+                        lastMessage
+                    })
+                }).catch(function(e) {
+                    next(e)
+                })
+        	});
 
-        app.listen(1999);
+        	app.use(function(err, req, res, next) {
+        		res.status(err.status || 500);
+        		res.send({
+        			ok: false,
+        			errName: err.name,
+        			message: err.message
+        		});
+        	});
 
-        log.info('Process ' + process.pid + ' is running as an API-Worker-Probe listening on port 1999.');
+            app.listen(1999);
 
+            log.info('Process ' + process.pid + ' is running as an API-Worker-Probe listening on port 1999.');
+
+        })
     })
 })
