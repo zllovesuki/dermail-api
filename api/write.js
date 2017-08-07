@@ -983,12 +983,21 @@ router.post('/updateAccount', auth, function(req, res, next) {
 router.post('/swActions', function(req, res, next) {
     var r = req.r;
     var config = req.config;
+    var messageQ = req.Q;
     try {
         var verify = jwt.decode(req.body.verify, config.jwt.secret)
         switch (req.body.action) {
             case 'read':
             return doUpdateMail(r, verify.messageId, verify.accountId, {
                 isRead: true
+            }).then(function() {
+                return helper.notification.queueNewMailNotification(r, messageQ, config, {
+                    push: false,
+                    remove: true,
+                    userId: verify.userId,
+                    accountId: verify.accountId,
+                    messageId: verify.messageId
+                });
             }).then(function() {
                 return res.status(200).send({});
             })

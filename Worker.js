@@ -429,7 +429,8 @@ discover().then(function(ip) {
                             if (folder !== null) {
                                 var encAction = {
                                     accountId: accountId,
-                                    messageId: messageId
+                                    messageId: messageId,
+                                    userId: userId
                                 }
                                 var now = new Date();
                                 encAction.iat = Math.round(now.getTime()/1000);
