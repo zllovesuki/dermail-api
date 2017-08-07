@@ -983,7 +983,7 @@ router.post('/updateAccount', auth, function(req, res, next) {
 router.post('/swActions', function(req, res, next) {
     var r = req.r;
     try {
-        var verify = jwt.decode(req.body.vetify, config.jwt.secret)
+        var verify = jwt.decode(req.body.verify, config.jwt.secret)
         switch (req.body.action) {
             case 'read':
             return doUpdateMail(r, verify.messageId, verify.accountId, {
