@@ -982,6 +982,7 @@ router.post('/updateAccount', auth, function(req, res, next) {
 
 router.post('/swActions', function(req, res, next) {
     var r = req.r;
+    var config = req.config;
     try {
         var verify = jwt.decode(req.body.verify, config.jwt.secret)
         switch (req.body.action) {
