@@ -1,5 +1,6 @@
 var Queue = require('rethinkdb-job-queue'),
 	Promise = require('bluebird'),
+    jwt = require('jwt-simple'),
 	config = require('./config'),
 	knox = require('knox'),
 	request = require('superagent'),
@@ -426,7 +427,16 @@ discover().then(function(ip) {
                         .then(function(folder) {
                             var payload;
                             if (folder !== null) {
+                                var encAction = {
+                                    accountId: accountId,
+                                    messageId: messageId
+                                }
+                                var now = new Date();
+                                encAction.iat = Math.round(now.getTime()/1000);
+                                now.setDate(now.getDate() + 7);
+                                encAction.exp = Math.round(now.getTime()/1000);
                                 payload = {
+                                    verify: jwt.encode(encAction, config.jwt.secret),
                                     push: notify,
                                     userId: userId,
                                     accountId: accountId,

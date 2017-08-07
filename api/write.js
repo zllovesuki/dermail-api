@@ -19,6 +19,7 @@ var invalidFolderDestination = [
     'sent'
 ];
 var express = require('express'),
+    jwt = require('jwt-simple'),
     router = express.Router(),
     passport = require('passport'),
     Promise = require('bluebird'),
@@ -977,6 +978,27 @@ router.post('/updateAccount', auth, function(req, res, next) {
         break;
     }
 
+})
+
+router.post('/swActions', function(req, res, next) {
+    var r = req.r;
+    try {
+        var verify = jwt.decode(req.body.vetify, config.jwt.secret)
+        switch (req.body.action) {
+            case 'read':
+            return doUpdateMail(r, verify.messageId, verify.accountId, {
+                isRead: true
+            }).then(function() {
+                return res.status(200).send({});
+            })
+            break;
+            default:
+            return res.status(200).send({});
+            break;
+        }
+    }catch(e) {
+        return next(e)
+    }
 })
 
 var batchMoveToTrashAndRemoveFolder = Promise.method(function(r, fromFolder, trashFolder) {
