@@ -992,7 +992,7 @@ router.post('/swActions', function(req, res, next) {
                 isRead: true
             }).then(function() {
                 return helper.notification.queueNewMailNotification(r, messageQ, config, {
-                    push: false,
+                    push: true,
                     remove: true,
                     userId: verify.userId,
                     accountId: verify.accountId,
