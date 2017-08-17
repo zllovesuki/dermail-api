@@ -12,4 +12,4 @@ RUN apk add --no-cache git make gcc g++ python libtool autoconf automake \
 
 ADD . /usr/src/app
 
-CMD ["pm2", "start", "Worker.json", "--no-daemon"]
+EXPOSE 1999 2000
