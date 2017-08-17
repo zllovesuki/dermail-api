@@ -1,4 +1,4 @@
-FROM mhart/alpine-node:8.0.0
+FROM mhart/alpine-node:8.4.0
 
 RUN npm install pm2 -g
 
