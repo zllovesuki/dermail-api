@@ -1,7 +1,7 @@
 var express = require('express'),
 	router = express.Router(),
 	jwt = require('jwt-simple'),
-	bcrypt = require("bcrypt"),
+	bcrypt = require("bcryptjs"),
 	helper = require('../lib/helper'),
 	Exception = require('../lib/error');
 
