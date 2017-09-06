@@ -6,7 +6,7 @@
 			"env_dev": {
 				"NODE_TLS_REJECT_UNAUTHORIZED": 0
 			},
-			"watch": true,
+			"watch": false,
 			"restart_delay": 5000,
             "max_memory_restart": "600M",
 			"exec_mode": "cluster",
@@ -15,21 +15,21 @@
         {
 			"name": "API-Worker-GC",
 			"script": "GC.js",
-			"watch": true,
+			"watch": false,
 			"restart_delay": 5000,
 			"exec_mode": "fork"
 		},
         {
 			"name": "API-Worker-Probe",
 			"script": "Probe.js",
-			"watch": true,
+			"watch": false,
 			"restart_delay": 5000,
 			"exec_mode": "fork"
 		},
         {
 			"name": "API-Queue-Master",
 			"script": "qMaster.js",
-			"watch": true,
+			"watch": false,
 			"restart_delay": 5000,
 			"exec_mode": "fork"
 		},

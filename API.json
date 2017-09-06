@@ -6,7 +6,7 @@
 			"env_dev": {
 				"env": "development"
 			},
-			"watch": true,
+			"watch": false,
 			"restart_delay": 5000,
             "max_memory_restart": "600M"
 		}
