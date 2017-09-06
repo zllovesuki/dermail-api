@@ -275,7 +275,7 @@ router.post('/updateFolder', auth, function(req, res, next) {
                 }
                 return r
                 .table('messages', {readMode: 'majority'})
-                .between([folderId, r.minval], [folderId, r.maxval], {index: 'folderSaved'})
+                .between([folderId, r.minval], [folderId, r.maxval], {index: 'folderSavedOn'})
                 .pluck('messageId', 'attachments')
                 .run(r.conn)
                 .then(function(cursor) {
@@ -1014,7 +1014,7 @@ router.post('/swActions', function(req, res, next) {
 var batchMoveToTrashAndRemoveFolder = Promise.method(function(r, fromFolder, trashFolder) {
     return r
     .table('messages', {readMode: 'majority'})
-    .between([fromFolder, r.minval], [fromFolder, r.maxval], {index: 'folderSaved'})
+    .between([fromFolder, r.minval], [fromFolder, r.maxval], {index: 'folderSavedOn'})
     .update({
         folderId: trashFolder
     })
