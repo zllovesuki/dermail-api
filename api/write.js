@@ -944,7 +944,7 @@ router.post('/updateAccount', auth, function(req, res, next) {
                     account: account,
                     addresses: [{
                         name: req.user.firstName + ' ' + req.user.lastName,
-                        address: [account, domain.main].join('@'),
+                        address: [account, domain.domain].join('@'),
                         isAlias: false
                     }]
                 })
