@@ -8,6 +8,17 @@ var Promise = require('bluebird'),
 
 var auth = helper.auth.middleware;
 
+router.get('/_ping', function(req, res, next) {
+    var messageQ = req.Q;
+    var job = messageQ.createJob({
+        type: 'ping'
+    }).setTimeout(15 * 60 * 1000).setRetryMax(50).setRetryDelay(2 * 1000)
+    return messageQ.addJob(job)
+    .then(function() {
+        res.status(200).send();
+    })
+})
+
 router.get('/ping', auth, function(req, res, next) {
 	return res.status(200).send('pong');
 });

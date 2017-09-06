@@ -261,6 +261,14 @@ discover().then(function(ip) {
 
             switch (type) {
 
+                case 'ping':
+
+                log.info({ message: 'Pong' })
+
+                callback();
+
+                break;
+
                 case 'processRaw':
 
                 var connection = data.connection;
@@ -631,15 +639,20 @@ discover().then(function(ip) {
                 .then(function(result) {
                     if (result !== null) {
                         return Promise.map(result.subscriptions, function(subscription) {
-                            return helper.notification.sendNotification(r, config.gcm_api_key, data, subscription);
+                            return helper.notification.sendNotification(r, config.gcm_api_key, data, subscription)
+                            .catch(function(e) {
+                                log.error({
+                                    message: 'Error on pushNotification',
+                                    data: data,
+                                    userId: userId,
+                                    subscription: subscription
+                                })
+                            })
                         }, { concurrency: 3 });
                     }
                 })
                 .then(function() {
                     return callback();
-                })
-                .catch(function(e) {
-                    return callback(e);
                 })
 
                 break;
