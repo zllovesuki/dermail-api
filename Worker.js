@@ -242,6 +242,10 @@ discover().then(function(ip) {
     }
 
     var startProcessing = function() {
+        subMessageQ.on('error', function(e) {
+            log.error({ message: 'Error thrown from Queue', error: '[' + e.name + '] ' + e.message, stack: e.stack })
+            process.exit(1);
+        })
         subMessageQ.process(function(job, done) {
             if (job.processCount - job.retryCount > 1) {
                 log.error({ message: 'Job ' + job.id + ' is a dup.' })

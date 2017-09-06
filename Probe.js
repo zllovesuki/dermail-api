@@ -25,6 +25,7 @@ if (!!config.graylog) {
 
 var endpoint = false;
 var endpointChanged = false;
+var forceExit = false;
 
 var lastMessage = null;
 
@@ -55,6 +56,11 @@ discover().then(function(ip) {
 
             queueCounter();
 
+            messageQ.on('error', function(e) {
+                log.error({ message: 'Error thrown from Queue', error: '[' + e.name + '] ' + e.message, stack: e.stack })
+                forceExit = true;
+            })
+
             messageQ.process(function(job, next) {
                 messageQ.removeJob(job);
                 lastMessage = new Date();
@@ -62,6 +68,9 @@ discover().then(function(ip) {
             })
 
         	app.use(function(req, res, next) {
+                if (forceExit) {
+                    return next(new Error('Queue error.'))
+                }
                 if (endpointChanged) {
                     return next(new Error('Endpoint changed.'))
                 }

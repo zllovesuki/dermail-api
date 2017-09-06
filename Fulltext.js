@@ -122,6 +122,10 @@ discover().then(function(ip) {
             	}
             	cursor.next(fetchNext);
             })
+            .catch(function(e) {
+                log.error({ message: 'Error thrown from Fulltext', error: '[' + e.name + '] ' + e.message, stack: e.stack })
+                process.exit(1)
+            })
         })
     })
 })
