@@ -61,7 +61,7 @@ discover().then(function(ip) {
                 if (now !== lastConnected) {
                     lastConnectedChanged = true;
                 }
-                setTimeout(compareTimeConnected, 1000 * 15);
+                setTimeout(compareTimeConnected, 1000 * 10);
             })
         }
 
