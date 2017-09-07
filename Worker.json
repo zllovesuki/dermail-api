@@ -8,9 +8,8 @@
 			},
 			"watch": false,
 			"restart_delay": 5000,
-            "max_memory_restart": "800M",
 			"exec_mode": "cluster",
-			"instances": 2
+			"instances": 1
 		},
         {
 			"name": "API-Worker-Probe",
