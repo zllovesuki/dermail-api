@@ -8,34 +8,13 @@
 			},
 			"watch": false,
 			"restart_delay": 5000,
-            "max_memory_restart": "600M",
+            "max_memory_restart": "800M",
 			"exec_mode": "cluster",
-			"instances": 4
-		},
-        {
-			"name": "API-Worker-GC",
-			"script": "GC.js",
-			"watch": false,
-			"restart_delay": 5000,
-			"exec_mode": "fork"
+			"instances": 2
 		},
         {
 			"name": "API-Worker-Probe",
 			"script": "Probe.js",
-			"watch": false,
-			"restart_delay": 5000,
-			"exec_mode": "fork"
-		},
-        {
-			"name": "API-Queue-Master",
-			"script": "qMaster.js",
-			"watch": false,
-			"restart_delay": 5000,
-			"exec_mode": "fork"
-		},
-        {
-			"name": "API-Fulltext",
-			"script": "Fulltext.js",
 			"watch": false,
 			"restart_delay": 5000,
 			"exec_mode": "fork"
