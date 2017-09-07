@@ -164,7 +164,7 @@ discover().then(function(ip) {
     var applyDefaultFilter = Promise.method(function(r, accountId, messageId, message) {
     	var dstFolderName = null;
     	var doNotNotify = false;
-        return helper.classifier.checkAccount(r. accountId)
+        return helper.classifier.checkAccount(r, accountId)
         .then(function(accountSetup) {
             if (!accountSetup) return null;
             return Promise.all([
