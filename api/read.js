@@ -98,6 +98,17 @@ router.get('/getAccounts', auth, function(req, res, next) {
             bayesEnabled: r.branch(doc.hasFields('bayesEnabled'), doc('bayesEnabled'), false)
 		}
 	})
+    .map(function(doc) {
+        return r.branch(
+            r.db('dermail').tableList().contains(doc('accountId').add('Store')),
+            doc.merge(function() {
+                return {
+                    trainLock: r.db('dermail').table(doc('accountId').add('Store')).get('trainLock')('value').default(false)
+                }
+            }),
+            doc
+        );
+    })
 	.run(r.conn, {
         readMode: 'majority'
     })

@@ -242,6 +242,16 @@ discover().then(function(ip) {
         })
     }
 
+    var sanityCheck = function() {
+        return r.table('messages').filter(function(doc) {
+            return doc.hasFields('savedOn').not()
+        }).update(function(doc) {
+            return {
+                savedOn: doc('date')
+            }
+        }).run(r.conn)
+    }
+
     var startProcessing = function() {
         subMessageQ.on('error', function(e) {
             log.error({ message: 'Error thrown from Queue', error: '[' + e.name + '] ' + e.message, stack: e.stack })
@@ -796,8 +806,9 @@ discover().then(function(ip) {
                         }
                         return Promise.all([
                             helper.classifier.getLastTrainedMailWasSavedOn(r, accountId),
-                            helper.classifier.getOwnAddresses(r, accountId)
-                        ]).spread(function(lastTrainedMailWasSavedOn, ownAddresses) {
+                            helper.classifier.getOwnAddresses(r, accountId),
+                            classifier.initCat(accountId)
+                        ]).spread(function(lastTrainedMailWasSavedOn, ownAddresses, init) {
                             job.addLog({
                                 lastTrainedMailWasSavedOn,
                                 ownAddresses
@@ -844,45 +855,52 @@ discover().then(function(ip) {
                                     }
                                 })
                             })
-                            .orderBy(r.desc('savedOn'))
                             .run(r.conn, {
                                 readMode: 'majority'
                             })
                             .then(function(cursor) {
-                                return cursor.toArray()
-                            })
-                            .then(function(results) {
-                                job.addLog(results.length + ' mails to be trained.')
-                                results = results.filter(function(doc) {
-                                    // we never train sent emails
-                                    return !!!doc.TXExtra
-                                })
-                                if (results.length === 0) {
-                                    log.info({ message: 'No new mails to be trained.' })
-                                    return helper.notification.sendAlert(r, userId, 'success', 'No new mails to be trained.')
+                                var newlastTrainedSavedOn = '0'; // implict string comparison
+                                var count = 0;
+                                var errorHandler = function(err) {
+                                    if (((err.name === "ReqlDriverError") && err.message === "No more rows in the cursor.")) {
+                                        if (count === 0) {
+                                            log.info({ message: 'No new mails to be trained.' })
+                                            return helper.notification.sendAlert(r, userId, 'success', 'No new mails to be trained.')
+                                            .then(attempReleaseLock)
+                                        }
+                                        return classifier.saveLastTrained(newlastTrainedSavedOn, accountId)
+                                        .then(function() {
+                                            log.info({ message: 'Bayesian filter trained with ' + (freshBayes ? '' : 'additional ') + count + ' mails.' })
+                                            return helper.notification.sendAlert(r, userId, 'success', 'Bayesian filter trained with ' + (freshBayes ? '' : 'additional ') + count + ' mails.')
+                                        })
+                                        .then(attempReleaseLock)
+                                        .catch(function(e) {
+                                            log.error({ message: 'trainBayes.fetchNext returns error, manual intervention may be required.', payload: data, error: '[' + e.name + '] ' + e.message, stack: e.stack })
+                                            return helper.notification.sendAlert(r, userId, 'error', 'trainBayes returns error, manual intervention may be required.')
+                                        })
+                                    }else{
+                                        throw err;
+                                    }
                                 }
-                                var newlastTrainedSavedOn = results[0].savedOnRaw;
-                                return classifier.initCat(accountId)
-                                .then(function() {
-                                    return Promise.mapSeries(results, function(mail) {
-                                        return classifier.learn(mail, ownAddresses, mail.displayName === 'Spam' ? 'Spam' : 'Ham', accountId)
+                                var attempReleaseLock = function() {
+                                    return helper.classifier.releaseLock(r, accountId)
+                                    .then(function(isRelease) {
+                                        if (!isRelease) {
+                                            return helper.notification.sendAlert(r, userId, 'error', 'Cannot release lock.')
+                                        }
                                     })
-                                })
-                                .then(function() {
-                                    return classifier.saveLastTrained(newlastTrainedSavedOn, accountId)
-                                })
-                                .then(function() {
-                                    log.info({ message: 'Bayesian filter trained with ' + (freshBayes ? '' : 'additional ') + results.length + ' mails.' })
-                                    return helper.notification.sendAlert(r, userId, 'success', 'Bayesian filter trained with ' + (freshBayes ? '' : 'additional ') + results.length + ' mails.')
-                                })
-                            })
-                            .then(function() {
-                                return helper.classifier.releaseLock(r, accountId);
-                            })
-                            .then(function(isRelease) {
-                                if (!isRelease) {
-                                    return helper.notification.sendAlert(r, userId, 'error', 'Cannot release lock.')
                                 }
+                                var fetchNext = function(mail) {
+                                    if (mail.TXExtra) return cursor.next().then(fetchNext).error(errorHandler);
+                                    if (mail.savedOnRaw > newlastTrainedSavedOn) newlastTrainedSavedOn = mail.savedOnRaw;
+                                    count++;
+
+                                    return classifier.learn(mail, ownAddresses, mail.displayName === 'Spam' ? 'Spam' : 'Ham', accountId)
+                                    .then(function() {
+                                        cursor.next().then(fetchNext).error(errorHandler);
+                                    })
+                                }
+                                cursor.next().then(fetchNext).error(errorHandler);
                             })
                         })
                     })
@@ -901,7 +919,7 @@ discover().then(function(ip) {
 
     r.connect(config.rethinkdb).then(function(conn) {
         r.conn = conn;
-        return classifier.init(r).then(function() {
+        return classifier.init(r).then(sanityCheck).then(function() {
 
         	log.info('Process ' + process.pid + ' is running as an API-Worker.');
 
