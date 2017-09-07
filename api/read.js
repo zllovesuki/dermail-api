@@ -94,7 +94,8 @@ router.get('/getAccounts', auth, function(req, res, next) {
 			domain: doc('domain'),
 			account: doc('account'),
 			alias: doc('alias'),
-			notify: r.branch(doc.hasFields('notify'), doc('notify'), true)
+			notify: r.branch(doc.hasFields('notify'), doc('notify'), true),
+            bayesEnabled: r.branch(doc.hasFields('bayesEnabled'), doc('bayesEnabled'), false)
 		}
 	})
 	.run(r.conn, {

@@ -164,15 +164,16 @@ discover().then(function(ip) {
     var applyDefaultFilter = Promise.method(function(r, accountId, messageId, message) {
     	var dstFolderName = null;
     	var doNotNotify = false;
-        return helper.auth.accountIdToUserId(r, accountId)
-        .then(function(userId) {
+        return helper.classifier.checkAccount(r. accountId)
+        .then(function(accountSetup) {
+            if (!accountSetup) return null;
             return Promise.all([
-                helper.classifier.getOwnAddresses(r),
-                helper.classifier.getLastTrainedMailWasSavedOn(r)
+                helper.classifier.getOwnAddresses(r, accountId),
+                helper.classifier.getLastTrainedMailWasSavedOn(r, accountId)
             ]).spread(function(ownAddresses, lastTrainedMailWasSavedOn) {
                 if (lastTrainedMailWasSavedOn === null) return null;
 
-                return classifier.categorize(message, ownAddresses, true)
+                return classifier.categorize(message, ownAddresses, true, accountId)
             })
         })
         .then(function(probs) {
@@ -585,6 +586,7 @@ discover().then(function(ip) {
                                 changeFrom: (data.changeFrom === 'Spam' ? 'Spam' : 'Ham'),
                                 changeTo: 'Undo',
                                 userId: data.userId,
+                                accountId: data.accountId,
                                 messages: mails,
                                 prefetch: true
                             }
@@ -665,77 +667,83 @@ discover().then(function(ip) {
 
                 // This requires more testing
 
+                var accountId = data.accountId;
                 var userId = data.userId;
                 var messages = data.messages;
                 var changeTo = data.changeTo;
                 var changeFrom = data.changeFrom;
                 var prefetch = (data.prefetch === true);
 
-                return helper.classifier.acquireLock(r, (new Date().toISOString())).then(function(isLocked) {
-                    if (!isLocked) {
-                        return helper.notification.sendAlert(r, userId, 'error', 'Cannot acquire lock.')
+                return helper.classifier.checkAccount(r, accountId, true).then(function(accountSetup) {
+                    if (!accountSetup) {
+                        return helper.notification.sendAlert(r, userId, 'log', 'Bayesian filter not enabled.')
                     }
-                    return Promise.all([
-                        helper.classifier.getLastTrainedMailWasSavedOn(r),
-                        helper.classifier.getOwnAddresses(r)
-                    ]).spread(function(lastTrainedMailWasSavedOn, ownAddresses) {
-                        if (lastTrainedMailWasSavedOn === null) {
-                            return helper.classifier.dne(r, userId)
+                    return helper.classifier.acquireLock(r, (new Date().toISOString()), accountId).then(function(isLocked) {
+                        if (!isLocked) {
+                            return helper.notification.sendAlert(r, userId, 'error', 'Cannot acquire lock.')
                         }
-                        var fetchMails = function() {
-                            if (prefetch) return Promise.resolve(messages)
-                            return getMails(messages)
-                        }
-                        return fetchMails()
-                        .then(function(mails) {
-                            return Promise.map(mails, function(mail) {
-                                // we never train sent emails
-                                if (!!mail.TXExtra) return;
-                                // newer emails will be trained with manual trigger
-                                if ( (new Date(mail.savedOn)) > (new Date(lastTrainedMailWasSavedOn)) ) return;
-                                switch (changeTo) {
-                                    case 'Spam':
-                                    log.info({ message: mail.messageId + ' will be trained as Spam instead' })
-                                    return classifier.unlearn(mail, ownAddresses, 'Ham')
-                                    .then(function() {
-                                        return classifier.learn(mail, ownAddresses, 'Spam')
-                                    })
-                                    break;
-
-                                    case 'Ham':
-                                    log.info({ message: mail.messageId + ' will be trained as Ham instead' })
-                                    return classifier.unlearn(mail, ownAddresses, 'Spam')
-                                    .then(function() {
-                                        return classifier.learn(mail, ownAddresses, 'Ham')
-                                    })
-                                    break;
-
-                                    case 'Undo':
-                                    log.info({ message: mail.messageId + ' will be unlearned from ' + changeFrom })
-                                    return classifier.unlearn(mail, ownAddresses, changeFrom)
-                                    break;
-
-                                    case 'Add':
-                                    log.info({ message: mail.messageId + ' will be trained as Ham' })
-                                    return classifier.learn(mail, ownAddresses, 'Ham')
-                                    break;
-
-                                    default:
-
-                                    break;
-                                }
-                            }, { concurrency: 5 })
-                        })
-                        .then(function() {
-                            return helper.notification.sendAlert(r, userId, 'success', 'Bayesian filter retrained.')
-                        })
-                        .then(function() {
-                            return helper.classifier.releaseLock(r);
-                        })
-                        .then(function(isRelease) {
-                            if (!isRelease) {
-                                return helper.notification.sendAlert(r, userId, 'error', 'Cannot release lock.')
+                        return Promise.all([
+                            helper.classifier.getLastTrainedMailWasSavedOn(r, accountId),
+                            helper.classifier.getOwnAddresses(r, accountId)
+                        ]).spread(function(lastTrainedMailWasSavedOn, ownAddresses) {
+                            if (lastTrainedMailWasSavedOn === null) {
+                                return helper.classifier.dne(r, userId)
                             }
+                            var fetchMails = function() {
+                                if (prefetch) return Promise.resolve(messages)
+                                return getMails(messages)
+                            }
+                            return fetchMails()
+                            .then(function(mails) {
+                                return Promise.map(mails, function(mail) {
+                                    // we never train sent emails
+                                    if (!!mail.TXExtra) return;
+                                    // newer emails will be trained with manual trigger
+                                    if ( (new Date(mail.savedOn)) > (new Date(lastTrainedMailWasSavedOn)) ) return;
+                                    switch (changeTo) {
+                                        case 'Spam':
+                                        log.info({ message: mail.messageId + ' will be trained as Spam instead' })
+                                        return classifier.unlearn(mail, ownAddresses, 'Ham', accountId)
+                                        .then(function() {
+                                            return classifier.learn(mail, ownAddresses, 'Spam', accountId)
+                                        })
+                                        break;
+
+                                        case 'Ham':
+                                        log.info({ message: mail.messageId + ' will be trained as Ham instead' })
+                                        return classifier.unlearn(mail, ownAddresses, 'Spam', accountId)
+                                        .then(function() {
+                                            return classifier.learn(mail, ownAddresses, 'Ham', accountId)
+                                        })
+                                        break;
+
+                                        case 'Undo':
+                                        log.info({ message: mail.messageId + ' will be unlearned from ' + changeFrom })
+                                        return classifier.unlearn(mail, ownAddresses, changeFrom, accountId)
+                                        break;
+
+                                        case 'Add':
+                                        log.info({ message: mail.messageId + ' will be trained as Ham' })
+                                        return classifier.learn(mail, ownAddresses, 'Ham', accountId)
+                                        break;
+
+                                        default:
+
+                                        break;
+                                    }
+                                }, { concurrency: 5 })
+                            })
+                            .then(function() {
+                                return helper.notification.sendAlert(r, userId, 'success', 'Bayesian filter retrained.')
+                            })
+                            .then(function() {
+                                return helper.classifier.releaseLock(r, accountId);
+                            })
+                            .then(function(isRelease) {
+                                if (!isRelease) {
+                                    return helper.notification.sendAlert(r, userId, 'error', 'Cannot release lock.')
+                                }
+                            })
                         })
                     })
                 })
@@ -752,89 +760,134 @@ discover().then(function(ip) {
                 case 'trainBayes':
 
                 var userId = data.userId;
+                var accountId = data.accountId;
 
-                return helper.classifier.acquireLock(r, (new Date().toISOString())).then(function(isLocked) {
-                    if (!isLocked) {
-                        return helper.notification.sendAlert(r, userId, 'error', 'Cannot acquire lock.')
-                    }
-                    return Promise.all([
-                        helper.classifier.getLastTrainedMailWasSavedOn(r),
-                        helper.classifier.getOwnAddresses(r)
-                    ]).spread(function(lastTrainedMailWasSavedOn, ownAddresses) {
-                        if (lastTrainedMailWasSavedOn === null) {
-                            return helper.classifier.dne(r, userId)
+                var freshBayes = false;
+
+                return r.db('rethinkdb')
+                .table('server_config')
+                .count()
+                .run(r.conn)
+                .then(function(serverCount) {
+                    job.addLog('Server count: ' + serverCount)
+                    return Promise.map(['Store', 'Frequency'], function(name) {
+                        return r.tableList()
+                        .contains(accountId + name)
+                        .do(function(tableExists) {
+                            return r.branch(
+                                tableExists,
+                                { tables_created: 0 },
+                                r.tableCreate(accountId + name, {
+                                    primaryKey: 'key',
+                                    shards: serverCount,
+                                    replicas: serverCount
+                                })
+                            )
+                        })
+                        .run(r.conn)
+                    }, { concurrency: 1 })
+                })
+                .then(function() {
+                    job.addLog('Tables created.')
+                    return helper.classifier.acquireLock(r, (new Date().toISOString()), accountId).then(function(isLocked) {
+                        job.addLog('Lock status: ' + isLocked)
+                        if (!isLocked) {
+                            return helper.notification.sendAlert(r, userId, 'error', 'Cannot acquire lock.')
                         }
-                        return r.table('messages')
-                        .map(function(doc) {
-                            return doc.merge(function() {
-                                return {
-                                    'savedOn': r.ISO8601(doc('savedOn')),
-                                    'savedOnRaw': doc('savedOn')
-                                }
+                        return Promise.all([
+                            helper.classifier.getLastTrainedMailWasSavedOn(r, accountId),
+                            helper.classifier.getOwnAddresses(r, accountId)
+                        ]).spread(function(lastTrainedMailWasSavedOn, ownAddresses) {
+                            job.addLog({
+                                lastTrainedMailWasSavedOn,
+                                ownAddresses
                             })
-                        })
-                        .filter(function(doc) {
-                            return doc('savedOn').gt(r.ISO8601(lastTrainedMailWasSavedOn))
-                        })
-                        .pluck('TXExtra', 'folderId', 'connection', 'replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'html', 'attachments', 'spf', 'dkim', 'savedOn', 'savedOnRaw')
-                        .eqJoin('folderId', r.table('folders'))
-                        .pluck({
-                            left: true,
-                            right: 'displayName'
-                        })
-                        .zip()
-                        .map(function(doc) {
-                            return doc.merge(function() {
-                                return {
-                                    cc: r.branch(doc.hasFields('cc'), doc('cc'), []),
-                                    bcc: r.branch(doc.hasFields('bcc'), doc('bcc'), []),
-                                    replyTo: r.branch(doc.hasFields('replyTo'), doc('replyTo'), [])
-                                }
-                            })
-                        })
-                        .orderBy(r.desc('savedOn'))
-                        .run(r.conn, {
-                            readMode: 'majority'
-                        })
-                        .then(function(cursor) {
-                            return cursor.toArray()
-                        })
-                        .then(function(results) {
-                            results = results.filter(function(doc) {
-                                // we never train sent emails
-                                return !!!doc.TXExtra
-                            })
-                            if (results.length === 0) {
-                                log.info({ message: 'No new mails to be trained.' })
-                                return helper.notification.sendAlert(r, userId, 'success', 'No new mails to be trained.')
+                            if (lastTrainedMailWasSavedOn === null) {
+                                freshBayes = true;
+                                helper.notification.sendAlert(r, userId, 'log', 'Fresh Bayesian filter, full retrain required.')
                             }
-                            var newlastTrainedSavedOn = results[0].savedOnRaw;
-                            return classifier.initCat()
-                            .then(function() {
-                                return Promise.mapSeries(results, function(mail) {
-                                    return classifier.learn(mail, ownAddresses, mail.displayName === 'Spam' ? 'Spam' : 'Ham')
+                            var constructor = function() {
+                                return r.table('messages')
+                                .getAll(accountId, { index: 'accountId' })
+                                .map(function(doc) {
+                                    return doc.merge(function() {
+                                        return {
+                                            'savedOn': r.ISO8601(doc('savedOn')),
+                                            'savedOnRaw': doc('savedOn')
+                                        }
+                                    })
+                                });
+                            }
+                            var checkSavedOn = function(c) {
+                                if (freshBayes) {
+                                    return constructor();
+                                }else{
+                                    return constructor().filter(function(doc) {
+                                        return doc('savedOn').gt(r.ISO8601(lastTrainedMailWasSavedOn))
+                                    })
+                                }
+                            }
+                            return checkSavedOn()
+                            .pluck('TXExtra', 'folderId', 'connection', 'replyTo', 'to', 'from', 'cc', 'bcc', 'headers', 'inReplyTo', 'subject', 'html', 'attachments', 'spf', 'dkim', 'savedOn', 'savedOnRaw')
+                            .eqJoin('folderId', r.table('folders'))
+                            .pluck({
+                                left: true,
+                                right: 'displayName'
+                            })
+                            .zip()
+                            .map(function(doc) {
+                                return doc.merge(function() {
+                                    return {
+                                        cc: r.branch(doc.hasFields('cc'), doc('cc'), []),
+                                        bcc: r.branch(doc.hasFields('bcc'), doc('bcc'), []),
+                                        replyTo: r.branch(doc.hasFields('replyTo'), doc('replyTo'), [])
+                                    }
+                                })
+                            })
+                            .orderBy(r.desc('savedOn'))
+                            .run(r.conn, {
+                                readMode: 'majority'
+                            })
+                            .then(function(cursor) {
+                                return cursor.toArray()
+                            })
+                            .then(function(results) {
+                                job.addLog(results.length + ' mails to be trained.')
+                                results = results.filter(function(doc) {
+                                    // we never train sent emails
+                                    return !!!doc.TXExtra
+                                })
+                                if (results.length === 0) {
+                                    log.info({ message: 'No new mails to be trained.' })
+                                    return helper.notification.sendAlert(r, userId, 'success', 'No new mails to be trained.')
+                                }
+                                var newlastTrainedSavedOn = results[0].savedOnRaw;
+                                return classifier.initCat(accountId)
+                                .then(function() {
+                                    return Promise.mapSeries(results, function(mail) {
+                                        return classifier.learn(mail, ownAddresses, mail.displayName === 'Spam' ? 'Spam' : 'Ham', accountId)
+                                    })
+                                })
+                                .then(function() {
+                                    return classifier.saveLastTrained(newlastTrainedSavedOn, accountId)
+                                })
+                                .then(function() {
+                                    log.info({ message: 'Bayesian filter trained with ' + (freshBayes ? '' : 'additional ') + results.length + ' mails.' })
+                                    return helper.notification.sendAlert(r, userId, 'success', 'Bayesian filter trained with ' + (freshBayes ? '' : 'additional ') + results.length + ' mails.')
                                 })
                             })
                             .then(function() {
-                                return classifier.saveLastTrained(newlastTrainedSavedOn)
+                                return helper.classifier.releaseLock(r, accountId);
                             })
-                            .then(function() {
-                                log.info({ message: 'Bayesian filter trained with additional ' + results.length + ' mails.' })
-                                return helper.notification.sendAlert(r, userId, 'success', 'Bayesian filter trained with additional ' + results.length + ' mails.')
+                            .then(function(isRelease) {
+                                if (!isRelease) {
+                                    return helper.notification.sendAlert(r, userId, 'error', 'Cannot release lock.')
+                                }
                             })
-                        })
-                        .then(function() {
-                            return helper.classifier.releaseLock(r);
-                        })
-                        .then(function(isRelease) {
-                            if (!isRelease) {
-                                return helper.notification.sendAlert(r, userId, 'error', 'Cannot release lock.')
-                            }
                         })
                     })
-                })
-                .catch(function(e) {
-                    log.error({ message: 'trainBayes returns error, manual intervention may be required.', payload: data, error: e })
+                }).catch(function(e) {
+                    log.error({ message: 'trainBayes returns error, manual intervention may be required.', payload: data, error: '[' + e.name + '] ' + e.message, stack: e.stack })
                     return helper.notification.sendAlert(r, userId, 'error', 'trainBayes returns error, manual intervention may be required.')
                 })
                 .then(function() {
@@ -847,8 +900,8 @@ discover().then(function(ip) {
     }
 
     r.connect(config.rethinkdb).then(function(conn) {
-        return classifier.init(conn).then(function() {
-            r.conn = conn;
+        r.conn = conn;
+        return classifier.init(r).then(function() {
 
         	log.info('Process ' + process.pid + ' is running as an API-Worker.');
 
