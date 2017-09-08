@@ -100,10 +100,10 @@ router.get('/getAccounts', auth, function(req, res, next) {
 	})
     .map(function(doc) {
         return r.branch(
-            r.db('dermail').tableList().contains(doc('accountId').add('Store')),
+            r.tableList().contains(doc('accountId').add('Store')),
             doc.merge(function() {
                 return {
-                    trainLock: r.db('dermail').table(doc('accountId').add('Store')).get('trainLock')('value').default(false)
+                    trainLock: r.table(doc('accountId').add('Store')).get('trainLock')('value').default(false)
                 }
             }),
             doc
@@ -213,7 +213,7 @@ router.post('/getUnreadCountInAccount', auth, function(req, res, next) {
     .map(function(doc) {
         return {
             folderId: doc('folderId'),
-            count: r.db('dermail').table('messages', {readMode: 'majority'}).getAll([doc('folderId'), false], {index: "unreadCount"}).count()
+            count: r.table('messages', {readMode: 'majority'}).getAll([doc('folderId'), false], {index: "unreadCount"}).count()
         }
     })
     .run(r.conn, {
@@ -533,7 +533,7 @@ router.post('/getAddress', auth, function(req, res, next) {
     .getAll(accountId, {
         index: 'accountId'
     })
-    .eqJoin('folderId', r.db('dermail').table('folders'))
+    .eqJoin('folderId', r.table('folders'))
     .zip()
     .filter(function(doc) {
         return r.not(r.expr(['Spam']).contains(doc('displayName')))
