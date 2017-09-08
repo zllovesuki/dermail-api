@@ -477,7 +477,7 @@ router.post('/searchMailsInAccount', auth, function(req, res, next) {
 
     var searchObj = {
         q: searchString,
-        index: userId,
+        index: userId.toLowerCase(),
         storedFields: false
     }
 
