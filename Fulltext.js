@@ -62,8 +62,8 @@ discover().then(function(ip) {
                     }else{
                         return helper.auth.accountIdToUserId(r, accountId)
                         .then(function(userId) {
-                            accountToUserMapping[accountId] = userId;
-                            return userId;
+                            accountToUserMapping[accountId] = userId.toLowerCase();
+                            return accountToUserMapping[accountId];
                         })
                     }
                 }
@@ -93,8 +93,14 @@ discover().then(function(ip) {
                                     }
                                 }
                             }, function(err, res) {
-                                if (err) throw error;
-                                if (res.hits.total > 0) return cursor.next(fetchNext);
+                                if (err) {
+                                    if (err.message.indexOf('index_not_found_exception') !== -1) {
+                                        // safely ignore
+                                    }else{
+                                        throw err;
+                                    }
+                                }
+                                if (res.hits && res.hits.total > 0) return cursor.next(fetchNext);
                                 return client.create({
                                     index: userId,
                                     type: result.new_val.accountId,
