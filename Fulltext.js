@@ -56,6 +56,18 @@ discover().then(function(ip) {
             })
             .run(r.conn)
             .then(function(cursor) {
+                var getUserId = function(accountId) {
+                    if (typeof accountToUserMapping[accountId] !== 'undefined') {
+                        return Promise.resolve(accountToUserMapping[accountId])
+                    }else{
+                        return helper.auth.accountIdToUserId(r, accountId)
+                        .then(function(userId) {
+                            accountToUserMapping[accountId] = userId;
+                            return userId;
+                        })
+                    }
+                }
+
                 var fetchNext = function(err, result) {
                     if (err) throw err;
 
@@ -67,18 +79,6 @@ discover().then(function(ip) {
                         ready = true;
                         log.info({ message: 'Feeds ready.' });
                         return cursor.next(fetchNext);
-                    }
-
-                    var getUserId = function(accountId) {
-                        if (typeof accountToUserMapping[accountId] !== 'undefined') {
-                            return Promise.resolve(accountToUserMapping[accountId])
-                        }else{
-                            return helper.auth.accountIdToUserId(r, accountId)
-                            .then(function(userId) {
-                                accountToUserMapping[accountId] = userId;
-                                return userId;
-                            })
-                        }
                     }
 
                     if (!ready) {
@@ -110,7 +110,7 @@ discover().then(function(ip) {
 
                     if (result.new_val === null && result.old_val !== null) {
                         // delete
-                        return getUserId(result.new_val.accountId).then(function(userId) {
+                        return getUserId(result.old_val.accountId).then(function(userId) {
                             return client.delete({
                                 index: userId,
                                 type: result.old_val.accountId,
