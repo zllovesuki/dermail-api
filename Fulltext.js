@@ -5,6 +5,7 @@ var Promise = require('bluebird'),
     bunyan = require('bunyan'),
 	stream = require('gelf-stream'),
     discover = require('./lib/discover'),
+    helper = require('./lib/helper'),
 	log;
 
 if (!!config.graylog) {
@@ -27,6 +28,8 @@ if (!config.elasticsearch) {
 }
 
 var ready = false;
+
+var accountToUserMapping = {};
 
 discover().then(function(ip) {
     if (ip !== null) config.rethinkdb.host = ip;
@@ -53,6 +56,18 @@ discover().then(function(ip) {
             })
             .run(r.conn)
             .then(function(cursor) {
+                var getUserId = function(accountId) {
+                    if (typeof accountToUserMapping[accountId] !== 'undefined') {
+                        return Promise.resolve(accountToUserMapping[accountId])
+                    }else{
+                        return helper.auth.accountIdToUserId(r, accountId)
+                        .then(function(userId) {
+                            accountToUserMapping[accountId] = userId.toLowerCase();
+                            return accountToUserMapping[accountId];
+                        })
+                    }
+                }
+
                 var fetchNext = function(err, result) {
                     if (err) throw err;
 
@@ -67,39 +82,49 @@ discover().then(function(ip) {
                     }
 
                     if (!ready) {
-                        return client.search({
-                            index: 'messages',
-                            body: {
-                                query: {
-                                    match: {
-                                        _id: result.new_val.messageId
+                        return getUserId(result.new_val.accountId).then(function(userId) {
+                            return client.search({
+                                index: userId,
+                                body: {
+                                    query: {
+                                        match: {
+                                            _id: result.new_val.messageId
+                                        }
                                     }
                                 }
-                            }
-                        }, function(err, res) {
-                            if (err) throw error;
-                            if (res.hits.total > 0) return cursor.next(fetchNext);
-                            return client.create({
-                                index: 'messages',
-                                type: result.new_val.accountId,
-                                id: result.new_val.messageId,
-                                body: result.new_val
-                            }, function(error, response) {
-                                if (error) throw error;
-                                cursor.next(fetchNext);
+                            }, function(err, res) {
+                                if (err) {
+                                    if (err.message.indexOf('index_not_found_exception') !== -1) {
+                                        // safely ignore
+                                    }else{
+                                        throw err;
+                                    }
+                                }
+                                if (res.hits && res.hits.total > 0) return cursor.next(fetchNext);
+                                return client.create({
+                                    index: userId,
+                                    type: result.new_val.accountId,
+                                    id: result.new_val.messageId,
+                                    body: result.new_val
+                                }, function(error, response) {
+                                    if (error) throw error;
+                                    cursor.next(fetchNext);
+                                })
                             })
                         })
                     }
 
                     if (result.new_val === null && result.old_val !== null) {
                         // delete
-                        return client.delete({
-                            index: 'messages',
-                            type: result.old_val.accountId,
-                            id: result.old_val.messageId
-                        }, function(error, response) {
-                            if (error) throw error;
-                            cursor.next(fetchNext);
+                        return getUserId(result.old_val.accountId).then(function(userId) {
+                            return client.delete({
+                                index: userId,
+                                type: result.old_val.accountId,
+                                id: result.old_val.messageId
+                            }, function(error, response) {
+                                if (error) throw error;
+                                cursor.next(fetchNext);
+                            })
                         })
                     }
                     if (result.new_val !== null && result.old_val !== null) {
@@ -109,14 +134,16 @@ discover().then(function(ip) {
                     }
                     if (result.new_val !== null && result.old_val === null) {
                         // create
-                        return client.create({
-                            index: 'messages',
-                            type: result.new_val.accountId,
-                            id: result.new_val.messageId,
-                            body: result.new_val
-                        }, function(error, response) {
-                            if (error) throw error;
-                            cursor.next(fetchNext);
+                        return getUserId(result.new_val.accountId).then(function(userId) {
+                            return client.create({
+                                index: userId,
+                                type: result.new_val.accountId,
+                                id: result.new_val.messageId,
+                                body: result.new_val
+                            }, function(error, response) {
+                                if (error) throw error;
+                                cursor.next(fetchNext);
+                            })
                         })
                     }
             	}

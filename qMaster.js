@@ -27,5 +27,10 @@ discover().then(function(ip) {
     	});
     }
 
+    messageQ.on('error', function(e) {
+        log.error({ message: 'Error thrown from Queue', error: '[' + e.name + '] ' + e.message, stack: e.stack })
+        process.exit(1)
+    })
+
     log.info('Process ' + process.pid + ' is running as Queue Master')
 })

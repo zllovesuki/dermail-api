@@ -78,37 +78,78 @@ router.get('/s3', auth, function(req, res, next) {
 
 router.get('/getAccounts', auth, function(req, res, next) {
 
-	var r = req.r;
+    var r = req.r;
 
-	var userId = req.user.userId;
+    var userId = req.user.userId;
 
-	return r
-	.table('accounts')
-	.getAll(userId, {index: 'userId'})
-	.eqJoin('domainId', r.table('domains'))
-	.zip()
-	.map(function(doc) {
-		return {
-			accountId: doc('accountId'),
-			domainId: doc('domainId'),
-			domain: doc('domain'),
-			account: doc('account'),
-			alias: doc('alias'),
-			notify: r.branch(doc.hasFields('notify'), doc('notify'), true)
-		}
-	})
-	.run(r.conn, {
-        readMode: 'majority'
-    })
-	.then(function(cursor) {
-		return cursor.toArray();
-	})
-	.then(function(accounts) {
-		return res.status(200).send(accounts);
-	})
-    .error(function(e) {
-		return next(e);
-	})
+    return r
+        .table('accounts')
+        .getAll(userId, {
+            index: 'userId'
+        })
+        .eqJoin('domainId', r.table('domains'))
+        .zip()
+        .map(function(doc) {
+            return {
+                accountId: doc('accountId'),
+                domainId: doc('domainId'),
+                domain: doc('domain'),
+                account: doc('account'),
+                alias: doc('alias'),
+                notify: r.branch(doc.hasFields('notify'), doc('notify'), true),
+                bayesEnabled: r.branch(doc.hasFields('bayesEnabled'), doc('bayesEnabled'), false)
+            }
+        })
+        .map(function(doc) {
+            return r.branch(
+                r.tableList().contains(doc('accountId').add('Store')),
+                doc.merge(function() {
+                    return {
+                        trainLock: r.table(doc('accountId').add('Store')).get('trainLock')('value').default(false)
+                    }
+                }),
+                doc
+            );
+        })
+        .map(function(doc) {
+            return r.branch(doc('bayesEnabled'),
+                doc.merge(function() {
+                    return {
+                        lastTrainedMailWasSavedOn: r.table(doc('accountId').add('Store')).get('lastTrainedMailWasSavedOn')('value').default('0')
+                    }
+                }),
+                doc
+            );
+        })
+        .map(function(doc) {
+            return r.branch(doc.hasFields('lastTrainedMailWasSavedOn'),
+                doc.merge(function() {
+                    return {
+                        untrainMailsCount: r.table('messages')
+                            .getAll(doc('accountId'), {
+                                index: 'accountId'
+                            })
+                            .filter(function(f) {
+                                return f('savedOn').gt(doc('lastTrainedMailWasSavedOn'))
+                            })
+                            .count()
+                    }
+                }),
+                doc
+            );
+        })
+        .run(r.conn, {
+            readMode: 'majority'
+        })
+        .then(function(cursor) {
+            return cursor.toArray();
+        })
+        .then(function(accounts) {
+            return res.status(200).send(accounts);
+        })
+        .error(function(e) {
+            return next(e);
+        })
 });
 
 router.post('/getAccount', auth, function(req, res, next) {
@@ -201,7 +242,7 @@ router.post('/getUnreadCountInAccount', auth, function(req, res, next) {
     .map(function(doc) {
         return {
             folderId: doc('folderId'),
-            count: r.db('dermail').table('messages', {readMode: 'majority'}).getAll([doc('folderId'), false], {index: "unreadCount"}).count()
+            count: r.table('messages', {readMode: 'majority'}).getAll([doc('folderId'), false], {index: "unreadCount"}).count()
         }
     })
     .run(r.conn, {
@@ -465,7 +506,7 @@ router.post('/searchMailsInAccount', auth, function(req, res, next) {
 
     var searchObj = {
         q: searchString,
-        index: 'messages',
+        index: userId.toLowerCase(),
         storedFields: false
     }
 
@@ -521,7 +562,7 @@ router.post('/getAddress', auth, function(req, res, next) {
     .getAll(accountId, {
         index: 'accountId'
     })
-    .eqJoin('folderId', r.db('dermail').table('folders'))
+    .eqJoin('folderId', r.table('folders'))
     .zip()
     .filter(function(doc) {
         return r.not(r.expr(['Spam']).contains(doc('displayName')))

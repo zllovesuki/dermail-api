@@ -28,12 +28,6 @@ r.db('dermail').tableCreate('users', {
 r.db('dermail').tableCreate('filters', {
   primaryKey: 'filterId'
 })
-r.db('dermail').tableCreate('bayesStore', {
-  primaryKey: 'key'
-})
-r.db('dermail').tableCreate('bayesFrequency', {
-  primaryKey: 'key'
-})
 r.db('dermail').tableCreate('greylist', {
   primaryKey: 'hash'
 })

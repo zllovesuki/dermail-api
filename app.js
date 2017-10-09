@@ -13,7 +13,6 @@ module.exports = function(r, ip2asn, endpoint) {
         Queue = require('rethinkdb-job-queue'),
 		app = express(),
         discover = require('./lib/discover'),
-		RateLimit = require('express-rate-limit'),
 		rx = require('./api/rx'),
         elasticsearch = require('elasticsearch'),
 		authentication = require('./api/authentication'),
@@ -96,17 +95,9 @@ module.exports = function(r, ip2asn, endpoint) {
         })
     });
 
-	var loginLimiter = new RateLimit({
-		windowMs: 60 * 60 * 1000, // 1 hour window
-		delayAfter: 3, // begin slowing down responses after three requests
-		delayMs: 3 * 1000, // slow down subsequent responses by 3 seconds per request
-		max: 10, // start blocking after 10 requests
-		message: "Too many login attempts from this IP, please try again after an hour."
-	});
-
 	var version = '/v' + config.apiVersion;
 
-	app.use(version + '/login', loginLimiter, jsonParser, authentication);
+	app.use(version + '/login', jsonParser, authentication);
 	app.use(version + '/rx', jsonParser, rx);
 
 	app.use(version + '/read', jsonParser, read);
