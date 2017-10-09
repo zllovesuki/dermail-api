@@ -384,9 +384,96 @@ router.post('/pushSubscriptions', auth, function(req, res, next) {
     var action = req.body.action;
     var payload = req.body.payload;
 
-    var object = JSON.parse(payload);
+    var object = {};
+
+    try {
+        object = JSON.parse(payload);
+    }catch(e) {
+        console.error(e)
+    }
 
     switch (action) {
+        case 'findPushover':
+        return r
+        .table('pushSubscriptions', {readMode: 'majority'})
+        .get(userId)
+        .run(r.conn)
+        .then(function(result) {
+            if (result === null) {
+                return res.status(200).send({})
+            }else{
+                var subscriptions = result.subscriptions.filter(function(f) {
+                    return (typeof f.token !== 'undefined' && typeof f.user !== 'undefined')
+                })
+                if (subscriptions.length === 1) {
+                    return res.status(200).send(subscriptions[0])
+                }else{
+                    return res.status(200).send({})
+                }
+            }
+        })
+        break;
+        case 'updatePushover':
+        return r
+        .table('pushSubscriptions', {readMode: 'majority'})
+        .get(userId)
+        .run(r.conn)
+        .then(function(result) {
+            if (result === null) {
+                return r
+                .table('pushSubscriptions')
+                .insert({
+                    userId: userId,
+                    subscriptions: [object]
+                })
+                .run(r.conn)
+                .then(function(result) {
+                    return res.status(200).send();
+                })
+            }else{
+                var subscriptions = result.subscriptions.filter(function(f) {
+                    return (typeof f.token !== 'undefined' && typeof f.user !== 'undefined')
+                })
+                if (subscriptions.length === 0) {
+                    // no pushover entry
+                    return r
+                    .table('pushSubscriptions', {readMode: 'majority'})
+                    .get(userId)
+                    .update({
+                        subscriptions: r.row('subscriptions').append(object)
+                    })
+                    .run(r.conn)
+                    .then(function(result) {
+                        return res.status(200).send();
+                    })
+                }else{
+                    // TODO: make it atomic
+                    var subscriptions = result.subscriptions.map(function(f) {
+                        if (typeof f.token !== 'undefined' && typeof f.user !== 'undefined') {
+                            if (object.token === '' && object.user === '') {
+                                return false
+                            }
+                            f.token = object.token
+                            f.user = object.user
+                            return f
+                        }else{
+                            return f
+                        }
+                    }).filter(Boolean)
+                    return r
+                    .table('pushSubscriptions', {readMode: 'majority'})
+                    .get(userId)
+                    .update({
+                        subscriptions: subscriptions
+                    })
+                    .run(r.conn)
+                    .then(function(result) {
+                        return res.status(200).send();
+                    })
+                }
+            }
+        })
+        break;
         case 'subscribe':
         return r
         .table('pushSubscriptions', {readMode: 'majority'})
