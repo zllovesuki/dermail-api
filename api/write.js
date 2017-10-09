@@ -434,7 +434,11 @@ router.post('/pushSubscriptions', auth, function(req, res, next) {
                 .run(r.conn)
                 .then(function(result) {
                     result = result.filter(function(f) {
-                        return f['endpoint'] !== object.endpoint;
+                        if (typeof object.token !== 'undefined' && typeof object.user !== 'undefined') {
+                            return f.token !== object.token && f.user !== object.user
+                        }else{
+                            return f.endpoint !== object.endpoint;
+                        }
                     })
                     return r.table('pushSubscriptions', {readMode: 'majority'})
                     .get(userId)
