@@ -85,6 +85,7 @@ discover().then(function(ip) {
                         return getUserId(result.new_val.accountId).then(function(userId) {
                             return client.get({
                                 index: userId,
+                                type: result.new_val.accountId,
                                 id: result.new_val.messageId,
                                 _source: false
                             }, function(err, res) {
