@@ -83,15 +83,10 @@ discover().then(function(ip) {
 
                     if (!ready) {
                         return getUserId(result.new_val.accountId).then(function(userId) {
-                            return client.search({
+                            return client.get({
                                 index: userId,
-                                body: {
-                                    query: {
-                                        match: {
-                                            _id: result.new_val.messageId
-                                        }
-                                    }
-                                }
+                                id: result.new_val.messageId,
+                                _source: false
                             }, function(err, res) {
                                 if (err) {
                                     if (err.message.indexOf('index_not_found_exception') !== -1) {
@@ -100,7 +95,7 @@ discover().then(function(ip) {
                                         throw err;
                                     }
                                 }
-                                if (res.hits && res.hits.total > 0) return cursor.next(fetchNext);
+                                if (res.found === true) return cursor.next(fetchNext);
                                 return client.create({
                                     index: userId,
                                     type: result.new_val.accountId,
