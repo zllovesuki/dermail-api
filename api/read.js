@@ -506,12 +506,12 @@ router.post('/searchMailsInAccount', auth, function(req, res, next) {
 
     var searchObj = {
         q: searchString,
-        index: [userId, '*'].join('_'),
+        index: [userId, '*'].join('_').toLowerCase(),
         type: 'messages',
         storedFields: false
     }
 
-    if (accountId !== 'unified') searchObj.type = [userId, accountId].join('_'),
+    if (accountId !== 'unified') searchObj.type = [userId, accountId].join('_').toLowerCase(),
 
     req.elasticsearch.search(searchObj, function(error, response) {
         if (error) {

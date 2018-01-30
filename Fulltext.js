@@ -86,7 +86,7 @@ discover().then(function(ip) {
                     if (!ready) {
                         return getUserId(result.new_val.accountId).then(function(userId) {
                             return client.get({
-                                index: [userId, result.new_val.accountId].join('_'),
+                                index: [userId, result.new_val.accountId].join('_').toLowerCase(),
                                 type: 'messages',
                                 id: result.new_val.messageId,
                                 _source: false
@@ -102,7 +102,7 @@ discover().then(function(ip) {
                                 }
                                 if (res.found === true) return cursor.next(fetchNext);
                                 return client.create({
-                                    index: [userId, result.new_val.accountId].join('_'),
+                                    index: [userId, result.new_val.accountId].join('_').toLowerCase(),
                                     type: 'messages',
                                     id: result.new_val.messageId,
                                     body: result.new_val
@@ -118,7 +118,7 @@ discover().then(function(ip) {
                         // delete
                         return getUserId(result.old_val.accountId).then(function(userId) {
                             return client.delete({
-                                index: [userId, result.old_val.accountId].join('_'),
+                                index: [userId, result.old_val.accountId].join('_').toLowerCase(),
                                 type: 'messages',
                                 id: result.old_val.messageId
                             }, function(error, response) {
@@ -136,7 +136,7 @@ discover().then(function(ip) {
                         // create
                         return getUserId(result.new_val.accountId).then(function(userId) {
                             return client.create({
-                                index: [userId, result.new_val.accountId].join('_'),
+                                index: [userId, result.new_val.accountId].join('_').toLowerCase(),
                                 type: 'messages',
                                 id: result.new_val.messageId,
                                 body: result.new_val
