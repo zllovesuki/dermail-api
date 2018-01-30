@@ -43,6 +43,8 @@ discover().then(function(ip) {
             requestTimeout: 1000 * 60 * 5
         });
 
+        // Elasticsearch does not allow multiple types in one indices...
+
         client.count(function (error, response, status) {
             var count = response.count;
 
@@ -84,8 +86,8 @@ discover().then(function(ip) {
                     if (!ready) {
                         return getUserId(result.new_val.accountId).then(function(userId) {
                             return client.get({
-                                index: userId,
-                                type: result.new_val.accountId,
+                                index: [userId, result.new_val.accountId].join('_'),
+                                type: 'messages',
                                 id: result.new_val.messageId,
                                 _source: false
                             }, function(err, res) {
@@ -100,8 +102,8 @@ discover().then(function(ip) {
                                 }
                                 if (res.found === true) return cursor.next(fetchNext);
                                 return client.create({
-                                    index: userId,
-                                    type: result.new_val.accountId,
+                                    index: [userId, result.new_val.accountId].join('_'),
+                                    type: 'messages',
                                     id: result.new_val.messageId,
                                     body: result.new_val
                                 }, function(error, response) {
@@ -116,8 +118,8 @@ discover().then(function(ip) {
                         // delete
                         return getUserId(result.old_val.accountId).then(function(userId) {
                             return client.delete({
-                                index: userId,
-                                type: result.old_val.accountId,
+                                index: [userId, result.old_val.accountId].join('_'),
+                                type: 'messages',
                                 id: result.old_val.messageId
                             }, function(error, response) {
                                 if (error) throw error;
@@ -134,8 +136,8 @@ discover().then(function(ip) {
                         // create
                         return getUserId(result.new_val.accountId).then(function(userId) {
                             return client.create({
-                                index: userId,
-                                type: result.new_val.accountId,
+                                index: [userId, result.new_val.accountId].join('_'),
+                                type: 'messages',
                                 id: result.new_val.messageId,
                                 body: result.new_val
                             }, function(error, response) {
