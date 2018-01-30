@@ -92,7 +92,9 @@ discover().then(function(ip) {
                                 if (err) {
                                     if (err.message.indexOf('index_not_found_exception') !== -1) {
                                         // safely ignore
-                                    }else{
+                                    }else if (res && res.found === false) {
+                                        // safely ignore
+                                    }else {
                                         throw err;
                                     }
                                 }
