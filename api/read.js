@@ -508,7 +508,7 @@ router.post('/searchMailsInAccount', auth, function(req, res, next) {
         q: searchString,
         index: [userId, '*'].join('_').toLowerCase(),
         type: 'messages',
-        storedFields: false
+        _source: false
     }
 
     if (accountId !== 'unified') searchObj.type = [userId, accountId].join('_').toLowerCase(),
