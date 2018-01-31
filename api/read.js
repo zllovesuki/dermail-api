@@ -511,7 +511,7 @@ router.post('/searchMailsInAccount', auth, function(req, res, next) {
         _source: false
     }
 
-    if (accountId !== 'unified') searchObj.type = [userId, accountId].join('_').toLowerCase(),
+    if (accountId !== 'unified') searchObj.index = [userId, accountId].join('_').toLowerCase(),
 
     req.elasticsearch.search(searchObj, function(error, response) {
         if (error) {
