@@ -30,7 +30,7 @@
     "glob-to-regexp": "^0.4.0",
     "html-to-text": "^4.0.0",
     "iconv": "^2.3.0",
-    "ip2asn": "0.0.4",
+    "ip2asn": "git+https://github.com/zllovesuki/ip2asn.git",
     "ipaddr.js": "^1.4.0",
     "jsonwebtoken": "^8.3.0",
     "jwt-simple": "^0.5.1",
