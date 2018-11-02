@@ -30,7 +30,7 @@ discover().then(function(ip) {
     }
     r.connect(config.rethinkdb).then(function(conn) {
         r.conn = conn;
-        var opts = {};
+        var opts = { url: 'https://dermail.objectstore.co/files/GeoIm2.zip' };
         ip2asn.lastUpdated(function(err, t) {
             if (err) {
                 log.error(e)
