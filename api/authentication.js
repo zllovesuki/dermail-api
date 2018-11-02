@@ -10,8 +10,6 @@ var auth = helper.auth.middleware;
 
 var loginLimiter = new RateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour window
-    delayAfter: 3, // begin slowing down responses after three requests
-    delayMs: 3 * 1000, // slow down subsequent responses by 3 seconds per request
     max: 10, // start blocking after 10 requests
     message: "Too many login attempts from this IP, please try again after an hour."
 });
